@@ -1,17 +1,10 @@
-## My Project
+# Welcome to your CDK TypeScript Construct Library project
 
-TODO: Fill this README out!
+You should explore the contents of this project. It demonstrates a CDK Construct Library that includes a construct (`OsmlCdkConstructs`)
+which contains an Amazon SQS queue that is subscribed to an Amazon SNS topic.
 
-Be sure to:
+## Useful commands
 
-* Change the title in this README
-* Edit your repository description on GitHub
-
-## Security
-
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
-
-## License
-
-This library is licensed under the MIT-0 License. See the LICENSE file.
-
+* `npm run build`   compile typescript to js
+* `npm run watch`   watch for changes and compile
+* `npm run test`    perform the jest unit tests
