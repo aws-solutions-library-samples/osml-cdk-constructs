@@ -50,7 +50,7 @@ export class MRTestingConfig {
     public ECR_FLOOD_MODEL_REPOSITORY = "flood-model-container",
     public ECR_AIRCRAFT_MODEL_REPOSITORY = "aircraft-model-container",
     // path to the control model source
-    public ECR_MODELS_PATH = "lib/models",
+    public ECR_MODELS_PATH = "lib/osml-models",
     // build target for control model container
     public ECR_MODEL_TARGET = "osml_model"
   ) {}

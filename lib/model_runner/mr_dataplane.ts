@@ -69,7 +69,7 @@ export class MRDataplaneConfig {
     // repository name for the model runner container
     public ECR_MODEL_RUNNER_REPOSITORY = "model-runner-container",
     // path to the local source for model runner to build against
-    public ECR_MODEL_RUNNER_PATH = "lib/model_runner",
+    public ECR_MODEL_RUNNER_PATH = "lib/osml-model-runner",
     // build target for model runner container
     public ECR_MODEL_RUNNER_TARGET = "model_runner"
   ) {}
