@@ -6,6 +6,8 @@
       "es2020"
     ],
     "declaration": true,
+    "outDir": "./dist/lib",
+    "declarationDir": "./dist/types",
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
