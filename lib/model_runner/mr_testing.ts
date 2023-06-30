@@ -46,9 +46,7 @@ export class MRTestingConfig {
     public S3_TEST_IMAGES_PATH = "assets/images",
 
     // ecr repo names
-    public ECR_CENTERPOINT_MODEL_REPOSITORY = "centerpoint-model-container",
-    public ECR_FLOOD_MODEL_REPOSITORY = "flood-model-container",
-    public ECR_AIRCRAFT_MODEL_REPOSITORY = "aircraft-model-container",
+    public ECR_MODEL_REPOSITORY = "model-container",
     // path to the control model source
     public ECR_MODELS_PATH = "lib/osml-models",
     // build target for control model container
@@ -70,9 +68,7 @@ export interface MRTestingProps {
   // optional sage maker iam role to use for endpoint construction - will be defaulted if not provided
   smRole?: IRole;
   // optional custom model container ECR URIs
-  centerpointModelUri?: string;
-  floodModelUri?: string;
-  aircraftModelUri?: string;
+  modelContainerUri?: string;
 
   // optional deploy custom model resources
   deployCenterpointModel?: boolean;
@@ -84,20 +80,16 @@ export class MRTesting extends Construct {
   public resultsBucket: OSMLBucket;
   public imageBucket: OSMLBucket;
   public resultStream: Stream;
-  public centerPointModelEndpoint: OSMLSMEndpoint;
-  public centerPointModelRepository: OSMLRepository;
-  public centerPointModelImageAsset: string;
-  public floodModelRepository: OSMLRepository;
-  public floodModelImageAsset: string;
-  public floodModelEndpoint: OSMLSMEndpoint;
-  public aircraftModelRepository: OSMLRepository;
-  public aircraftModelImageAsset: string;
-  public aircraftModelEndpoint: OSMLSMEndpoint;
+  public modelContainerUri: string;
   public imageStatusQueue: OSMLQueue;
   public regionStatusQueue: OSMLQueue;
   public removalPolicy: RemovalPolicy;
-  public smRole?: IRole;
   public mrTestingConfig: MRTestingConfig;
+  public smRole?: IRole;
+  public modelRepository?: OSMLRepository;
+  public centerPointModelEndpoint?: OSMLSMEndpoint;
+  public floodModelEndpoint?: OSMLSMEndpoint;
+  public aircraftModelEndpoint?: OSMLSMEndpoint;
 
   /**
    * Creates an MRTesting construct.
@@ -166,41 +158,43 @@ export class MRTesting extends Construct {
       }).role;
     }
 
-    if (props.deployCenterpointModel != false) {
-      if (props.centerpointModelUri != undefined) {
+    if (props.deployCenterpointModel != false
+      || props.deployAircraftModel != false
+      || props.deployFloodModel != false
+    ) {
+      if (props.modelContainerUri != undefined) {
         // import the image asset passed in
-        this.centerPointModelImageAsset = props.centerpointModelUri;
+        this.modelContainerUri = props.modelContainerUri;
       } else {
         // build a new repository for the centerpoint model
-        this.centerPointModelRepository = new OSMLRepository(
+        this.modelRepository = new OSMLRepository(
           this,
           "MRCenterpointModelRepository",
           {
             repositoryName:
-              this.mrTestingConfig.ECR_CENTERPOINT_MODEL_REPOSITORY,
+            this.mrTestingConfig.ECR_MODEL_REPOSITORY,
             removalPolicy: this.removalPolicy
           }
         );
-
-        // build and deploy centerpoint model container to target repo
-        this.centerPointModelImageAsset = new OSMLECRContainer(
+        this.modelContainerUri = new OSMLECRContainer(
           this,
-          "MRCenterPointModelContainer",
+          "OSMLModelContainer",
           {
             directory: this.mrTestingConfig.ECR_MODELS_PATH,
+            file: "Dockerfile",
             target: this.mrTestingConfig.ECR_MODEL_TARGET,
-            repository: this.centerPointModelRepository.repository,
-            buildArgs: { MODEL_SELECTION: "centerpoint" }
+            repository: this.modelRepository.repository
           }
         ).imageAsset.imageUri;
       }
-
+    }
+    if (props.deployCenterpointModel != false) {
       // build an SM endpoint from the centerpoint model container
       this.centerPointModelEndpoint = new OSMLSMEndpoint(
         this,
         "OSMLCenterPointModelEndpoint",
         {
-          modelContainerUri: this.centerPointModelImageAsset,
+          modelContainerUri: this.modelContainerUri,
           modelName: this.mrTestingConfig.SM_CENTER_POINT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -212,39 +206,12 @@ export class MRTesting extends Construct {
     }
 
     if (props.deployFloodModel != false) {
-      if (props.floodModelUri != undefined) {
-        // import the image asset passed in
-        this.floodModelImageAsset = props.floodModelUri;
-      } else {
-        // build a new repository for the flood model
-        this.floodModelRepository = new OSMLRepository(
-          this,
-          "MRFloodModelRepository",
-          {
-            repositoryName: this.mrTestingConfig.ECR_FLOOD_MODEL_REPOSITORY,
-            removalPolicy: this.removalPolicy
-          }
-        );
-
-        // build and deploy flood model container to target repo
-        this.floodModelImageAsset = new OSMLECRContainer(
-          this,
-          "MRFloodModelContainer",
-          {
-            directory: this.mrTestingConfig.ECR_MODELS_PATH,
-            target: this.mrTestingConfig.ECR_MODEL_TARGET,
-            repository: this.floodModelRepository.repository,
-            buildArgs: { MODEL_SELECTION: "flood" }
-          }
-        ).imageAsset.imageUri;
-      }
-
       // build an SM endpoint from the flood model container
       this.floodModelEndpoint = new OSMLSMEndpoint(
         this,
         "OSMLFloodModelEndpoint",
         {
-          modelContainerUri: this.floodModelImageAsset,
+          modelContainerUri: this.modelContainerUri,
           modelName: this.mrTestingConfig.SM_FLOOD_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -256,39 +223,12 @@ export class MRTesting extends Construct {
     }
 
     if (props.deployAircraftModel != false) {
-      if (props.aircraftModelUri != undefined) {
-        // import the image asset passed in
-        this.aircraftModelImageAsset = props.aircraftModelUri;
-      } else {
-        // build a new repository for the aircraft model
-        this.aircraftModelRepository = new OSMLRepository(
-          this,
-          "MRAircraftModelRepository",
-          {
-            repositoryName: this.mrTestingConfig.ECR_AIRCRAFT_MODEL_REPOSITORY,
-            removalPolicy: this.removalPolicy
-          }
-        );
-
-        // build and deploy aicraft model container to target repo
-        this.aircraftModelImageAsset = new OSMLECRContainer(
-          this,
-          "MRAircraftModelContainer",
-          {
-            directory: this.mrTestingConfig.ECR_MODELS_PATH,
-            target: this.mrTestingConfig.ECR_MODEL_TARGET,
-            repository: this.aircraftModelRepository.repository,
-            buildArgs: { MODEL_SELECTION: "aircraft" }
-          }
-        ).imageAsset.imageUri;
-      }
-
       // build an SM endpoint from the aircraft model container
       this.aircraftModelEndpoint = new OSMLSMEndpoint(
         this,
         "OSMLAircraftModelEndpoint",
         {
-          modelContainerUri: this.aircraftModelImageAsset,
+          modelContainerUri: this.modelContainerUri,
           modelName: this.mrTestingConfig.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_GPU_INSTANCE_TYPE,

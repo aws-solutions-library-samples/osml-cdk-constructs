@@ -10,8 +10,10 @@ import { DockerImageName, ECRDeployment } from "cdk-ecr-deployment";
 import { Construct } from "constructs";
 
 export interface OSMLECRContainerProps {
-  // the directory containing the docker image asset to deploy w/ Dockerfile present
+  // the directory to run the docker build command in
   directory: string;
+  // the Docker file to use for the docker build command relative to the dir
+  file: string;
   // the stage/target of the Dockerbuild file
   target: string;
   // custom docker image asset to build
@@ -47,6 +49,7 @@ export class OSMLECRContainer extends Construct {
       // build the docker image assets
       this.imageAsset = new DockerImageAsset(this, id, {
         directory: props.directory,
+        file: props.file,
         followSymlinks: SymlinkFollowMode.ALWAYS,
         target: props.target,
         buildArgs: props.buildArgs
