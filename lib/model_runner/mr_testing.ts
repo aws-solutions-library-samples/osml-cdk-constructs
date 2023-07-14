@@ -158,24 +158,20 @@ export class MRTesting extends Construct {
       }).role;
     }
 
-    if (props.deployCenterpointModel != false
-      || props.deployAircraftModel != false
-      || props.deployFloodModel != false
+    if (
+      props.deployCenterpointModel != false ||
+      props.deployAircraftModel != false ||
+      props.deployFloodModel != false
     ) {
       if (props.modelContainerUri != undefined) {
         // import the image asset passed in
         this.modelContainerUri = props.modelContainerUri;
       } else {
         // build a new repository for the test model
-        this.modelRepository = new OSMLRepository(
-          this,
-          "MRModelRepository",
-          {
-            repositoryName:
-            this.mrTestingConfig.ECR_MODEL_REPOSITORY,
-            removalPolicy: this.removalPolicy
-          }
-        );
+        this.modelRepository = new OSMLRepository(this, "MRModelRepository", {
+          repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
+          removalPolicy: this.removalPolicy
+        });
         this.modelContainerUri = new OSMLECRContainer(
           this,
           "OSMLModelContainer",

@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "jest"
+    "test": "jest",
+    "lint": "pre-commit run --all-files"
   },
   "devDependencies": {
     "@cdklabs/cdk-enterprise-iac": "^0.0.303",

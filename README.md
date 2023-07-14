@@ -7,7 +7,7 @@ You should explore the contents of this project. It demonstrates a CDK Construct
 * [Support & Feedback](#support--feedback)
 * [Security](#security)
 * [License](#license)
-  
+
 ## Useful commands
 
 * `npm run build`   compile typescript to js
