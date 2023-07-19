@@ -138,6 +138,10 @@ export class MRDataplane extends Construct {
    */
   constructor(scope: Construct, id: string, props: MRDataplaneProps) {
     super(scope, id);
+    // setup a removal policy
+    this.removalPolicy = props.account.prodLike
+      ? RemovalPolicy.RETAIN
+      : RemovalPolicy.DESTROY;
 
     // check if a custom configuration was provided
     if (props.dataplaneConfig != undefined) {
@@ -185,11 +189,6 @@ export class MRDataplane extends Construct {
       props.account.region,
       region_info.FactName.servicePrincipal("s3.amazonaws.com")
     )!;
-
-    // setup a removal policy
-    this.removalPolicy = props.account.prodLike
-      ? RemovalPolicy.RETAIN
-      : RemovalPolicy.DESTROY;
 
     // build a VPC to house containers and services
     this.vpc = new OSMLVpc(this, "MRVPC", {
