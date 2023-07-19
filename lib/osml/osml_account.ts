@@ -12,6 +12,7 @@
  * @property {boolean} enableAutoscaling - whether to enable pre-build autoscaling on the FargateService
  * @property {boolean} enableMonitoring - whether to enable CloudWatch monitoring and dashboards
  * @property {boolean} enableTesting - whether to enable the deployment of test resources
+ * @property {string} isDev - if true build local submodules from source
  * @property {boolean} isAdc - whether the account is in an isolated or non-standard region
  * @property {string} vpcId - pre-existing VPC id to use- if one is not provided a new VPC will be created
  */
@@ -24,6 +25,7 @@ export interface OSMLAccount {
   enableMonitoring?: boolean;
   enableTesting?: boolean;
   isAdc?: boolean;
+  isDev?: boolean;
   vpcId?: string;
   mrTerrainUri?: string;
 }
