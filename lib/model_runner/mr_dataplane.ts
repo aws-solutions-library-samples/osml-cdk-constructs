@@ -69,7 +69,7 @@ export class MRDataplaneConfig {
     // repository name for the model runner container
     public ECR_MODEL_RUNNER_REPOSITORY = "model-runner-container",
     // path to the local source for model runner to build against
-    public ECR_MODEL_RUNNER_BUILD_PATH = "lib",
+    public ECR_MODEL_RUNNER_BUILD_PATH = "lib/osml-model-runner",
     // build target for model runner container
     public ECR_MODEL_RUNNER_TARGET = "model_runner"
   ) {}
@@ -176,7 +176,7 @@ export class MRDataplane extends Construct {
         directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
         target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET,
         repository: this.mrRepository.repository,
-        file: "osml-model-runner/Dockerfile"
+        file: "Dockerfile"
       }).containerImage;
     }
 
