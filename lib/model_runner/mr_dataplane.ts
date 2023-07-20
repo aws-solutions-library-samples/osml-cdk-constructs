@@ -66,6 +66,7 @@ export class MRDataplaneConfig {
     public MR_LOGGING_CPU = 512,
     public MR_WORKERS_PER_CPU = 1,
     public MR_REGION_SIZE = "(2048, 2048)",
+    public MR_DEFAULT_CONTAINER = "ghcr.io/aws-solutions-library-samples/osml-model-runner:main",
     // repository name for the model runner container
     public ECR_MODEL_RUNNER_REPOSITORY = "model-runner-container",
     // path to the local source for model runner to build against
@@ -169,19 +170,33 @@ export class MRDataplane extends Construct {
       // import the passed image
       this.mrContainer = props.mrImage;
     } else {
-      // build an ECR repo for the model runner container
-      this.mrRepository = new OSMLRepository(this, "MRModelRunnerRepository", {
-        repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
-        removalPolicy: this.removalPolicy
-      });
+      if (props.account.isDev == true) {
+        // build an ECR repo for the model runner container
+        this.mrRepository = new OSMLRepository(
+          this,
+          "MRModelRunnerRepository",
+          {
+            repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
+            removalPolicy: this.removalPolicy
+          }
+        );
 
-      // build and deploy model runner container to target repo
-      this.mrContainer = new OSMLECRContainer(this, "MRModelRunnerContainer", {
-        directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
-        target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET,
-        repository: this.mrRepository.repository,
-        file: "Dockerfile"
-      }).containerImage;
+        // build and deploy model runner container to target repo
+        this.mrContainer = new OSMLECRContainer(
+          this,
+          "MRModelRunnerContainer",
+          {
+            directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
+            target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET,
+            repository: this.mrRepository.repository,
+            file: "Dockerfile"
+          }
+        ).containerImage;
+      } else {
+        this.mrContainer = ContainerImage.fromRegistry(
+          this.mrDataplaneConfig.MR_DEFAULT_CONTAINER
+        );
+      }
     }
 
     // set up a regional s3 endpoint for GDAL to use
