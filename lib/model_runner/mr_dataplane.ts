@@ -66,7 +66,7 @@ export class MRDataplaneConfig {
     public MR_LOGGING_CPU = 512,
     public MR_WORKERS_PER_CPU = 1,
     public MR_REGION_SIZE = "(2048, 2048)",
-    public MR_DEFAULT_CONTAINER = "ghcr.io/aws-solutions-library-samples/osml-model-runner:main",
+    public MR_DEFAULT_CONTAINER = "awsosml/osml-model-runner:main",
     // repository name for the model runner container
     public ECR_MODEL_RUNNER_REPOSITORY = "model-runner-container",
     // path to the local source for model runner to build against
