@@ -47,7 +47,7 @@ export class OSMLSMEndpoint extends Construct {
   constructor(scope: Construct, id: string, props: OSMLSMEndpointProps) {
     super(scope, id);
     const vpcSubnetSelection = props.vpc.selectSubnets({
-      subnetType: SubnetType.PRIVATE_ISOLATED
+      subnetType: SubnetType.PRIVATE_WITH_EGRESS
     });
 
     this.model = new CfnModel(this, id, {
