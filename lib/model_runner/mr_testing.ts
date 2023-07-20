@@ -45,6 +45,7 @@ export class MRTestingConfig {
     // path to test images
     public S3_TEST_IMAGES_PATH = "assets/images",
 
+    public MODEL_DEFAULT_CONTAINER = "awsosml/osml-models:main",
     // ecr repo names
     public ECR_MODEL_REPOSITORY = "model-container",
     // path to the control model source
@@ -68,7 +69,7 @@ export interface MRTestingProps {
   // optional sage maker iam role to use for endpoint construction - will be defaulted if not provided
   smRole?: IRole;
   // optional custom model container ECR URIs
-  modelContainerUri?: string;
+  modelContainer?: string;
 
   // optional deploy custom model resources
   deployCenterpointModel?: boolean;
@@ -80,7 +81,7 @@ export class MRTesting extends Construct {
   public resultsBucket: OSMLBucket;
   public imageBucket: OSMLBucket;
   public resultStream: Stream;
-  public modelContainerUri: string;
+  public modelContainer: string;
   public imageStatusQueue: OSMLQueue;
   public regionStatusQueue: OSMLQueue;
   public removalPolicy: RemovalPolicy;
@@ -163,25 +164,29 @@ export class MRTesting extends Construct {
       props.deployAircraftModel != false ||
       props.deployFloodModel != false
     ) {
-      if (props.modelContainerUri != undefined) {
+      if (props.modelContainer != undefined) {
         // import the image asset passed in
-        this.modelContainerUri = props.modelContainerUri;
+        this.modelContainer = props.modelContainer;
       } else {
-        // build a new repository for the test model
-        this.modelRepository = new OSMLRepository(this, "MRModelRepository", {
-          repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
-          removalPolicy: this.removalPolicy
-        });
-        this.modelContainerUri = new OSMLECRContainer(
-          this,
-          "OSMLModelContainer",
-          {
-            directory: this.mrTestingConfig.ECR_MODELS_PATH,
-            file: "Dockerfile",
-            target: this.mrTestingConfig.ECR_MODEL_TARGET,
-            repository: this.modelRepository.repository
-          }
-        ).imageAsset.imageUri;
+        if (props.account.isDev == true) {
+          // build a new repository for the test model
+          this.modelRepository = new OSMLRepository(this, "MRModelRepository", {
+            repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
+            removalPolicy: this.removalPolicy
+          });
+          this.modelContainer = new OSMLECRContainer(
+            this,
+            "OSMLModelContainer",
+            {
+              directory: this.mrTestingConfig.ECR_MODELS_PATH,
+              file: "Dockerfile",
+              target: this.mrTestingConfig.ECR_MODEL_TARGET,
+              repository: this.modelRepository.repository
+            }
+          ).imageAsset.imageUri;
+        } else {
+          this.modelContainer = this.mrTestingConfig.MODEL_DEFAULT_CONTAINER;
+        }
       }
     }
     if (props.deployCenterpointModel != false) {
@@ -190,7 +195,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLCenterPointModelEndpoint",
         {
-          modelContainerUri: this.modelContainerUri,
+          modelContainer: this.modelContainer,
           modelName: this.mrTestingConfig.SM_CENTER_POINT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -207,7 +212,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLFloodModelEndpoint",
         {
-          modelContainerUri: this.modelContainerUri,
+          modelContainer: this.modelContainer,
           modelName: this.mrTestingConfig.SM_FLOOD_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -224,7 +229,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLAircraftModelEndpoint",
         {
-          modelContainerUri: this.modelContainerUri,
+          modelContainer: this.modelContainer,
           modelName: this.mrTestingConfig.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_GPU_INSTANCE_TYPE,
