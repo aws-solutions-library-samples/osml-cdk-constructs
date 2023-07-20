@@ -3,7 +3,7 @@
  */
 
 import { RemovalPolicy } from "aws-cdk-lib";
-import { IVpc } from "aws-cdk-lib/aws-ec2";
+import { IVpc, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
 import { BucketAccessControl } from "aws-cdk-lib/aws-s3";
@@ -91,7 +91,7 @@ export class MRTesting extends Construct {
   public centerPointModelEndpoint?: OSMLSMEndpoint;
   public floodModelEndpoint?: OSMLSMEndpoint;
   public aircraftModelEndpoint?: OSMLSMEndpoint;
-
+  public vpcSecurityGroup?: SecurityGroup;
   /**
    * Creates an MRTesting construct.
    * @param scope the scope/stack in which to define this construct.
@@ -159,6 +159,11 @@ export class MRTesting extends Construct {
       }).role;
     }
 
+    // create vpc config for sagemaker models
+    this.vpcSecurityGroup = new SecurityGroup(this, "OSMLSecurityGroup", {
+      vpc: props.vpc
+    });
+
     if (
       props.deployCenterpointModel != false ||
       props.deployAircraftModel != false ||
@@ -201,7 +206,9 @@ export class MRTesting extends Construct {
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
           initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
-          variantName: this.mrTestingConfig.SM_VARIANT_NAME
+          variantName: this.mrTestingConfig.SM_VARIANT_NAME,
+          vpc: props.vpc,
+          vpcSecurityGroup: this.vpcSecurityGroup
         }
       );
     }
@@ -218,7 +225,9 @@ export class MRTesting extends Construct {
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
           initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
-          variantName: this.mrTestingConfig.SM_VARIANT_NAME
+          variantName: this.mrTestingConfig.SM_VARIANT_NAME,
+          vpc: props.vpc,
+          vpcSecurityGroup: this.vpcSecurityGroup
         }
       );
     }
@@ -235,7 +244,9 @@ export class MRTesting extends Construct {
           instanceType: this.mrTestingConfig.SM_GPU_INSTANCE_TYPE,
           initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
-          variantName: this.mrTestingConfig.SM_VARIANT_NAME
+          variantName: this.mrTestingConfig.SM_VARIANT_NAME,
+          vpc: props.vpc,
+          vpcSecurityGroup: this.vpcSecurityGroup
         }
       );
     }

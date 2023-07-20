@@ -2,6 +2,7 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
+import { IVpc, SecurityGroup, SubnetType } from "aws-cdk-lib/aws-ec2";
 import {
   CfnEndpoint,
   CfnEndpointConfig,
@@ -25,6 +26,10 @@ export interface OSMLSMEndpointProps {
   instanceType: string;
   //  name of the variant to host the model on (e.g. 'AllTraffic')
   variantName: string;
+  // vpc model runner is running in
+  vpc: IVpc;
+  // security group to use for vpc models
+  vpcSecurityGroup: SecurityGroup;
 }
 
 export class OSMLSMEndpoint extends Construct {
@@ -41,6 +46,10 @@ export class OSMLSMEndpoint extends Construct {
    */
   constructor(scope: Construct, id: string, props: OSMLSMEndpointProps) {
     super(scope, id);
+    const vpcSubnetSelection = props.vpc.selectSubnets({
+      subnetType: SubnetType.PRIVATE_ISOLATED
+    });
+
     this.model = new CfnModel(this, id, {
       executionRoleArn: props.roleArn,
       containers: [
@@ -50,7 +59,11 @@ export class OSMLSMEndpoint extends Construct {
             MODEL_SELECTION: props.modelName
           }
         }
-      ]
+      ],
+      vpcConfig: {
+        subnets: vpcSubnetSelection.subnetIds,
+        securityGroupIds: [props.vpcSecurityGroup.securityGroupId]
+      }
     });
 
     // configure our SageMaker endpoint
