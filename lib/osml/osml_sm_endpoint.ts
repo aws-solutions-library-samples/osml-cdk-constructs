@@ -63,6 +63,11 @@ export class OSMLSMEndpoint extends Construct {
       vpcConfig: {
         subnets: vpcSubnetSelection.subnetIds,
         securityGroupIds: [props.vpcSecurityGroup.securityGroupId]
+      },
+      primaryContainer: {
+        imageConfig: {
+          repositoryAccessMode: "Vpc"
+        }
       }
     });
 
