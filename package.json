@@ -1,12 +1,13 @@
 {
   "name": "osml-cdk-constructs",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/aws-solutions-library-samples/osml-cdk-constructs.git"
   },
-  "types": "dist/index.d.ts",
+  "main": "dist/lib/index.js",
+  "types": "dist/types/lib/index.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
@@ -41,8 +42,5 @@
   "peerDependencies": {
     "aws-cdk-lib": "^2.63.2",
     "constructs": "^10.1.252"
-  },
-  "dependencies": {
-    "@aws-cdk/aws-ec2": "^1.204.0"
   }
 }
