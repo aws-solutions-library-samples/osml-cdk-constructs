@@ -6,7 +6,6 @@
     "type": "git",
     "url": "https://github.com/aws-solutions-library-samples/osml-cdk-constructs.git"
   },
-  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
