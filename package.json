@@ -6,7 +6,6 @@
     "type": "git",
     "url": "https://github.com/aws-solutions-library-samples/osml-cdk-constructs.git"
   },
-  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
@@ -42,8 +41,5 @@
   "peerDependencies": {
     "aws-cdk-lib": "^2.63.2",
     "constructs": "^10.1.252"
-  },
-  "dependencies": {
-    "@aws-cdk/aws-ec2": "^1.204.0"
   }
 }
