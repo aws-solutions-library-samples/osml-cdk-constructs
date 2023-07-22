@@ -1,12 +1,13 @@
 {
   "name": "osml-cdk-constructs",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/aws-solutions-library-samples/osml-cdk-constructs.git"
   },
-  "types": "dist/index.d.ts",
+  "main": "dist/lib/index.js",
+  "types": "dist/types/lib/index.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
