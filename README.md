@@ -1,6 +1,6 @@
 # OSML CDK Constructs
 
-This project demonstrates a CDK Construct Library which includes the constructs that make up the OversightML (OSML) solutions's AWS infrastructure. This package may also be consumed by using the [NPM package](https://www.npmjs.com/package/osml-cdk-constructs).
+This project demonstrates a CDK Construct Library which includes the constructs that make up the OversightML (OSML) solution's AWS infrastructure. This package may also be consumed by using the [NPM package](https://www.npmjs.com/package/osml-cdk-constructs).
 
 ## Table of Contents
 
@@ -28,17 +28,17 @@ This package contains an assortment of CDK components that may be re-used and re
 
 ### Model Runner Components
 
-* `MRAutoScaling`: Creates a custom autoscaling implementation for model runner. Will automatically accomodate ADC regions as well as public/commercial regions. If set, this component will use the settings defined in the MRAutoscalingConfig.
+* `MRAutoScaling`: Creates a custom autoscaling implementation for model runner. Will automatically accommodate ADC regions as well as public/commercial regions. If set, this component will use the settings defined in the MRAutoscalingConfig.
 * `MRDataplane`: This construct is responsible for managing the data plane of the model runner application. This construct makes use of many OSML constructs to create resources like the VPC, DDB tables, SQS queues, SNS topics, ECS clusters, and more. If set, this component will use the settings defined in the MRDataplaneConfig
 * `MRMonitoring`: Creates a CloudWatch Dashboard for monitoring the status of the Model Runner. Tracks metrics like the number of requests in the ImageRequestQueue, SageMakerEndpoint latency, etc.
 * `MRSMRole`: Creates a SageMaker execution role for hosting CV models at the SM endpoint. This role will give SageMaker full access to SQS, S3, DynamoDB, SageMaker, CloudWatch, SecretsManager, and ECS.
-* `MRTaskRole`: Creates a role for Fargate/ECS so they can access everything they need. This role will give Fargate/ECS full access to SQS, S3, DynamoDB, SageMaker, CloudWatch, SecretsManager, and ECS.
+* `MRTaskRole`: Creates a role for Fargate/ECS, so they can access everything they need. This role will give Fargate/ECS full access to SQS, S3, DynamoDB, SageMaker, CloudWatch, SecretsManager, and ECS.
 * `MRTesting`: Creates a construct for testing the Model Runner. This construct will provision resources for storing test images, for storing test results, and everything else needed for Model Runner to run tests against the testing models provided in the [osml-model-runner-test package](https://github.com/aws-solutions-library-samples/osml-model-runner-test). If set, this component will use the settings defined in the MRTestingConfig.
 
 ### OSML Components
 
 * `OSMLAccount`: An interface that handles settings such as whether to enable auto-scaling, whether to enable monitoring, whether to use an existing VPC or create a new one, and more.
-* `OSMLBucket`: Creates an OSML bucket and access logging bucket. This construct makes use of security best practices, such as encryption, encforcing SSL, and access logging.
+* `OSMLBucket`: Creates an OSML bucket and access logging bucket. This construct makes use of security best practices, such as encryption, enforcing SSL, and access logging.
 * `OSMLECRContainer`: This construct takes a local directory and copies it to a docker image asset and deploys it to an ECR repository with the "latest" tag if a repository is provided.
 * `OSMLQueue`: Creates an encrypted Queue and Dead Letter Queue.
 * `OSMLRepository`: Creates an encrypted ECR repository for storing Docker images. The repository can be configured to auto-delete images when the repository is removed from the stack or the stack is deleted.
