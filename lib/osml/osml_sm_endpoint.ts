@@ -2,13 +2,14 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
-import { IVpc, SecurityGroup, SubnetType } from "aws-cdk-lib/aws-ec2";
 import {
   CfnEndpoint,
   CfnEndpointConfig,
   CfnModel
 } from "aws-cdk-lib/aws-sagemaker";
 import { Construct } from "constructs";
+
+import { OSMLVpc } from "./osml_vpc";
 
 export interface OSMLSMEndpointProps {
   // sagemaker execution role arn to use for the model endpoint
@@ -26,10 +27,8 @@ export interface OSMLSMEndpointProps {
   instanceType: string;
   //  name of the variant to host the model on (e.g. 'AllTraffic')
   variantName: string;
-  // vpc model runner is running in
-  vpc: IVpc;
-  // security group to use for vpc models
-  vpcSecurityGroup: SecurityGroup;
+  // osmlVpc model runner is running in
+  osmlVpc: OSMLVpc;
 }
 
 export class OSMLSMEndpoint extends Construct {
@@ -46,10 +45,6 @@ export class OSMLSMEndpoint extends Construct {
    */
   constructor(scope: Construct, id: string, props: OSMLSMEndpointProps) {
     super(scope, id);
-    const vpcSubnetSelection = props.vpc.selectSubnets({
-      subnetType: SubnetType.PRIVATE_WITH_EGRESS
-    });
-
     this.model = new CfnModel(this, id, {
       executionRoleArn: props.roleArn,
       containers: [
@@ -64,8 +59,8 @@ export class OSMLSMEndpoint extends Construct {
         }
       ],
       vpcConfig: {
-        subnets: vpcSubnetSelection.subnetIds,
-        securityGroupIds: [props.vpcSecurityGroup.securityGroupId]
+        subnets: props.osmlVpc.vpcPrivateSubnets.subnetIds,
+        securityGroupIds: [props.osmlVpc.vpcDefaultSecurityGroup]
       }
     });
 

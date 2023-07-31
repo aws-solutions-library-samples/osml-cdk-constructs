@@ -3,7 +3,7 @@
  */
 
 import { RemovalPolicy } from "aws-cdk-lib";
-import { IVpc, SecurityGroup } from "aws-cdk-lib/aws-ec2";
+import { SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
 import { BucketAccessControl } from "aws-cdk-lib/aws-s3";
@@ -18,6 +18,7 @@ import { OSMLECRContainer } from "../osml/osml_container";
 import { OSMLQueue } from "../osml/osml_queue";
 import { OSMLRepository } from "../osml/osml_repository";
 import { OSMLSMEndpoint } from "../osml/osml_sm_endpoint";
+import { OSMLVpc } from "../osml/osml_vpc";
 import { MRSMRole } from "./mr_sm_role";
 
 // mutable configuration dataclass for the model runner testing Construct
@@ -58,8 +59,8 @@ export class MRTestingConfig {
 export interface MRTestingProps {
   // the osml account interface
   account: OSMLAccount;
-  // the model runner vpc
-  vpc: IVpc;
+  // the model runner osmlVpc
+  osmlVpc: OSMLVpc;
   // the model runner image status topic
   imageStatusTopic: ITopic;
   // the model runner region status topic
@@ -130,7 +131,7 @@ export class MRTesting extends Construct {
       accessControl: BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
       memoryLimit: 10240,
       useEfs: true,
-      vpc: props.vpc
+      vpc: props.osmlVpc.vpc
     });
 
     // bucket to store rest results in
@@ -158,11 +159,6 @@ export class MRTesting extends Construct {
         roleName: this.mrTestingConfig.SM_ROLE_NAME
       }).role;
     }
-
-    // create vpc config for sagemaker models
-    this.vpcSecurityGroup = new SecurityGroup(this, "OSMLSecurityGroup", {
-      vpc: props.vpc
-    });
 
     if (
       props.deployCenterpointModel != false ||
@@ -207,8 +203,7 @@ export class MRTesting extends Construct {
           initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
-          vpc: props.vpc,
-          vpcSecurityGroup: this.vpcSecurityGroup
+          osmlVpc: props.osmlVpc
         }
       );
     }
@@ -226,8 +221,7 @@ export class MRTesting extends Construct {
           initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
-          vpc: props.vpc,
-          vpcSecurityGroup: this.vpcSecurityGroup
+          osmlVpc: props.osmlVpc
         }
       );
     }
@@ -245,8 +239,7 @@ export class MRTesting extends Construct {
           initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
-          vpc: props.vpc,
-          vpcSecurityGroup: this.vpcSecurityGroup
+          osmlVpc: props.osmlVpc
         }
       );
     }

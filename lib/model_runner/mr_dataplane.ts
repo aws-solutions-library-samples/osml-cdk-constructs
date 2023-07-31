@@ -35,7 +35,7 @@ import { MRTaskRole } from "./mr_task_role";
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
 export class MRDataplaneConfig {
   constructor(
-    // vpc names
+    // osmlVpc names
     public VPC_NAME = "OSMLVPC",
     // topic names
     public SNS_IMAGE_STATUS_TOPIC = "ImageStatusTopic",
@@ -96,7 +96,7 @@ export class MRDataplane extends Construct {
   public mrDataplaneConfig: MRDataplaneConfig;
   public removalPolicy: RemovalPolicy;
   public regionalS3Endpoint: string;
-  public vpc: OSMLVpc;
+  public osmlVpc: OSMLVpc;
   public jobStatusTable: OSMLTable;
   public featureTable: OSMLTable;
   public endpointStatisticsTable: OSMLTable;
@@ -121,7 +121,7 @@ export class MRDataplane extends Construct {
    * It is responsible for:
    * - creating the VPC
    * - creating the DDB tables
-   * - create the SQS queues
+   * - creating the SQS queues
    * - creating the SNS topics
    * - creating the ECR repositories
    * - creating the ECR containers
@@ -206,7 +206,7 @@ export class MRDataplane extends Construct {
     )!;
 
     // build a VPC to house containers and services
-    this.vpc = new OSMLVpc(this, "MRVPC", {
+    this.osmlVpc = new OSMLVpc(this, "MRVPC", {
       vpcName: this.mrDataplaneConfig.VPC_NAME
     });
 
@@ -300,7 +300,7 @@ export class MRDataplane extends Construct {
     // build cluster to house our containers when they spin up
     this.cluster = new Cluster(this, "MRCluster", {
       clusterName: this.mrDataplaneConfig.MR_CLUSTER_NAME,
-      vpc: this.vpc.vpc
+      vpc: this.osmlVpc.vpc
     });
 
     // define our ecs task
