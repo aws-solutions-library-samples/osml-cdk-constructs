@@ -7,7 +7,7 @@ import { Construct } from "constructs";
 export interface OSMLVpcProps {
   // name of the VPC to create
   vpcName?: string;
-  // the vpcid to import
+  // the vpc id to import
   vpcId?: string;
 }
 

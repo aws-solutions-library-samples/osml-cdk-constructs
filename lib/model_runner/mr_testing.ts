@@ -96,7 +96,6 @@ export class MRTesting extends Construct {
   public centerPointModelEndpoint?: OSMLSMEndpoint;
   public floodModelEndpoint?: OSMLSMEndpoint;
   public aircraftModelEndpoint?: OSMLSMEndpoint;
-  public vpcSecurityGroup?: SecurityGroup;
   /**
    * Creates an MRTesting construct.
    * @param scope the scope/stack in which to define this construct.
