@@ -5,6 +5,9 @@ This project demonstrates a CDK Construct Library which includes the constructs 
 ## Table of Contents
 
 * [Useful commands](#useful-commands)
+* [Components](#components)
+  * [Model Runner Components](#model-runner-components)
+  * [OSML Components](#osml-components)
 * [Feature Flags](#feature-flags)
 * [Support & Feedback](#support--feedback)
 * [Security](#security)
