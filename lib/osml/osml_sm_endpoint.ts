@@ -59,7 +59,7 @@ export class OSMLSMEndpoint extends Construct {
         }
       ],
       vpcConfig: {
-        subnets: props.osmlVpc.vpcPrivateSubnets.subnetIds,
+        subnets: props.osmlVpc.selectedSubnets.subnetIds,
         securityGroupIds: [props.osmlVpc.vpcDefaultSecurityGroup]
       }
     });
