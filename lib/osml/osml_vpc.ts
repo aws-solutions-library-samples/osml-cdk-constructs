@@ -50,7 +50,7 @@ export class OSMLVpc extends Construct {
       this.vpc = vpc;
       this.vpcDefaultSecurityGroup = vpc.vpcDefaultSecurityGroup;
       this.selectedSubnets = vpc.selectSubnets({
-        subnetType: SubnetType.PUBLIC
+        subnetType: SubnetType.PRIVATE_WITH_EGRESS
       });
     }
   }
