@@ -7,7 +7,11 @@ import { SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
 import { BucketAccessControl } from "aws-cdk-lib/aws-s3";
-import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
+import {
+  BucketDeployment,
+  ServerSideEncryption,
+  Source
+} from "aws-cdk-lib/aws-s3-deployment";
 import { ITopic } from "aws-cdk-lib/aws-sns";
 import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
@@ -131,7 +135,9 @@ export class MRTesting extends Construct {
       accessControl: BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
       memoryLimit: 10240,
       useEfs: true,
-      vpc: props.osmlVpc.vpc
+      vpc: props.osmlVpc.vpc,
+      retainOnDelete: props.account.prodLike,
+      serverSideEncryption: ServerSideEncryption.AES_256
     });
 
     // bucket to store rest results in
