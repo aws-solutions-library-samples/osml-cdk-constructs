@@ -61,7 +61,7 @@ export class OSMLBucket extends Construct {
       id,
       Object.assign(bucketProps, {
         bucketName: props.bucketName,
-        versioned: true,
+        versioned: props.prodLike,
         accessControl: BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
         serverAccessLogsBucket: this.accessLogsBucket
       })
