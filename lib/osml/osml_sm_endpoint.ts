@@ -29,6 +29,8 @@ export interface OSMLSMEndpointProps {
   variantName: string;
   // osmlVpc model runner is running in
   osmlVpc: OSMLVpc;
+  // the SM endpoint repository access mode
+  repositoryAccessMode: string;
 }
 
 export class OSMLSMEndpoint extends Construct {
@@ -54,7 +56,7 @@ export class OSMLSMEndpoint extends Construct {
             MODEL_SELECTION: props.modelName
           },
           imageConfig: {
-            repositoryAccessMode: "Vpc"
+            repositoryAccessMode: props.repositoryAccessMode
           }
         }
       ],

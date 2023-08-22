@@ -3,7 +3,6 @@
  */
 
 import { RemovalPolicy } from "aws-cdk-lib";
-import { SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
 import { BucketAccessControl } from "aws-cdk-lib/aws-s3";
@@ -56,7 +55,8 @@ export class MRTestingConfig {
     // path to the control model source
     public ECR_MODELS_PATH = "lib/osml-models",
     // build target for control model container
-    public ECR_MODEL_TARGET = "osml_model"
+    public ECR_MODEL_TARGET = "osml_model",
+    public REPOSITORY_ACCESS_MODE = "Vpc"
   ) {}
 }
 
@@ -175,6 +175,9 @@ export class MRTesting extends Construct {
         this.modelContainer = props.modelContainer;
       } else {
         if (props.account.isDev == true) {
+          // set the SM endpoint repository access mode to ECR
+          this.mrTestingConfig.REPOSITORY_ACCESS_MODE = "Platform";
+
           // build a new repository for the test model
           this.modelRepository = new OSMLRepository(this, "MRModelRepository", {
             repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
@@ -208,6 +211,7 @@ export class MRTesting extends Construct {
           initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
+          repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
           osmlVpc: props.osmlVpc
         }
       );
@@ -226,6 +230,7 @@ export class MRTesting extends Construct {
           initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
+          repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
           osmlVpc: props.osmlVpc
         }
       );
@@ -244,6 +249,7 @@ export class MRTesting extends Construct {
           initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
+          repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
           osmlVpc: props.osmlVpc
         }
       );
