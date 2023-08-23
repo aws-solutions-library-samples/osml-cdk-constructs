@@ -359,6 +359,8 @@ export class MRDataplane extends Construct {
       }
     );
 
+    this.containerDefinition.node.addDependency(this.mrEcrDeployment);
+
     // add port mapping to container
     this.taskDefinition.defaultContainer?.addPortMappings({
       containerPort: 80,
