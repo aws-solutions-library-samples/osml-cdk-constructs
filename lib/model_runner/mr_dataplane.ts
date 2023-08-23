@@ -14,7 +14,6 @@ import {
   Cluster,
   Compatibility,
   ContainerDefinition,
-  ContainerImage,
   FargateService,
   FireLensLogDriver,
   FirelensLogRouterType,

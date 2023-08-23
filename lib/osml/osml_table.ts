@@ -3,7 +3,12 @@
  */
 
 import { RemovalPolicy } from "aws-cdk-lib";
-import { Attribute, BillingMode, Table, TableEncryption } from "aws-cdk-lib/aws-dynamodb";
+import {
+  Attribute,
+  BillingMode,
+  Table,
+  TableEncryption
+} from "aws-cdk-lib/aws-dynamodb";
 import { Construct } from "constructs";
 
 export interface OSMLTableProps {
