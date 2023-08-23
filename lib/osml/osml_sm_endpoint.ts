@@ -15,7 +15,7 @@ export interface OSMLSMEndpointProps {
   // sagemaker execution role arn to use for the model endpoint
   roleArn: string;
   // URI to the container image that contains the model
-  modelContainer: string;
+  ecrContainerUri: string;
   //  name of the model to host on the endpoint on
   modelName: string;
   //  number of instances to start the endpoint with
@@ -51,7 +51,7 @@ export class OSMLSMEndpoint extends Construct {
       executionRoleArn: props.roleArn,
       containers: [
         {
-          image: props.modelContainer,
+          image: props.ecrContainerUri,
           environment: {
             MODEL_SELECTION: props.modelName
           },

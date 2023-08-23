@@ -2,7 +2,8 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
-import { RemovalPolicy } from "aws-cdk-lib";
+import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
+import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
 import { BucketAccessControl } from "aws-cdk-lib/aws-s3";
@@ -56,7 +57,7 @@ export class MRTestingConfig {
     public ECR_MODELS_PATH = "lib/osml-models",
     // build target for control model container
     public ECR_MODEL_TARGET = "osml_model",
-    public REPOSITORY_ACCESS_MODE = "Vpc"
+    public REPOSITORY_ACCESS_MODE = "Platform"
   ) {}
 }
 
@@ -86,7 +87,8 @@ export class MRTesting extends Construct {
   public resultsBucket: OSMLBucket;
   public imageBucket: OSMLBucket;
   public resultStream: Stream;
-  public modelContainer: string;
+  public sourceUri: string;
+  public ecrContainerUri: string;
   public imageStatusQueue: OSMLQueue;
   public regionStatusQueue: OSMLQueue;
   public removalPolicy: RemovalPolicy;
@@ -170,33 +172,25 @@ export class MRTesting extends Construct {
       props.deployAircraftModel != false ||
       props.deployFloodModel != false
     ) {
-      if (props.modelContainer != undefined) {
-        // import the image asset passed in
-        this.modelContainer = props.modelContainer;
+      // build a new repository for the test model
+      this.modelRepository = new OSMLRepository(this, "MRModelRepository", {
+        repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
+        removalPolicy: this.removalPolicy
+      });
+      if (props.account.isDev == true) {
+        this.sourceUri = new DockerImageAsset(this, id, {
+          directory: this.mrTestingConfig.ECR_MODELS_PATH,
+          file: "Dockerfile",
+          followSymlinks: SymlinkFollowMode.ALWAYS,
+          target: this.mrTestingConfig.ECR_MODEL_TARGET
+        }).imageUri;
       } else {
-        if (props.account.isDev == true) {
-          // set the SM endpoint repository access mode to ECR
-          this.mrTestingConfig.REPOSITORY_ACCESS_MODE = "Platform";
-
-          // build a new repository for the test model
-          this.modelRepository = new OSMLRepository(this, "MRModelRepository", {
-            repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
-            removalPolicy: this.removalPolicy
-          });
-          this.modelContainer = new OSMLECRContainer(
-            this,
-            "OSMLModelContainer",
-            {
-              directory: this.mrTestingConfig.ECR_MODELS_PATH,
-              file: "Dockerfile",
-              target: this.mrTestingConfig.ECR_MODEL_TARGET,
-              repository: this.modelRepository.repository
-            }
-          ).imageAsset.imageUri;
-        } else {
-          this.modelContainer = this.mrTestingConfig.MODEL_DEFAULT_CONTAINER;
-        }
+        this.sourceUri = this.mrTestingConfig.MODEL_DEFAULT_CONTAINER;
       }
+      this.ecrContainerUri = new OSMLECRContainer(this, "OSMLModelContainer", {
+        sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
+        repository: this.modelRepository.repository
+      }).imageUri;
     }
     if (props.deployCenterpointModel != false) {
       // build an SM endpoint from the centerpoint model container
@@ -204,7 +198,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLCenterPointModelEndpoint",
         {
-          modelContainer: this.modelContainer,
+          ecrContainerUri: this.ecrContainerUri,
           modelName: this.mrTestingConfig.SM_CENTER_POINT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -223,7 +217,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLFloodModelEndpoint",
         {
-          modelContainer: this.modelContainer,
+          ecrContainerUri: this.ecrContainerUri,
           modelName: this.mrTestingConfig.SM_FLOOD_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -242,7 +236,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLAircraftModelEndpoint",
         {
-          modelContainer: this.modelContainer,
+          ecrContainerUri: this.ecrContainerUri,
           modelName: this.mrTestingConfig.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_GPU_INSTANCE_TYPE,
