@@ -2,11 +2,7 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 import { Duration } from "aws-cdk-lib";
-import {
-  Dashboard,
-  Metric,
-  SingleValueWidget
-} from "aws-cdk-lib/aws-cloudwatch";
+import { Dashboard, Metric, SingleValueWidget } from "aws-cdk-lib/aws-cloudwatch";
 import { FargateService } from "aws-cdk-lib/aws-ecs";
 import { Queue } from "aws-cdk-lib/aws-sqs";
 import { Construct } from "constructs";

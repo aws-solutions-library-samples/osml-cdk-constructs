@@ -2,12 +2,7 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
-import {
-  Duration,
-  region_info,
-  RemovalPolicy,
-  SymlinkFollowMode
-} from "aws-cdk-lib";
+import { Duration, region_info, RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import {

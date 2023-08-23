@@ -2,11 +2,7 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
-import {
-  CfnEndpoint,
-  CfnEndpointConfig,
-  CfnModel
-} from "aws-cdk-lib/aws-sagemaker";
+import { CfnEndpoint, CfnEndpointConfig, CfnModel } from "aws-cdk-lib/aws-sagemaker";
 import { Construct } from "constructs";
 
 import { OSMLVpc } from "./osml_vpc";

@@ -7,11 +7,7 @@ import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
 import { BucketAccessControl } from "aws-cdk-lib/aws-s3";
-import {
-  BucketDeployment,
-  ServerSideEncryption,
-  Source
-} from "aws-cdk-lib/aws-s3-deployment";
+import { BucketDeployment, ServerSideEncryption, Source } from "aws-cdk-lib/aws-s3-deployment";
 import { ITopic } from "aws-cdk-lib/aws-sns";
 import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
@@ -32,7 +28,6 @@ export class MRTestingConfig {
     // queue names
     public SQS_IMAGE_STATUS_QUEUE = "ImageStatusQueue",
     public SQS_REGION_STATUS_QUEUE = "RegionStatusQueue",
-
     // sagemaker names
     public SM_CENTER_POINT_MODEL = "centerpoint",
     public SM_FLOOD_MODEL = "flood",
@@ -43,13 +38,11 @@ export class MRTestingConfig {
     public SM_VARIANT_NAME = "AllTraffic",
     public SM_CPU_INSTANCE_TYPE = "ml.m5.xlarge",
     public SM_GPU_INSTANCE_TYPE = "ml.p3.2xlarge",
-
     // bucket names
     public S3_RESULTS_BUCKET = "test-results",
     public S3_IMAGE_BUCKET = "test-images",
     // path to test images
     public S3_TEST_IMAGES_PATH = "assets/images",
-
     public MODEL_DEFAULT_CONTAINER = "awsosml/osml-models:main",
     // ecr repo names
     public ECR_MODEL_REPOSITORY = "model-container",
@@ -98,6 +91,7 @@ export class MRTesting extends Construct {
   public centerPointModelEndpoint?: OSMLSMEndpoint;
   public floodModelEndpoint?: OSMLSMEndpoint;
   public aircraftModelEndpoint?: OSMLSMEndpoint;
+
   /**
    * Creates an MRTesting construct.
    * @param scope the scope/stack in which to define this construct.
