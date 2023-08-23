@@ -60,7 +60,7 @@ export class MRTestingConfig {
 export interface MRTestingProps {
   // the osml account interface
   account: OSMLAccount;
-  // the model runner osmlVpc
+  // the model runner vpc
   osmlVpc: OSMLVpc;
   // the model runner image status topic
   imageStatusTopic: ITopic;
