@@ -7,16 +7,19 @@ import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
 import { BucketAccessControl } from "aws-cdk-lib/aws-s3";
-import { BucketDeployment, ServerSideEncryption, Source } from "aws-cdk-lib/aws-s3-deployment";
+import {
+  BucketDeployment,
+  ServerSideEncryption,
+  Source
+} from "aws-cdk-lib/aws-s3-deployment";
 import { ITopic } from "aws-cdk-lib/aws-sns";
 import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml/osml_account";
 import { OSMLBucket } from "../osml/osml_bucket";
-import { OSMLECRContainer } from "../osml/osml_container";
+import { OSMLECRDeployment } from "../osml/osml_container";
 import { OSMLQueue } from "../osml/osml_queue";
-import { OSMLRepository } from "../osml/osml_repository";
 import { OSMLSMEndpoint } from "../osml/osml_sm_endpoint";
 import { OSMLVpc } from "../osml/osml_vpc";
 import { MRSMRole } from "./mr_sm_role";
@@ -81,13 +84,12 @@ export class MRTesting extends Construct {
   public imageBucket: OSMLBucket;
   public resultStream: Stream;
   public modelContainerSourceUri: string;
-  public modelContainerEcrUri: string;
+  public modelContainerEcrDeployment: OSMLECRDeployment;
   public imageStatusQueue: OSMLQueue;
   public regionStatusQueue: OSMLQueue;
   public removalPolicy: RemovalPolicy;
   public mrTestingConfig: MRTestingConfig;
   public smRole?: IRole;
-  public modelRepository?: OSMLRepository;
   public centerPointModelEndpoint?: OSMLSMEndpoint;
   public floodModelEndpoint?: OSMLSMEndpoint;
   public aircraftModelEndpoint?: OSMLSMEndpoint;
@@ -166,11 +168,6 @@ export class MRTesting extends Construct {
       props.deployAircraftModel != false ||
       props.deployFloodModel != false
     ) {
-      // build a new repository for the test model
-      this.modelRepository = new OSMLRepository(this, "MRModelRepository", {
-        repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
-        removalPolicy: this.removalPolicy
-      });
       if (props.account.isDev == true) {
         this.modelContainerSourceUri = new DockerImageAsset(this, id, {
           directory: this.mrTestingConfig.ECR_MODELS_PATH,
@@ -182,14 +179,15 @@ export class MRTesting extends Construct {
         this.modelContainerSourceUri =
           this.mrTestingConfig.MODEL_DEFAULT_CONTAINER;
       }
-      this.modelContainerEcrUri = new OSMLECRContainer(
+      this.modelContainerEcrDeployment = new OSMLECRDeployment(
         this,
         "OSMLModelContainer",
         {
           sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
-          repository: this.modelRepository.repository
+          repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
+          removalPolicy: this.removalPolicy
         }
-      ).imageUri;
+      );
     }
     if (props.deployCenterpointModel != false) {
       // build an SM endpoint from the centerpoint model container
@@ -197,7 +195,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLCenterPointModelEndpoint",
         {
-          ecrContainerUri: this.modelContainerEcrUri,
+          ecrContainerUri: this.modelContainerEcrDeployment.ecrContainerUri,
           modelName: this.mrTestingConfig.SM_CENTER_POINT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -216,7 +214,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLFloodModelEndpoint",
         {
-          ecrContainerUri: this.modelContainerEcrUri,
+          ecrContainerUri: this.modelContainerEcrDeployment.ecrContainerUri,
           modelName: this.mrTestingConfig.SM_FLOOD_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -235,7 +233,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLAircraftModelEndpoint",
         {
-          ecrContainerUri: this.modelContainerEcrUri,
+          ecrContainerUri: this.modelContainerEcrDeployment.ecrContainerUri,
           modelName: this.mrTestingConfig.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_GPU_INSTANCE_TYPE,

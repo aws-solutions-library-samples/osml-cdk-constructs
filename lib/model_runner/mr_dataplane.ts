@@ -2,7 +2,12 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
-import { Duration, region_info, RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
+import {
+  Duration,
+  region_info,
+  RemovalPolicy,
+  SymlinkFollowMode
+} from "aws-cdk-lib";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import {
@@ -23,7 +28,7 @@ import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml/osml_account";
-import { OSMLECRContainer } from "../osml/osml_container";
+import { OSMLECRDeployment } from "../osml/osml_container";
 import { OSMLQueue } from "../osml/osml_queue";
 import { OSMLRepository } from "../osml/osml_repository";
 import { OSMLTable } from "../osml/osml_table";
@@ -181,9 +186,10 @@ export class MRDataplane extends Construct {
       this.mrContainerSourceUri = this.mrDataplaneConfig.MR_DEFAULT_CONTAINER;
     }
     // build and deploy model runner container to target repo
-    this.mrContainer = new OSMLECRContainer(this, "MRModelRunnerContainer", {
+    this.mrContainer = new OSMLECRDeployment(this, "MRModelRunnerContainer", {
       sourceUri: this.mrContainerSourceUri,
-      repository: this.mrRepository.repository
+      repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
+      removalPolicy: this.removalPolicy
     }).containerImage;
 
     // set up a regional s3 endpoint for GDAL to use
