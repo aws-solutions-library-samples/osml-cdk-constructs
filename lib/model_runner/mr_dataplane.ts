@@ -105,7 +105,7 @@ export class MRDataplane extends Construct {
   public endpointStatisticsTable: OSMLTable;
   public regionRequestTable: OSMLTable;
   public mrContainerSourceUri: string;
-  public mrContainer: ContainerImage;
+  public mrEcrDeployment: OSMLECRDeployment;
   public imageStatusTopic: OSMLTopic;
   public regionStatusTopic: OSMLTopic;
   public imageRequestQueue: OSMLQueue;
@@ -178,11 +178,15 @@ export class MRDataplane extends Construct {
       this.mrContainerSourceUri = this.mrDataplaneConfig.MR_DEFAULT_CONTAINER;
     }
     // build and deploy model runner container to target repo
-    this.mrContainer = new OSMLECRDeployment(this, "MRModelRunnerContainer", {
-      sourceUri: this.mrContainerSourceUri,
-      repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
-      removalPolicy: this.removalPolicy
-    }).containerImage;
+    this.mrEcrDeployment = new OSMLECRDeployment(
+      this,
+      "MRModelRunnerContainer",
+      {
+        sourceUri: this.mrContainerSourceUri,
+        repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
+        removalPolicy: this.removalPolicy
+      }
+    );
 
     // set up a regional s3 endpoint for GDAL to use
     this.regionalS3Endpoint = region_info.Fact.find(
@@ -334,7 +338,7 @@ export class MRDataplane extends Construct {
       "MRContainerDefinition",
       {
         containerName: this.mrDataplaneConfig.MR_CONTAINER_NAME,
-        image: this.mrContainer,
+        image: this.mrEcrDeployment.containerImage,
         memoryLimitMiB: this.mrDataplaneConfig.MR_CONTAINER_MEMORY,
         cpu: this.mrDataplaneConfig.MR_CONTAINER_CPU,
         environment: containerEnv,
