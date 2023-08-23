@@ -2,13 +2,18 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
-import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
+import {
+  Duration,
+  region_info,
+  RemovalPolicy,
+  SymlinkFollowMode
+} from "aws-cdk-lib";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
+import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import {
   Cluster,
   Compatibility,
   ContainerDefinition,
-  ContainerImage,
   FargateService,
   FireLensLogDriver,
   FirelensLogRouterType,
@@ -22,9 +27,8 @@ import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml/osml_account";
-import { OSMLECRContainer } from "../osml/osml_container";
+import { OSMLECRDeployment } from "../osml/osml_ecr_deployment";
 import { OSMLQueue } from "../osml/osml_queue";
-import { OSMLRepository } from "../osml/osml_repository";
 import { OSMLTable } from "../osml/osml_table";
 import { OSMLTopic } from "../osml/osml_topic";
 import { OSMLVpc } from "../osml/osml_vpc";
@@ -35,7 +39,7 @@ import { MRTaskRole } from "./mr_task_role";
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
 export class MRDataplaneConfig {
   constructor(
-    // vpc names
+    // osmlVpc names
     public VPC_NAME = "OSMLVPC",
     // topic names
     public SNS_IMAGE_STATUS_TOPIC = "ImageStatusTopic",
@@ -79,8 +83,6 @@ export class MRDataplaneConfig {
 export interface MRDataplaneProps {
   // the account that owns the data plane as defined by the OSMLAccount interface
   account: OSMLAccount;
-  // an optional container image to build model runner task with
-  mrImage?: ContainerImage;
   // URI link to a s3 hosted terrain dataset
   mrTerrainUri?: string;
   // optional role to give the model runner task execution permissions - will be crated if not provided
@@ -96,13 +98,13 @@ export class MRDataplane extends Construct {
   public mrDataplaneConfig: MRDataplaneConfig;
   public removalPolicy: RemovalPolicy;
   public regionalS3Endpoint: string;
-  public vpc: OSMLVpc;
+  public osmlVpc: OSMLVpc;
   public jobStatusTable: OSMLTable;
   public featureTable: OSMLTable;
   public endpointStatisticsTable: OSMLTable;
   public regionRequestTable: OSMLTable;
-  public mrRepository?: OSMLRepository;
-  public mrContainer: ContainerImage;
+  public mrContainerSourceUri: string;
+  public mrEcrDeployment: OSMLECRDeployment;
   public imageStatusTopic: OSMLTopic;
   public regionStatusTopic: OSMLTopic;
   public imageRequestQueue: OSMLQueue;
@@ -121,7 +123,7 @@ export class MRDataplane extends Construct {
    * It is responsible for:
    * - creating the VPC
    * - creating the DDB tables
-   * - create the SQS queues
+   * - creating the SQS queues
    * - creating the SNS topics
    * - creating the ECR repositories
    * - creating the ECR containers
@@ -165,40 +167,6 @@ export class MRDataplane extends Construct {
       }).role;
     }
 
-    // check if a custom model runner container image was provided
-    if (props.mrImage != undefined) {
-      // import the passed image
-      this.mrContainer = props.mrImage;
-    } else {
-      if (props.account.isDev == true) {
-        // build an ECR repo for the model runner container
-        this.mrRepository = new OSMLRepository(
-          this,
-          "MRModelRunnerRepository",
-          {
-            repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
-            removalPolicy: this.removalPolicy
-          }
-        );
-
-        // build and deploy model runner container to target repo
-        this.mrContainer = new OSMLECRContainer(
-          this,
-          "MRModelRunnerContainer",
-          {
-            directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
-            target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET,
-            repository: this.mrRepository.repository,
-            file: "Dockerfile"
-          }
-        ).containerImage;
-      } else {
-        this.mrContainer = ContainerImage.fromRegistry(
-          this.mrDataplaneConfig.MR_DEFAULT_CONTAINER
-        );
-      }
-    }
-
     // set up a regional s3 endpoint for GDAL to use
     this.regionalS3Endpoint = region_info.Fact.find(
       props.account.region,
@@ -206,9 +174,32 @@ export class MRDataplane extends Construct {
     )!;
 
     // build a VPC to house containers and services
-    this.vpc = new OSMLVpc(this, "MRVPC", {
+    this.osmlVpc = new OSMLVpc(this, "MRVPC", {
       vpcName: this.mrDataplaneConfig.VPC_NAME
     });
+
+    if (props.account.isDev == true) {
+      this.mrContainerSourceUri = new DockerImageAsset(this, id, {
+        directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
+        file: "Dockerfile",
+        followSymlinks: SymlinkFollowMode.ALWAYS,
+        target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET
+      }).imageUri;
+    } else {
+      this.mrContainerSourceUri = this.mrDataplaneConfig.MR_DEFAULT_CONTAINER;
+    }
+
+    // build and deploy model runner container to target repo
+    this.mrEcrDeployment = new OSMLECRDeployment(
+      this,
+      "MRModelRunnerContainer",
+      {
+        sourceUri: this.mrContainerSourceUri,
+        repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
+        removalPolicy: this.removalPolicy,
+        vpc: this.osmlVpc.vpc
+      }
+    );
 
     // job status table to store worker status info
     this.jobStatusTable = new OSMLTable(this, "MRJobStatusTable", {
@@ -300,7 +291,7 @@ export class MRDataplane extends Construct {
     // build cluster to house our containers when they spin up
     this.cluster = new Cluster(this, "MRCluster", {
       clusterName: this.mrDataplaneConfig.MR_CLUSTER_NAME,
-      vpc: this.vpc.vpc
+      vpc: this.osmlVpc.vpc
     });
 
     // define our ecs task
@@ -349,7 +340,7 @@ export class MRDataplane extends Construct {
       "MRContainerDefinition",
       {
         containerName: this.mrDataplaneConfig.MR_CONTAINER_NAME,
-        image: this.mrContainer,
+        image: this.mrEcrDeployment.containerImage,
         memoryLimitMiB: this.mrDataplaneConfig.MR_CONTAINER_MEMORY,
         cpu: this.mrDataplaneConfig.MR_CONTAINER_CPU,
         environment: containerEnv,
@@ -369,6 +360,8 @@ export class MRDataplane extends Construct {
         disableNetworking: false
       }
     );
+
+    this.containerDefinition.node.addDependency(this.mrEcrDeployment);
 
     // add port mapping to container
     this.taskDefinition.defaultContainer?.addPortMappings({
