@@ -206,6 +206,9 @@ export class MRTesting extends Construct {
           osmlVpc: props.osmlVpc
         }
       );
+      this.centerPointModelEndpoint.node.addDependency(
+        this.modelContainerEcrDeployment
+      );
     }
 
     if (props.deployFloodModel != false) {
@@ -225,6 +228,9 @@ export class MRTesting extends Construct {
           osmlVpc: props.osmlVpc
         }
       );
+      this.floodModelEndpoint.node.addDependency(
+        this.modelContainerEcrDeployment
+      );
     }
 
     if (props.deployAircraftModel != false) {
@@ -243,6 +249,9 @@ export class MRTesting extends Construct {
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
           osmlVpc: props.osmlVpc
         }
+      );
+      this.aircraftModelEndpoint.node.addDependency(
+        this.modelContainerEcrDeployment
       );
     }
 
