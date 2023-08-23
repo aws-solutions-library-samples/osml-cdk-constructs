@@ -68,5 +68,7 @@ export class OSMLECRDeployment extends Construct {
 
     // set the tag for the latest uri
     this.ecrContainerUri = this.ecrRepository.repositoryUriForTag(this.tag);
+
+    this.node.addDependency(this.ecrDeployment);
   }
 }
