@@ -30,7 +30,6 @@ import { Construct } from "constructs";
 import { OSMLAccount } from "../osml/osml_account";
 import { OSMLECRDeployment } from "../osml/osml_container";
 import { OSMLQueue } from "../osml/osml_queue";
-import { OSMLRepository } from "../osml/osml_repository";
 import { OSMLTable } from "../osml/osml_table";
 import { OSMLTopic } from "../osml/osml_topic";
 import { OSMLVpc } from "../osml/osml_vpc";
@@ -105,8 +104,7 @@ export class MRDataplane extends Construct {
   public featureTable: OSMLTable;
   public endpointStatisticsTable: OSMLTable;
   public regionRequestTable: OSMLTable;
-  public mrRepository: OSMLRepository;
-  public mrContainerSourceUri;
+  public mrContainerSourceUri: string;
   public mrContainer: ContainerImage;
   public imageStatusTopic: OSMLTopic;
   public regionStatusTopic: OSMLTopic;
