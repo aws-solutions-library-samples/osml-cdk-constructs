@@ -2,7 +2,6 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
-import { IVpc, SecurityGroup, SubnetType } from "aws-cdk-lib/aws-ec2";
 import {
   CfnEndpoint,
   CfnEndpointConfig,
@@ -10,11 +9,13 @@ import {
 } from "aws-cdk-lib/aws-sagemaker";
 import { Construct } from "constructs";
 
+import { OSMLVpc } from "./osml_vpc";
+
 export interface OSMLSMEndpointProps {
   // sagemaker execution role arn to use for the model endpoint
   roleArn: string;
   // URI to the container image that contains the model
-  modelContainer: string;
+  ecrContainerUri: string;
   //  name of the model to host on the endpoint on
   modelName: string;
   //  number of instances to start the endpoint with
@@ -26,10 +27,10 @@ export interface OSMLSMEndpointProps {
   instanceType: string;
   //  name of the variant to host the model on (e.g. 'AllTraffic')
   variantName: string;
-  // vpc model runner is running in
-  vpc: IVpc;
-  // security group to use for vpc models
-  vpcSecurityGroup: SecurityGroup;
+  // osmlVpc model runner is running in
+  osmlVpc: OSMLVpc;
+  // the SM endpoint repository access mode
+  repositoryAccessMode: string;
 }
 
 export class OSMLSMEndpoint extends Construct {
@@ -46,26 +47,22 @@ export class OSMLSMEndpoint extends Construct {
    */
   constructor(scope: Construct, id: string, props: OSMLSMEndpointProps) {
     super(scope, id);
-    const vpcSubnetSelection = props.vpc.selectSubnets({
-      subnetType: SubnetType.PRIVATE_WITH_EGRESS
-    });
-
     this.model = new CfnModel(this, id, {
       executionRoleArn: props.roleArn,
       containers: [
         {
-          image: props.modelContainer,
+          image: props.ecrContainerUri,
           environment: {
             MODEL_SELECTION: props.modelName
           },
           imageConfig: {
-            repositoryAccessMode: "Vpc"
+            repositoryAccessMode: props.repositoryAccessMode
           }
         }
       ],
       vpcConfig: {
-        subnets: vpcSubnetSelection.subnetIds,
-        securityGroupIds: [props.vpcSecurityGroup.securityGroupId]
+        subnets: props.osmlVpc.selectedSubnets.subnetIds,
+        securityGroupIds: [props.osmlVpc.vpcDefaultSecurityGroup]
       }
     });
 

@@ -18,7 +18,7 @@ export interface OSMLBucketProps {
 
 export class OSMLBucket extends Construct {
   public bucket: Bucket;
-  public accessLogsBucket: IBucket;
+  public accessLogsBucket?: IBucket;
 
   /**
    * Creates an OSML Bucket and Access Logging Bucket.
@@ -40,7 +40,7 @@ export class OSMLBucket extends Construct {
     };
 
     // check if an access logging bucket is provided
-    if (props.accessLogsBucket == undefined) {
+    if (props.accessLogsBucket == undefined && props.prodLike) {
       // create an accessing logging bucket for the core bucket
       this.accessLogsBucket = new Bucket(
         this,
@@ -50,7 +50,7 @@ export class OSMLBucket extends Construct {
           accessControl: BucketAccessControl.LOG_DELIVERY_WRITE
         })
       );
-    } else {
+    } else if (props.prodLike) {
       // import the existing access logging bucket
       this.accessLogsBucket = props.accessLogsBucket;
     }

@@ -1,18 +1,20 @@
 /*
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
-import { IVpc, SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
+import { IVpc, SelectedSubnets, SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
 
 export interface OSMLVpcProps {
   // name of the VPC to create
   vpcName?: string;
-  // the vpcid to import
+  // the vpc id to import
   vpcId?: string;
 }
 
 export class OSMLVpc extends Construct {
   public readonly vpc: IVpc;
+  public readonly vpcDefaultSecurityGroup: string;
+  public readonly selectedSubnets: SelectedSubnets;
 
   /**
    * Creates or imports a VPC for OSML.
@@ -23,14 +25,14 @@ export class OSMLVpc extends Construct {
    */
   constructor(scope: Construct, id: string, props: OSMLVpcProps) {
     super(scope, id);
-    // if a vpc id is not explicitly given use the default vpc
+    // if a osmlVpc id is not explicitly given use the default osmlVpc
     if (props.vpcId) {
       this.vpc = Vpc.fromLookup(this, "OSMLImportVPC", {
         vpcId: props.vpcId,
         isDefault: false
       });
     } else {
-      this.vpc = new Vpc(this, "OSMLVPC", {
+      const vpc = new Vpc(this, "OSMLVPC", {
         vpcName: props.vpcName,
         subnetConfiguration: [
           {
@@ -44,6 +46,11 @@ export class OSMLVpc extends Construct {
             subnetType: SubnetType.PRIVATE_WITH_EGRESS
           }
         ]
+      });
+      this.vpc = vpc;
+      this.vpcDefaultSecurityGroup = vpc.vpcDefaultSecurityGroup;
+      this.selectedSubnets = vpc.selectSubnets({
+        subnetType: SubnetType.PRIVATE_WITH_EGRESS
       });
     }
   }
