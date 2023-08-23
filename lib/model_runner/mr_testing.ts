@@ -87,8 +87,8 @@ export class MRTesting extends Construct {
   public resultsBucket: OSMLBucket;
   public imageBucket: OSMLBucket;
   public resultStream: Stream;
-  public sourceUri: string;
-  public ecrContainerUri: string;
+  public modelContainerSourceUri: string;
+  public modelContainerEcrUri: string;
   public imageStatusQueue: OSMLQueue;
   public regionStatusQueue: OSMLQueue;
   public removalPolicy: RemovalPolicy;
@@ -178,19 +178,24 @@ export class MRTesting extends Construct {
         removalPolicy: this.removalPolicy
       });
       if (props.account.isDev == true) {
-        this.sourceUri = new DockerImageAsset(this, id, {
+        this.modelContainerSourceUri = new DockerImageAsset(this, id, {
           directory: this.mrTestingConfig.ECR_MODELS_PATH,
           file: "Dockerfile",
           followSymlinks: SymlinkFollowMode.ALWAYS,
           target: this.mrTestingConfig.ECR_MODEL_TARGET
         }).imageUri;
       } else {
-        this.sourceUri = this.mrTestingConfig.MODEL_DEFAULT_CONTAINER;
+        this.modelContainerSourceUri =
+          this.mrTestingConfig.MODEL_DEFAULT_CONTAINER;
       }
-      this.ecrContainerUri = new OSMLECRContainer(this, "OSMLModelContainer", {
-        sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
-        repository: this.modelRepository.repository
-      }).imageUri;
+      this.modelContainerEcrUri = new OSMLECRContainer(
+        this,
+        "OSMLModelContainer",
+        {
+          sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
+          repository: this.modelRepository.repository
+        }
+      ).imageUri;
     }
     if (props.deployCenterpointModel != false) {
       // build an SM endpoint from the centerpoint model container
@@ -198,7 +203,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLCenterPointModelEndpoint",
         {
-          ecrContainerUri: this.ecrContainerUri,
+          ecrContainerUri: this.modelContainerEcrUri,
           modelName: this.mrTestingConfig.SM_CENTER_POINT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -217,7 +222,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLFloodModelEndpoint",
         {
-          ecrContainerUri: this.ecrContainerUri,
+          ecrContainerUri: this.modelContainerEcrUri,
           modelName: this.mrTestingConfig.SM_FLOOD_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -236,7 +241,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLAircraftModelEndpoint",
         {
-          ecrContainerUri: this.ecrContainerUri,
+          ecrContainerUri: this.modelContainerEcrUri,
           modelName: this.mrTestingConfig.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_GPU_INSTANCE_TYPE,

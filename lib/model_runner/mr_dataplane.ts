@@ -2,8 +2,14 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
-import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
+import {
+  Duration,
+  region_info,
+  RemovalPolicy,
+  SymlinkFollowMode
+} from "aws-cdk-lib";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
+import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import {
   Cluster,
   Compatibility,
@@ -79,8 +85,6 @@ export class MRDataplaneConfig {
 export interface MRDataplaneProps {
   // the account that owns the data plane as defined by the OSMLAccount interface
   account: OSMLAccount;
-  // an optional container image to build model runner task with
-  mrImage?: ContainerImage;
   // URI link to a s3 hosted terrain dataset
   mrTerrainUri?: string;
   // optional role to give the model runner task execution permissions - will be crated if not provided
@@ -101,7 +105,8 @@ export class MRDataplane extends Construct {
   public featureTable: OSMLTable;
   public endpointStatisticsTable: OSMLTable;
   public regionRequestTable: OSMLTable;
-  public mrRepository?: OSMLRepository;
+  public mrRepository: OSMLRepository;
+  public mrContainerSourceUri;
   public mrContainer: ContainerImage;
   public imageStatusTopic: OSMLTopic;
   public regionStatusTopic: OSMLTopic;
@@ -165,39 +170,26 @@ export class MRDataplane extends Construct {
       }).role;
     }
 
-    // check if a custom model runner container image was provided
-    if (props.mrImage != undefined) {
-      // import the passed image
-      this.mrContainer = props.mrImage;
+    // build an ECR repo for the model runner container
+    this.mrRepository = new OSMLRepository(this, "MRModelRunnerRepository", {
+      repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
+      removalPolicy: this.removalPolicy
+    });
+    if (props.account.isDev == true) {
+      this.mrContainerSourceUri = new DockerImageAsset(this, id, {
+        directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
+        file: "Dockerfile",
+        followSymlinks: SymlinkFollowMode.ALWAYS,
+        target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET
+      }).imageUri;
     } else {
-      if (props.account.isDev == true) {
-        // build an ECR repo for the model runner container
-        this.mrRepository = new OSMLRepository(
-          this,
-          "MRModelRunnerRepository",
-          {
-            repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
-            removalPolicy: this.removalPolicy
-          }
-        );
-
-        // build and deploy model runner container to target repo
-        this.mrContainer = new OSMLECRContainer(
-          this,
-          "MRModelRunnerContainer",
-          {
-            directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
-            target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET,
-            repository: this.mrRepository.repository,
-            file: "Dockerfile"
-          }
-        ).containerImage;
-      } else {
-        this.mrContainer = ContainerImage.fromRegistry(
-          this.mrDataplaneConfig.MR_DEFAULT_CONTAINER
-        );
-      }
+      this.mrContainerSourceUri = this.mrDataplaneConfig.MR_DEFAULT_CONTAINER;
     }
+    // build and deploy model runner container to target repo
+    this.mrContainer = new OSMLECRContainer(this, "MRModelRunnerContainer", {
+      sourceUri: this.mrContainerSourceUri,
+      repository: this.mrRepository.repository
+    }).containerImage;
 
     // set up a regional s3 endpoint for GDAL to use
     this.regionalS3Endpoint = region_info.Fact.find(

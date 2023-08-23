@@ -3,7 +3,7 @@
  */
 
 import { Repository } from "aws-cdk-lib/aws-ecr";
-import { EcrImage } from "aws-cdk-lib/aws-ecs";
+import { ContainerImage, EcrImage } from "aws-cdk-lib/aws-ecs";
 import { DockerImageName, ECRDeployment } from "cdk-ecr-deployment";
 import { Construct } from "constructs";
 
@@ -15,9 +15,9 @@ export interface OSMLECRContainerProps {
 }
 
 export class OSMLECRContainer extends Construct {
-  public repository: Repository;
   public ecrDeployment: ECRDeployment;
   public imageUri: string;
+  public containerImage: ContainerImage;
 
   /**
    * Create a new OSMLECRContainer. This construct takes a local directory and copies it to a docker image asset
@@ -29,16 +29,17 @@ export class OSMLECRContainer extends Construct {
    */
   constructor(scope: Construct, id: string, props: OSMLECRContainerProps) {
     super(scope, id);
-    // if a repository is provided, copy container asset to it
-    this.repository = props.repository;
+    // store the container image into the construct for vending
+    this.containerImage = ContainerImage.fromRegistry(props.sourceUri);
+
     // copy from cdk docker image asset to the given repository
     this.ecrDeployment = new ECRDeployment(this, `ECRDeploy${id}`, {
       src: new DockerImageName(props.sourceUri),
       dest: new DockerImageName(
-        new EcrImage(this.repository, "latest").imageName
+        new EcrImage(props.repository, "latest").imageName
       )
     });
     // set the image URI to the latest repository image
-    this.imageUri = this.repository.repositoryUriForTag("latest");
+    this.imageUri = props.repository.repositoryUriForTag("latest");
   }
 }
