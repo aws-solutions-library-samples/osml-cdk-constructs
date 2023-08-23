@@ -167,27 +167,6 @@ export class MRDataplane extends Construct {
         roleName: this.mrDataplaneConfig.MR_TASK_ROLE_NAME
       }).role;
     }
-    if (props.account.isDev == true) {
-      this.mrContainerSourceUri = new DockerImageAsset(this, id, {
-        directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
-        file: "Dockerfile",
-        followSymlinks: SymlinkFollowMode.ALWAYS,
-        target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET
-      }).imageUri;
-    } else {
-      this.mrContainerSourceUri = this.mrDataplaneConfig.MR_DEFAULT_CONTAINER;
-    }
-    // build and deploy model runner container to target repo
-    this.mrEcrDeployment = new OSMLECRDeployment(
-      this,
-      "MRModelRunnerContainer",
-      {
-        sourceUri: this.mrContainerSourceUri,
-        repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
-        removalPolicy: this.removalPolicy,
-        vpc: this.osmlVpc.vpc
-      }
-    );
 
     // set up a regional s3 endpoint for GDAL to use
     this.regionalS3Endpoint = region_info.Fact.find(
@@ -199,6 +178,29 @@ export class MRDataplane extends Construct {
     this.osmlVpc = new OSMLVpc(this, "MRVPC", {
       vpcName: this.mrDataplaneConfig.VPC_NAME
     });
+
+    if (props.account.isDev == true) {
+      this.mrContainerSourceUri = new DockerImageAsset(this, id, {
+        directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
+        file: "Dockerfile",
+        followSymlinks: SymlinkFollowMode.ALWAYS,
+        target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET
+      }).imageUri;
+    } else {
+      this.mrContainerSourceUri = this.mrDataplaneConfig.MR_DEFAULT_CONTAINER;
+    }
+
+    // build and deploy model runner container to target repo
+    this.mrEcrDeployment = new OSMLECRDeployment(
+      this,
+      "MRModelRunnerContainer",
+      {
+        sourceUri: this.mrContainerSourceUri,
+        repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
+        removalPolicy: this.removalPolicy,
+        vpc: this.osmlVpc.vpc
+      }
+    );
 
     // job status table to store worker status info
     this.jobStatusTable = new OSMLTable(this, "MRJobStatusTable", {
