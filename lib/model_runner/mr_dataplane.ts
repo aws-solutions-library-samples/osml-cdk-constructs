@@ -28,7 +28,7 @@ import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml/osml_account";
-import { OSMLECRDeployment } from "../osml/osml_container";
+import { OSMLECRDeployment } from "../osml/osml_ecr_deployment";
 import { OSMLQueue } from "../osml/osml_queue";
 import { OSMLTable } from "../osml/osml_table";
 import { OSMLTopic } from "../osml/osml_topic";
@@ -184,7 +184,8 @@ export class MRDataplane extends Construct {
       {
         sourceUri: this.mrContainerSourceUri,
         repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
-        removalPolicy: this.removalPolicy
+        removalPolicy: this.removalPolicy,
+        vpc: this.osmlVpc.vpc
       }
     );
 

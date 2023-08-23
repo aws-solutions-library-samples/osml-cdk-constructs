@@ -6,7 +6,7 @@ export * from "./model_runner/mr_task_role";
 export * from "./model_runner/mr_testing";
 export * from "./osml/osml_account";
 export * from "./osml/osml_bucket";
-export * from "./osml/osml_container";
+export * from "./osml/osml_ecr_deployment";
 export * from "./osml/osml_queue";
 export * from "./osml/osml_repository";
 export * from "./osml/osml_sm_endpoint";

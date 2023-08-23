@@ -3,6 +3,7 @@
  */
 
 import { RemovalPolicy } from "aws-cdk-lib";
+import { IVpc } from "aws-cdk-lib/aws-ec2";
 import { IRepository } from "aws-cdk-lib/aws-ecr";
 import { ContainerImage, EcrImage } from "aws-cdk-lib/aws-ecs";
 import { DockerImageName, ECRDeployment } from "cdk-ecr-deployment";
@@ -11,6 +12,8 @@ import { Construct } from "constructs";
 import { OSMLRepository } from "./osml_repository";
 
 export interface OSMLECRContainerProps {
+  // vpc to deploy lambda for ECR replication into
+  vpc: IVpc;
   // URI to image to build into an ECR container
   sourceUri: string;
   // the repository to deploy the container image into
@@ -57,7 +60,9 @@ export class OSMLECRDeployment extends Construct {
     // copy from cdk docker image asset to the given repository
     this.ecrDeployment = new ECRDeployment(this, `ECRDeploy${id}`, {
       src: new DockerImageName(props.sourceUri),
-      dest: new DockerImageName(this.ecrImage.imageName)
+      dest: new DockerImageName(this.ecrImage.imageName),
+      memoryLimit: 10240,
+      vpc: props.vpc
     });
 
     // build a container image object to vend

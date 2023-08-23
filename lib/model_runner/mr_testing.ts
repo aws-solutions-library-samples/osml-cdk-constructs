@@ -18,7 +18,7 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml/osml_account";
 import { OSMLBucket } from "../osml/osml_bucket";
-import { OSMLECRDeployment } from "../osml/osml_container";
+import { OSMLECRDeployment } from "../osml/osml_ecr_deployment";
 import { OSMLQueue } from "../osml/osml_queue";
 import { OSMLSMEndpoint } from "../osml/osml_sm_endpoint";
 import { OSMLVpc } from "../osml/osml_vpc";
@@ -185,7 +185,8 @@ export class MRTesting extends Construct {
         {
           sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
           repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
-          removalPolicy: this.removalPolicy
+          removalPolicy: this.removalPolicy,
+          vpc: props.osmlVpc.vpc
         }
       );
     }
