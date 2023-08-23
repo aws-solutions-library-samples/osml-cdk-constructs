@@ -169,12 +169,6 @@ export class MRDataplane extends Construct {
         roleName: this.mrDataplaneConfig.MR_TASK_ROLE_NAME
       }).role;
     }
-
-    // build an ECR repo for the model runner container
-    this.mrRepository = new OSMLRepository(this, "MRModelRunnerRepository", {
-      repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
-      removalPolicy: this.removalPolicy
-    });
     if (props.account.isDev == true) {
       this.mrContainerSourceUri = new DockerImageAsset(this, id, {
         directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
