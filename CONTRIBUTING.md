@@ -238,15 +238,18 @@ Take a look at the existing codebase to understand the patterns and conventions 
 
 ## Commit Messages
 
-Clear and concise commit messages are important for keeping the project history readable. Please follow these rules when
-writing commit messages:
+The [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/#summary) specification is a
+lightweight convention on top of commit messages. It provides an easy set of rules for creating an explicit
+commit history, which makes it easier to write automated tools on top of. This convention dovetails with SemVer
+by describing the features, fixes, and breaking changes made in commit messages. Please refer to the linked
+documentation for examples and additional context.
 
-- Start with a capitalized summary line (50 characters or fewer) describing the change.
-- Provide additional details in the body of the commit message (if required).
-- Use present tense and imperative mood in commit messages ("Fix bug" instead of "Fixed bug").
-- Reference any relevant issues or pull requests using the appropriate syntax (`#123`, `GH-456`, etc.).
+<code>&lt;type&gt;[optional scope]: &lt;description&gt;
 
-For additional rules relating to commit messages, see [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/#summary)
+[optional body]
+
+[optional footer(s)]
+</code>
 
 ## Issue Tracking
 
