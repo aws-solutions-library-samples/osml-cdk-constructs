@@ -77,7 +77,7 @@ tox -e lint
 
 2. Create a feature branch based off of `dev`
 
-   ```
+   ```bash
    $ git checkout dev
    $ git checkout -b feature/new-documentation
    $ git push --set-upstream feature/new-documentation
@@ -87,7 +87,7 @@ tox -e lint
    allows others to see your changes and suggest improvements/changes as well as
    provides a safety net should your hard drive crash.
 
-    ```
+    ```bash
     $ ... make changes
     $ git add -A .
     $ git commit -m "Add new documentation files"
@@ -114,14 +114,14 @@ There's nothing special about that. Each developer follows the above [Develop a 
    latest production code. This reduces the chance of a merge conflict during
    the release.
 
-   ```
+   ```bash
    $ git checkout dev
    $ git merge main
    ```
 
 2. Create a new `release/vX.Y.Z` release branch off of `dev`.
 
-   ```
+   ```bash
    $ git checkout -b release/vX.Y.Z
    $ git push --set-upstream release/vX.Y.Z
    ```
@@ -129,7 +129,7 @@ There's nothing special about that. Each developer follows the above [Develop a 
 3. Stabilize the release by using bugfix branches off of the `release/vX.Y.Z` branch
    (the same way you would do a feature branch off of `dev`).
 
-   ```
+   ```bash
    $ git checkout release/vX.Y.Z
    $ git checkout -b hotfix/fix-label-alignment
    $ git push --set-upstream hotfix/fix-label-alignment
@@ -160,7 +160,7 @@ There's nothing special about that. Each developer follows the above [Develop a 
 
 7. Merge the `release/vX.Y.Z` into `dev`.
 
-    ```
+    ```bash
     $ git checkout dev
     $ git merge release/vX.Y.Z
     $ git push
@@ -182,7 +182,7 @@ code in it already.
 
 1. Create a hot fix branch based off of `main`.
 
-   ```
+   ```bash
    $ git checkout main
    $ git checkout -b hotfix/documentation-broken-links
    $ git push --set-upstream origin hotfix/documentation-broken-links
@@ -190,7 +190,7 @@ code in it already.
 
 2. Add a test case to validate the bug, fix the bug, and commit.
 
-   ```
+   ```bash
    ... add test, fix bug, verify
    $ git add -A .
    $ git commit -m "Fix broken links"
@@ -223,7 +223,7 @@ through the process of creating a release like this.*
 
 1. Merge the `hotfix/documentation-broken-links` into `dev`.
 
-   ```
+   ```bash
    $ git checkout dev
    $ git merge hotfix/documentation-broken-links
    $ git push
