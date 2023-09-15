@@ -144,8 +144,7 @@ There's nothing special about that. Each developer follows the above [Develop a 
     * Base: `main`
     * Compare: `release/vX.Y.Z`
       Paste the Release Checklist into the PR body. Each project should define a release
-      checklist. It will vary across projects, but you can refer to the Astro
-      [Release](https://github.com/mobify/astro/blob/develop/RELEASE.md) document for an example.
+      checklist. TBD - will link release checklist here.
 
 5. At some point in the checklist you will merge the release branch into `main`.
    You can do this by using the "Merge pull request" button on the release PR.
