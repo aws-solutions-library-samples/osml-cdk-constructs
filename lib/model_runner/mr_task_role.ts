@@ -82,15 +82,6 @@ export class MRTaskRole extends Construct {
       })
     );
 
-    // api permissions
-    this.role.addToPolicy(
-      new PolicyStatement({
-        actions: ["oversightml:*"],
-        resources: ["*"],
-        effect: Effect.ALLOW
-      })
-    );
-
     // events permissions
     this.role.addToPolicy(
       new PolicyStatement({
