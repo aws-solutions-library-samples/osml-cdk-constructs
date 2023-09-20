@@ -25,6 +25,7 @@ import { OSMLQueue } from "../osml/osml_queue";
 import { OSMLSMEndpoint } from "../osml/osml_sm_endpoint";
 import { OSMLVpc } from "../osml/osml_vpc";
 import { MRSMRole } from "./mr_sm_role";
+import { SecurityGroup } from "aws-cdk-lib/aws-ec2";
 
 // mutable configuration dataclass for the model runner testing Construct
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
@@ -87,6 +88,8 @@ export interface MRTestingProps {
   // optional custom model container ECR URIs
   modelContainer?: string;
 
+  // security groups to apply to the vpc config for SM endpoints
+  securityGroupId?: string;
   // optional deploy custom model resources
   deployCenterpointModel?: boolean;
   deployFloodModel?: boolean;
@@ -110,6 +113,7 @@ export class MRTesting extends Construct {
   public centerPointModelEndpoint?: OSMLSMEndpoint;
   public floodModelEndpoint?: OSMLSMEndpoint;
   public aircraftModelEndpoint?: OSMLSMEndpoint;
+  public securityGroupId: string;
 
   /**
    * Creates an MRTesting construct.
@@ -186,6 +190,14 @@ export class MRTesting extends Construct {
       props.deployAircraftModel != false ||
       props.deployFloodModel != false
     ) {
+
+      // if a custom security group was provided
+      if (props.securityGroupId) {
+        this.securityGroupId = props.securityGroupId;
+      } else {
+        this.securityGroupId = props.osmlVpc.vpcDefaultSecurityGroup
+      }
+
       if (props.account.isDev == true) {
         this.modelContainerSourceUri = new DockerImageAsset(this, id, {
           directory: this.mrTestingConfig.ECR_MODELS_PATH,
@@ -265,7 +277,7 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          securityGroupId: props.osmlVpc.vpcDefaultSecurityGroup,
+          securityGroupId: this.securityGroupId,
           subnetIds: props.osmlVpc.privateSubnets.subnetIds
         }
       );
@@ -288,7 +300,7 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          securityGroupId: props.osmlVpc.vpcDefaultSecurityGroup,
+          securityGroupId: this.securityGroupId,
           subnetIds: props.osmlVpc.privateSubnets.subnetIds
         }
       );
@@ -311,7 +323,7 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          securityGroupId: props.osmlVpc.vpcDefaultSecurityGroup,
+          securityGroupId: this.securityGroupId,
           subnetIds: props.osmlVpc.privateSubnets.subnetIds
         }
       );

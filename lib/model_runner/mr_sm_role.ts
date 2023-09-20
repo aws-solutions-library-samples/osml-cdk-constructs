@@ -1,7 +1,12 @@
 /*
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
-import { IRole, ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import {
+  IRole,
+  ManagedPolicy,
+  Role,
+  ServicePrincipal
+} from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml/osml_account";
