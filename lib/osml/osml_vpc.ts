@@ -14,7 +14,7 @@ export interface OSMLVpcProps {
 export class OSMLVpc extends Construct {
   public readonly vpc: IVpc;
   public readonly vpcDefaultSecurityGroup: string;
-  public readonly selectedSubnets: SelectedSubnets;
+  public readonly privateSubnets: SelectedSubnets;
 
   /**
    * Creates or imports a VPC for OSML.
@@ -25,7 +25,7 @@ export class OSMLVpc extends Construct {
    */
   constructor(scope: Construct, id: string, props: OSMLVpcProps) {
     super(scope, id);
-    // if a osmlVpc id is not explicitly given use the default osmlVpc
+    // if an osmlVpc id is not explicitly given, use the default osmlVpc
     if (props.vpcId) {
       this.vpc = Vpc.fromLookup(this, "OSMLImportVPC", {
         vpcId: props.vpcId,
@@ -49,9 +49,9 @@ export class OSMLVpc extends Construct {
       });
       this.vpc = vpc;
       this.vpcDefaultSecurityGroup = vpc.vpcDefaultSecurityGroup;
-      this.selectedSubnets = vpc.selectSubnets({
-        subnetType: SubnetType.PRIVATE_WITH_EGRESS
-      });
     }
+    this.privateSubnets = this.vpc.selectSubnets({
+      subnetType: SubnetType.PRIVATE_WITH_EGRESS
+    });
   }
 }

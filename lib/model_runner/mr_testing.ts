@@ -186,7 +186,7 @@ export class MRTesting extends Construct {
           sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
           repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
           removalPolicy: this.removalPolicy,
-          vpc: props.osmlVpc.vpc
+          osmlVpc: props.osmlVpc
         }
       );
     }
@@ -204,7 +204,8 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          osmlVpc: props.osmlVpc
+          securityGroupId: props.osmlVpc.vpcDefaultSecurityGroup,
+          subnetIds: props.osmlVpc.privateSubnets.subnetIds
         }
       );
       this.centerPointModelEndpoint.node.addDependency(
@@ -226,7 +227,8 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          osmlVpc: props.osmlVpc
+          securityGroupId: props.osmlVpc.vpcDefaultSecurityGroup,
+          subnetIds: props.osmlVpc.privateSubnets.subnetIds
         }
       );
       this.floodModelEndpoint.node.addDependency(
@@ -248,7 +250,8 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          osmlVpc: props.osmlVpc
+          securityGroupId: props.osmlVpc.vpcDefaultSecurityGroup,
+          subnetIds: props.osmlVpc.privateSubnets.subnetIds
         }
       );
       this.aircraftModelEndpoint.node.addDependency(

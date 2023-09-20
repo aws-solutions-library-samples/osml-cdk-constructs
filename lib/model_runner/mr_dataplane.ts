@@ -9,6 +9,7 @@ import {
   SymlinkFollowMode
 } from "aws-cdk-lib";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
+import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import {
   Cluster,
@@ -85,6 +86,8 @@ export interface MRDataplaneProps {
   account: OSMLAccount;
   // URI link to a s3 hosted terrain dataset
   mrTerrainUri?: string;
+  // optional security group id to provide to the model runner Fargate service
+  securityGroupId?: string;
   // optional role to give the model runner task execution permissions - will be crated if not provided
   taskRole?: IRole;
   // optional service level configuration that can be provided by the user but will be defaulted if not
@@ -115,6 +118,7 @@ export class MRDataplane extends Construct {
   public workers: string;
   public containerDefinition: ContainerDefinition;
   public fargateService: FargateService;
+  public securityGroups?: [ISecurityGroup];
   public autoScaling?: MRAutoScaling;
   public mrTerrainUri?: string;
 
@@ -175,6 +179,7 @@ export class MRDataplane extends Construct {
 
     // build a VPC to house containers and services
     this.osmlVpc = new OSMLVpc(this, "MRVPC", {
+      vpcId: props.account.vpcId,
       vpcName: this.mrDataplaneConfig.VPC_NAME
     });
 
@@ -197,7 +202,7 @@ export class MRDataplane extends Construct {
         sourceUri: this.mrContainerSourceUri,
         repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
         removalPolicy: this.removalPolicy,
-        vpc: this.osmlVpc.vpc
+        osmlVpc: this.osmlVpc
       }
     );
 
@@ -370,11 +375,24 @@ export class MRDataplane extends Construct {
       protocol: Protocol.TCP
     });
 
+    // if a custom security group was provided
+    if (props.securityGroupId) {
+      this.securityGroups = [
+        SecurityGroup.fromSecurityGroupId(
+          this,
+          "MRImportSecurityGroup",
+          props.securityGroupId
+        )
+      ];
+    }
+
     // set up fargate service
     this.fargateService = new FargateService(this, "MRService", {
       taskDefinition: this.taskDefinition,
       cluster: this.cluster,
-      minHealthyPercent: 100
+      minHealthyPercent: 100,
+      securityGroups: this.securityGroups,
+      vpcSubnets: this.osmlVpc.privateSubnets
     });
 
     // build a fluent bit log router for the MR container
