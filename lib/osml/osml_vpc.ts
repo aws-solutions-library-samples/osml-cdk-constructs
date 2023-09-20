@@ -4,7 +4,11 @@
 import { IVpc, SelectedSubnets, SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
 
+import { OSMLAccount } from "./osml_account";
+
 export interface OSMLVpcProps {
+  // the osml deployment account
+  account: OSMLAccount;
   // name of the VPC to create
   vpcName?: string;
   // the vpc id to import
@@ -17,7 +21,7 @@ export class OSMLVpc extends Construct {
   public readonly privateSubnets: SelectedSubnets;
 
   /**
-   * Creates or imports a VPC for OSML.
+   * Creates or imports a VPC for OSML to operate in.
    * @param scope the scope/stack in which to define this construct.
    * @param id the id of this construct within the current scope.
    * @param props the properties of this construct.
@@ -48,6 +52,8 @@ export class OSMLVpc extends Construct {
         ]
       });
       this.vpc = vpc;
+
+      // expose the default security group created with the VPC
       this.vpcDefaultSecurityGroup = vpc.vpcDefaultSecurityGroup;
     }
     this.privateSubnets = this.vpc.selectSubnets({
