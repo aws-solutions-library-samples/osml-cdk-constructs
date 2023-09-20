@@ -175,6 +175,7 @@ export class MRDataplane extends Construct {
 
     // build a VPC to house containers and services
     this.osmlVpc = new OSMLVpc(this, "MRVPC", {
+      account: props.account,
       vpcName: this.mrDataplaneConfig.VPC_NAME
     });
 

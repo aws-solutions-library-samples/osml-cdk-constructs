@@ -3,22 +3,25 @@
  */
 
 import { Duration, RemovalPolicy } from "aws-cdk-lib";
-import { IVpc } from "aws-cdk-lib/aws-ec2";
 import {
   Cluster,
   Compatibility,
-  ContainerImage, LogDriver, Protocol,
+  ContainerImage,
+  LogDriver,
+  Protocol,
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
 import { IRole } from "aws-cdk-lib/aws-iam";
-import { Construct } from "constructs";
-import { OSMLAccount } from "./osml_account";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { Construct } from "constructs";
+
+import { OSMLAccount } from "./osml_account";
+import { OSMLVpc } from "./osml_vpc";
 
 export interface OSMLHTTPEndpointProps {
   account: OSMLAccount;
-  vpc: IVpc;
+  osmlVpc: OSMLVpc;
   image: ContainerImage;
   clusterName: string;
   role: IRole;
@@ -28,7 +31,7 @@ export interface OSMLHTTPEndpointProps {
   containerPort: number;
   healthcheckPath: string;
   loadBalancerName: string;
-  containerEnv?: {};
+  containerEnv?: { [key: string]: string };
 }
 
 export class OSMLHTTPModelEndpoint extends Construct {
@@ -39,7 +42,7 @@ export class OSMLHTTPModelEndpoint extends Construct {
     super(scope, id);
     const httpEndpointCluster = new Cluster(this, props.clusterName, {
       clusterName: props.clusterName,
-      vpc: props.vpc
+      vpc: props.osmlVpc.vpc
     });
     // setup a removal policy
     this.removalPolicy = props.account.prodLike
@@ -70,7 +73,7 @@ export class OSMLHTTPModelEndpoint extends Construct {
         {
           containerPort: props.containerPort,
           hostPort: props.hostPort,
-          protocol: Protocol.TCP,
+          protocol: Protocol.TCP
         }
       ],
       logging: LogDriver.awsLogs({
@@ -87,7 +90,9 @@ export class OSMLHTTPModelEndpoint extends Construct {
         cluster: httpEndpointCluster,
         loadBalancerName: props.loadBalancerName,
         healthCheckGracePeriod: Duration.seconds(120),
-        taskDefinition: taskDefinition
+        taskDefinition: taskDefinition,
+        taskSubnets: props.osmlVpc.privateSubnets,
+        publicLoadBalancer: false
       }
     );
 

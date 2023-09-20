@@ -231,7 +231,7 @@ export class MRTesting extends Construct {
         "OSMLHTTPCenterPointModelEndpoint",
         {
           account: props.account,
-          vpc: props.osmlVpc.vpc,
+          osmlVpc: props.osmlVpc,
           image: this.modelContainerEcrDeployment.containerImage,
           clusterName: this.mrTestingConfig.HTTP_ENDPOINT_NAME,
           role: this.httpEndpointRole,

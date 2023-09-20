@@ -7,6 +7,7 @@ import {
   Effect,
   ManagedPolicy,
   PolicyStatement,
+  IRole,
   Role,
   ServicePrincipal
 } from "aws-cdk-lib/aws-iam";
@@ -22,7 +23,7 @@ export interface MRTaskRoleProps {
 }
 
 export class MRTaskRole extends Construct {
-  public role: Role;
+  public role: IRole;
   public partition: string;
 
   /**
@@ -40,7 +41,7 @@ export class MRTaskRole extends Construct {
     )!;
 
     // model runner Fargate ECS task role
-    this.role = new Role(this, "MRTaskRole", {
+    let mrTaskRole = new Role(this, "MRTaskRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(
         new ServicePrincipal("ecs-tasks.amazonaws.com"),
@@ -63,7 +64,7 @@ export class MRTaskRole extends Construct {
 
     // needs the ability to assume roles to read from/write to remote account S3 buckets,
     // kinesis streams, and invoke SM endpoints
-    this.role.addToPolicy(
+    mrTaskRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ["sts:AssumeRole"],
@@ -72,7 +73,7 @@ export class MRTaskRole extends Construct {
     );
 
     // kms permissions
-    this.role.addToPolicy(
+    mrTaskRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ["kms:Decrypt", "kms:GenerateDataKey", "kms:Encrypt"],
@@ -83,7 +84,7 @@ export class MRTaskRole extends Construct {
     );
 
     // events permissions
-    this.role.addToPolicy(
+    mrTaskRole.addToPolicy(
       new PolicyStatement({
         actions: ["events:PutRule", "events:PutTargets", "events:DescribeRule"],
         resources: [
@@ -94,7 +95,7 @@ export class MRTaskRole extends Construct {
     );
 
     // kinesis permissions
-    this.role.addToPolicy(
+    mrTaskRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ["kinesis:PutRecord", "kinesis:PutRecords"],
@@ -106,12 +107,14 @@ export class MRTaskRole extends Construct {
 
     // need to describe ec2 instance types in order to perform max in-progress
     // region calculations
-    this.role.addToPolicy(
+    mrTaskRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ["ec2:DescribeInstanceTypes"],
         resources: ["*"]
       })
     );
+
+    this.role = mrTaskRole;
   }
 }
