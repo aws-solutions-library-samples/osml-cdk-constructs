@@ -1,7 +1,12 @@
 /*
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
-import { ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import {
+  IRole,
+  ManagedPolicy,
+  Role,
+  ServicePrincipal
+} from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml/osml_account";
@@ -14,7 +19,7 @@ export interface MRSMRoleProps {
 }
 
 export class MRSMRole extends Construct {
-  public role: Role;
+  public role: IRole;
 
   /**
    * Creates a SageMaker execution role for hosting CV models at SM endpoint.

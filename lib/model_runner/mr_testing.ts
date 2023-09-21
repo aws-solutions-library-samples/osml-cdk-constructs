@@ -3,6 +3,7 @@
  */
 
 import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
+import { SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
@@ -19,6 +20,8 @@ import { Construct } from "constructs";
 import { OSMLAccount } from "../osml/osml_account";
 import { OSMLBucket } from "../osml/osml_bucket";
 import { OSMLECRDeployment } from "../osml/osml_ecr_deployment";
+import { OSMLHTTPModelEndpoint } from "../osml/osml_http_endpoint";
+import { OSMLHTTPEndpointRole } from "../osml/osml_http_endpoint_role";
 import { OSMLQueue } from "../osml/osml_queue";
 import { OSMLSMEndpoint } from "../osml/osml_sm_endpoint";
 import { OSMLVpc } from "../osml/osml_vpc";
@@ -31,7 +34,7 @@ export class MRTestingConfig {
     // queue names
     public SQS_IMAGE_STATUS_QUEUE = "ImageStatusQueue",
     public SQS_REGION_STATUS_QUEUE = "RegionStatusQueue",
-    // sagemaker names
+    // sagemaker endpoint params
     public SM_CENTER_POINT_MODEL = "centerpoint",
     public SM_FLOOD_MODEL = "flood",
     public SM_AIRCRAFT_MODEL = "aircraft",
@@ -41,11 +44,21 @@ export class MRTestingConfig {
     public SM_VARIANT_NAME = "AllTraffic",
     public SM_CPU_INSTANCE_TYPE = "ml.m5.xlarge",
     public SM_GPU_INSTANCE_TYPE = "ml.p3.2xlarge",
+    // http endpoint params
+    public HTTP_ENDPOINT_NAME = "HTTPModelCluster",
+    public HTTP_ENDPOINT_ROLE_NAME = "HTTPEndpointRole",
+    public HTTP_ENDPOINT_HOST_PORT = 8080,
+    public HTTP_ENDPOINT_CONTAINER_PORT = 8080,
+    public HTTP_ENDPOINT_MEMORY = 16384,
+    public HTTP_ENDPOINT_CPU = 4096,
+    public HTTP_ENDPOINT_HEALTHCHECK_PATH = "/ping",
+    public HTTP_ENDPOINT_DOMAIN_NAME = "test-http-model-endpoint",
     // bucket names
     public S3_RESULTS_BUCKET = "test-results",
     public S3_IMAGE_BUCKET = "test-images",
     // path to test images
     public S3_TEST_IMAGES_PATH = "assets/images",
+    // default model container to pull from
     public MODEL_DEFAULT_CONTAINER = "awsosml/osml-models:main",
     // ecr repo names
     public ECR_MODEL_REPOSITORY = "model-container",
@@ -66,6 +79,8 @@ export interface MRTestingProps {
   imageStatusTopic: ITopic;
   // the model runner region status topic
   regionStatusTopic: ITopic;
+  // role to apply to the http endpoint fargate tasks
+  httpEndpointRole?: IRole;
   // optional custom configuration for the testing resources - will be defaulted if not provided
   mrTestingConfig?: MRTestingConfig;
   // optional sage maker iam role to use for endpoint construction - will be defaulted if not provided
@@ -73,10 +88,13 @@ export interface MRTestingProps {
   // optional custom model container ECR URIs
   modelContainer?: string;
 
+  // security groups to apply to the vpc config for SM endpoints
+  securityGroupId?: string;
   // optional deploy custom model resources
   deployCenterpointModel?: boolean;
   deployFloodModel?: boolean;
   deployAircraftModel?: boolean;
+  deployHttpCenterpointModel?: boolean;
 }
 
 export class MRTesting extends Construct {
@@ -90,9 +108,12 @@ export class MRTesting extends Construct {
   public removalPolicy: RemovalPolicy;
   public mrTestingConfig: MRTestingConfig;
   public smRole?: IRole;
+  public httpEndpointRole?: IRole;
+  public httpCenterpointModelEndpoint?: OSMLHTTPModelEndpoint;
   public centerPointModelEndpoint?: OSMLSMEndpoint;
   public floodModelEndpoint?: OSMLSMEndpoint;
   public aircraftModelEndpoint?: OSMLSMEndpoint;
+  public securityGroupId: string;
 
   /**
    * Creates an MRTesting construct.
@@ -153,7 +174,7 @@ export class MRTesting extends Construct {
 
     // check if a role was provided
     if (props.smRole != undefined) {
-      // import passed in MR task role
+      // import custom SageMaker endpoint role
       this.smRole = props.smRole;
     } else {
       // create a new role
@@ -164,10 +185,18 @@ export class MRTesting extends Construct {
     }
 
     if (
+      props.deployHttpCenterpointModel != false ||
       props.deployCenterpointModel != false ||
       props.deployAircraftModel != false ||
       props.deployFloodModel != false
     ) {
+      // if a custom security group was provided
+      if (props.securityGroupId) {
+        this.securityGroupId = props.securityGroupId;
+      } else {
+        this.securityGroupId = props.osmlVpc.vpcDefaultSecurityGroup;
+      }
+
       if (props.account.isDev == true) {
         this.modelContainerSourceUri = new DockerImageAsset(this, id, {
           directory: this.mrTestingConfig.ECR_MODELS_PATH,
@@ -186,10 +215,53 @@ export class MRTesting extends Construct {
           sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
           repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
           removalPolicy: this.removalPolicy,
-          vpc: props.osmlVpc.vpc
+          osmlVpc: props.osmlVpc
         }
       );
     }
+    if (props.deployHttpCenterpointModel != false) {
+      // check if a role was provided
+      if (props.httpEndpointRole != undefined) {
+        // import passed custom role for the httpEndpoint
+        this.httpEndpointRole = props.httpEndpointRole;
+      } else {
+        // create a new role
+        this.httpEndpointRole = new OSMLHTTPEndpointRole(
+          this,
+          "HTTPEndpointTaskRole",
+          {
+            account: props.account,
+            roleName: this.mrTestingConfig.HTTP_ENDPOINT_ROLE_NAME
+          }
+        ).role;
+      }
+
+      // build a Fargate HTTP endpoint from the centerpoint model container
+      this.httpCenterpointModelEndpoint = new OSMLHTTPModelEndpoint(
+        this,
+        "OSMLHTTPCenterPointModelEndpoint",
+        {
+          account: props.account,
+          osmlVpc: props.osmlVpc,
+          image: this.modelContainerEcrDeployment.containerImage,
+          clusterName: this.mrTestingConfig.HTTP_ENDPOINT_NAME,
+          role: this.httpEndpointRole,
+          memory: this.mrTestingConfig.HTTP_ENDPOINT_MEMORY,
+          cpu: this.mrTestingConfig.HTTP_ENDPOINT_CPU,
+          hostPort: this.mrTestingConfig.HTTP_ENDPOINT_HOST_PORT,
+          containerPort: this.mrTestingConfig.HTTP_ENDPOINT_CONTAINER_PORT,
+          healthcheckPath: this.mrTestingConfig.HTTP_ENDPOINT_HEALTHCHECK_PATH,
+          loadBalancerName: this.mrTestingConfig.HTTP_ENDPOINT_DOMAIN_NAME,
+          containerEnv: {
+            MODEL_SELECTION: this.mrTestingConfig.SM_CENTER_POINT_MODEL
+          }
+        }
+      );
+      this.httpCenterpointModelEndpoint.node.addDependency(
+        this.modelContainerEcrDeployment
+      );
+    }
+
     if (props.deployCenterpointModel != false) {
       // build an SM endpoint from the centerpoint model container
       this.centerPointModelEndpoint = new OSMLSMEndpoint(
@@ -204,7 +276,8 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          osmlVpc: props.osmlVpc
+          securityGroupId: this.securityGroupId,
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
       this.centerPointModelEndpoint.node.addDependency(
@@ -226,7 +299,8 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          osmlVpc: props.osmlVpc
+          securityGroupId: this.securityGroupId,
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
       this.floodModelEndpoint.node.addDependency(
@@ -248,7 +322,8 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          osmlVpc: props.osmlVpc
+          securityGroupId: this.securityGroupId,
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
       this.aircraftModelEndpoint.node.addDependency(

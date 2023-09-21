@@ -9,6 +9,7 @@ import {
   SymlinkFollowMode
 } from "aws-cdk-lib";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
+import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import {
   Cluster,
@@ -85,12 +86,16 @@ export interface MRDataplaneProps {
   account: OSMLAccount;
   // URI link to a s3 hosted terrain dataset
   mrTerrainUri?: string;
+  // optional security group id to provide to the model runner Fargate service
+  securityGroupId?: string;
   // optional role to give the model runner task execution permissions - will be crated if not provided
   taskRole?: IRole;
   // optional service level configuration that can be provided by the user but will be defaulted if not
   dataplaneConfig?: MRDataplaneConfig;
   // enable autoscaling for the fargate service
   enableAutoscaling?: boolean;
+  // subnets to deploy infrastructure into
+  targetSubnets?: string[];
 }
 
 export class MRDataplane extends Construct {
@@ -115,6 +120,7 @@ export class MRDataplane extends Construct {
   public workers: string;
   public containerDefinition: ContainerDefinition;
   public fargateService: FargateService;
+  public securityGroups?: [ISecurityGroup];
   public autoScaling?: MRAutoScaling;
   public mrTerrainUri?: string;
 
@@ -157,7 +163,7 @@ export class MRDataplane extends Construct {
 
     // check if a role was provided
     if (props.taskRole != undefined) {
-      // import passed in MR task role
+      // import passed in an MR task role
       this.mrRole = props.taskRole;
     } else {
       // create a new role
@@ -175,7 +181,10 @@ export class MRDataplane extends Construct {
 
     // build a VPC to house containers and services
     this.osmlVpc = new OSMLVpc(this, "MRVPC", {
-      vpcName: this.mrDataplaneConfig.VPC_NAME
+      vpcId: props.account.vpcId,
+      account: props.account,
+      vpcName: this.mrDataplaneConfig.VPC_NAME,
+      targetSubnets: props.targetSubnets
     });
 
     if (props.account.isDev == true) {
@@ -197,7 +206,7 @@ export class MRDataplane extends Construct {
         sourceUri: this.mrContainerSourceUri,
         repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
         removalPolicy: this.removalPolicy,
-        vpc: this.osmlVpc.vpc
+        osmlVpc: this.osmlVpc
       }
     );
 
@@ -257,26 +266,34 @@ export class MRDataplane extends Construct {
       ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
     });
 
-    // create topic for image request status notifications
+    // create a topic for image request status notifications
     this.imageStatusTopic = new OSMLTopic(this, "MRImageStatusTopic", {
       topicName: this.mrDataplaneConfig.SNS_IMAGE_STATUS_TOPIC
     });
 
-    // create topic for region request status notifications
+    // create a topic for region request status notifications
     this.regionStatusTopic = new OSMLTopic(this, "MRRegionStatusTopic", {
       topicName: this.mrDataplaneConfig.SNS_REGION_STATUS_TOPIC
     });
 
-    // create a SQS queue for the image processing jobs. This queue is subscribed to the SNS topic for new
-    // image processing tasks and will eventually filter those tasks to make sure they are destined for this
-    // processing cell. If a task fails multiple times it will be sent to a DLQ.
+    /**
+     * Create a SQS queue for the image processing jobs.
+     * This queue is subscribed to the SNS topic for new
+     * image processing tasks and will eventually filter those tasks to make
+     * sure they are destined for this processing cell.
+     * If a task fails multiple times, it will be sent to a DLQ.
+     **/
     this.imageRequestQueue = new OSMLQueue(this, "MRImageRequestQueue", {
       queueName: this.mrDataplaneConfig.SQS_IMAGE_REQUEST_QUEUE
     });
 
-    // create a SQS queue for the image region processing tasks. If an image is too large to be handled by that
-    // a single instance it will divide the image into regions and place a task for each on this queue. That allows
-    // other model runner instances to pickup part of the overall processing load for this image.
+    /**
+     * Create a SQS queue for the image region processing tasks.
+     * If an image is too large to be handled by that a single instance,
+     * it will divide the image into regions and place a task for each in this queue.
+     * That allows other model runner instances to pickup part of the overall
+     * processing load for this image.
+     **/
     this.regionRequestQueue = new OSMLQueue(this, "MRRegionRequestQueue", {
       queueName: this.mrDataplaneConfig.SQS_REGION_REQUEST_QUEUE
     });
@@ -346,7 +363,7 @@ export class MRDataplane extends Construct {
         environment: containerEnv,
         startTimeout: Duration.minutes(1),
         stopTimeout: Duration.minutes(1),
-        // create log group for console output (STDOUT)
+        // create a log group for console output (STDOUT)
         logging: new FireLensLogDriver({
           options: {
             Name: "cloudwatch",
@@ -370,11 +387,24 @@ export class MRDataplane extends Construct {
       protocol: Protocol.TCP
     });
 
+    // if a custom security group was provided
+    if (props.securityGroupId) {
+      this.securityGroups = [
+        SecurityGroup.fromSecurityGroupId(
+          this,
+          "MRImportSecurityGroup",
+          props.securityGroupId
+        )
+      ];
+    }
+
     // set up fargate service
     this.fargateService = new FargateService(this, "MRService", {
       taskDefinition: this.taskDefinition,
       cluster: this.cluster,
-      minHealthyPercent: 100
+      minHealthyPercent: 100,
+      securityGroups: this.securityGroups,
+      vpcSubnets: this.osmlVpc.selectedSubnets
     });
 
     // build a fluent bit log router for the MR container
@@ -409,7 +439,7 @@ export class MRDataplane extends Construct {
     });
 
     if (props.account.enableAutoscaling) {
-      // build service autoscaling group for MR fargate service
+      // build a service autoscaling group for MR fargate service
       this.autoScaling = new MRAutoScaling(this, "MRAutoScaling", {
         account: props.account,
         role: this.mrRole,

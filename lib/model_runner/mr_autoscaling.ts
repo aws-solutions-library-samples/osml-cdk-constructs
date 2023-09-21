@@ -73,7 +73,7 @@ export class MRAutoScaling extends Construct {
       /**
        * CloudWatch Scheduled Job to control scaling
        * This is currently used to provide scaling capability for ECS
-       * tasks in the highside partitions.
+       * tasks in the ADC partitions.
        */
 
       const regionQueueScalingAlarm = new Alarm(
