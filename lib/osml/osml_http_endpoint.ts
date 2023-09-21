@@ -91,7 +91,7 @@ export class OSMLHTTPModelEndpoint extends Construct {
         loadBalancerName: props.loadBalancerName,
         healthCheckGracePeriod: Duration.seconds(120),
         taskDefinition: taskDefinition,
-        taskSubnets: props.osmlVpc.privateSubnets,
+        taskSubnets: props.osmlVpc.selectedSubnets,
         publicLoadBalancer: false
       }
     );

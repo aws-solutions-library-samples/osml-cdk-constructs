@@ -3,6 +3,7 @@
  */
 
 import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
+import { SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
@@ -87,6 +88,8 @@ export interface MRTestingProps {
   // optional custom model container ECR URIs
   modelContainer?: string;
 
+  // security groups to apply to the vpc config for SM endpoints
+  securityGroupId?: string;
   // optional deploy custom model resources
   deployCenterpointModel?: boolean;
   deployFloodModel?: boolean;
@@ -110,6 +113,7 @@ export class MRTesting extends Construct {
   public centerPointModelEndpoint?: OSMLSMEndpoint;
   public floodModelEndpoint?: OSMLSMEndpoint;
   public aircraftModelEndpoint?: OSMLSMEndpoint;
+  public securityGroupId: string;
 
   /**
    * Creates an MRTesting construct.
@@ -186,6 +190,13 @@ export class MRTesting extends Construct {
       props.deployAircraftModel != false ||
       props.deployFloodModel != false
     ) {
+      // if a custom security group was provided
+      if (props.securityGroupId) {
+        this.securityGroupId = props.securityGroupId;
+      } else {
+        this.securityGroupId = props.osmlVpc.vpcDefaultSecurityGroup;
+      }
+
       if (props.account.isDev == true) {
         this.modelContainerSourceUri = new DockerImageAsset(this, id, {
           directory: this.mrTestingConfig.ECR_MODELS_PATH,
@@ -204,7 +215,7 @@ export class MRTesting extends Construct {
           sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
           repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
           removalPolicy: this.removalPolicy,
-          vpc: props.osmlVpc.vpc
+          osmlVpc: props.osmlVpc
         }
       );
     }
@@ -265,7 +276,8 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          osmlVpc: props.osmlVpc
+          securityGroupId: this.securityGroupId,
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
       this.centerPointModelEndpoint.node.addDependency(
@@ -287,7 +299,8 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          osmlVpc: props.osmlVpc
+          securityGroupId: this.securityGroupId,
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
       this.floodModelEndpoint.node.addDependency(
@@ -309,7 +322,8 @@ export class MRTesting extends Construct {
           initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
-          osmlVpc: props.osmlVpc
+          securityGroupId: this.securityGroupId,
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
       this.aircraftModelEndpoint.node.addDependency(

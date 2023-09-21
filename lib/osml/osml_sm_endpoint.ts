@@ -9,8 +9,6 @@ import {
 } from "aws-cdk-lib/aws-sagemaker";
 import { Construct } from "constructs";
 
-import { OSMLVpc } from "./osml_vpc";
-
 export interface OSMLSMEndpointProps {
   // sagemaker execution role arn to use for the model endpoint
   roleArn: string;
@@ -27,8 +25,10 @@ export interface OSMLSMEndpointProps {
   instanceType: string;
   //  name of the variant to host the model on (e.g. 'AllTraffic')
   variantName: string;
-  // osmlVpc model runner is running in
-  osmlVpc: OSMLVpc;
+  // security groups to apply to the vpc config
+  securityGroupId: string;
+  // subnets to deploy endpoint into
+  subnetIds: string[];
   // the SM endpoint repository access mode
   repositoryAccessMode: string;
 }
@@ -61,8 +61,8 @@ export class OSMLSMEndpoint extends Construct {
         }
       ],
       vpcConfig: {
-        subnets: props.osmlVpc.privateSubnets.subnetIds,
-        securityGroupIds: [props.osmlVpc.vpcDefaultSecurityGroup]
+        subnets: props.subnetIds,
+        securityGroupIds: [props.securityGroupId]
       }
     });
 
