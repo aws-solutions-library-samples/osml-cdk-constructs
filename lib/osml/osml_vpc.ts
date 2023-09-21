@@ -7,6 +7,7 @@ import {
   InterfaceVpcEndpointService,
   IVpc,
   SelectedSubnets,
+  SubnetFilter,
   SubnetType,
   Vpc
 } from "aws-cdk-lib/aws-ec2";
@@ -21,12 +22,14 @@ export interface OSMLVpcProps {
   vpcName?: string;
   // the vpc id to import
   vpcId?: string;
+  // a list of subnet ids to deploy infrastructure into
+  targetSubnets?: string[];
 }
 
 export class OSMLVpc extends Construct {
   public readonly vpc: IVpc;
   public readonly vpcDefaultSecurityGroup: string;
-  public readonly privateSubnets: SelectedSubnets;
+  public readonly selectedSubnets: SelectedSubnets;
 
   /**
    * Creates or imports a VPC for OSML to operate in.
@@ -65,7 +68,7 @@ export class OSMLVpc extends Construct {
       this.vpcDefaultSecurityGroup = vpc.vpcDefaultSecurityGroup;
 
       // expose the private subnets associated with the VPC
-      this.privateSubnets = vpc.selectSubnets({
+      this.selectedSubnets = vpc.selectSubnets({
         subnetType: SubnetType.PRIVATE_WITH_EGRESS
       });
 
@@ -112,8 +115,16 @@ export class OSMLVpc extends Construct {
         });
       }
     }
-    this.privateSubnets = this.vpc.selectSubnets({
-      subnetType: SubnetType.PRIVATE_WITH_EGRESS
-    });
+    // if specified subnets are provided, use them
+    if (props.targetSubnets) {
+      this.selectedSubnets = this.vpc.selectSubnets({
+        subnetFilters: [SubnetFilter.byIds(props.targetSubnets)]
+      });
+    } else {
+      // otherwise, select all private subnets
+      this.selectedSubnets = this.vpc.selectSubnets({
+        subnetType: SubnetType.PRIVATE_WITH_EGRESS
+      });
+    }
   }
 }

@@ -3,6 +3,7 @@
  */
 
 import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
+import { SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
@@ -25,7 +26,6 @@ import { OSMLQueue } from "../osml/osml_queue";
 import { OSMLSMEndpoint } from "../osml/osml_sm_endpoint";
 import { OSMLVpc } from "../osml/osml_vpc";
 import { MRSMRole } from "./mr_sm_role";
-import { SecurityGroup } from "aws-cdk-lib/aws-ec2";
 
 // mutable configuration dataclass for the model runner testing Construct
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
@@ -190,12 +190,11 @@ export class MRTesting extends Construct {
       props.deployAircraftModel != false ||
       props.deployFloodModel != false
     ) {
-
       // if a custom security group was provided
       if (props.securityGroupId) {
         this.securityGroupId = props.securityGroupId;
       } else {
-        this.securityGroupId = props.osmlVpc.vpcDefaultSecurityGroup
+        this.securityGroupId = props.osmlVpc.vpcDefaultSecurityGroup;
       }
 
       if (props.account.isDev == true) {
@@ -278,7 +277,7 @@ export class MRTesting extends Construct {
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
-          subnetIds: props.osmlVpc.privateSubnets.subnetIds
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
       this.centerPointModelEndpoint.node.addDependency(
@@ -301,7 +300,7 @@ export class MRTesting extends Construct {
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
-          subnetIds: props.osmlVpc.privateSubnets.subnetIds
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
       this.floodModelEndpoint.node.addDependency(
@@ -324,7 +323,7 @@ export class MRTesting extends Construct {
           variantName: this.mrTestingConfig.SM_VARIANT_NAME,
           repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
-          subnetIds: props.osmlVpc.privateSubnets.subnetIds
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
       this.aircraftModelEndpoint.node.addDependency(

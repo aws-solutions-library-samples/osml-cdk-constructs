@@ -94,6 +94,8 @@ export interface MRDataplaneProps {
   dataplaneConfig?: MRDataplaneConfig;
   // enable autoscaling for the fargate service
   enableAutoscaling?: boolean;
+  // subnets to deploy infrastructure into
+  targetSubnets?: string[];
 }
 
 export class MRDataplane extends Construct {
@@ -181,7 +183,8 @@ export class MRDataplane extends Construct {
     this.osmlVpc = new OSMLVpc(this, "MRVPC", {
       vpcId: props.account.vpcId,
       account: props.account,
-      vpcName: this.mrDataplaneConfig.VPC_NAME
+      vpcName: this.mrDataplaneConfig.VPC_NAME,
+      targetSubnets: props.targetSubnets
     });
 
     if (props.account.isDev == true) {
@@ -401,7 +404,7 @@ export class MRDataplane extends Construct {
       cluster: this.cluster,
       minHealthyPercent: 100,
       securityGroups: this.securityGroups,
-      vpcSubnets: this.osmlVpc.privateSubnets
+      vpcSubnets: this.osmlVpc.selectedSubnets
     });
 
     // build a fluent bit log router for the MR container

@@ -63,7 +63,7 @@ export class OSMLECRDeployment extends Construct {
       dest: new DockerImageName(this.ecrImage.imageName),
       memoryLimit: 10240,
       vpc: props.osmlVpc.vpc,
-      vpcSubnets: props.osmlVpc.privateSubnets
+      vpcSubnets: props.osmlVpc.selectedSubnets
     });
 
     // build a container image object to vend
