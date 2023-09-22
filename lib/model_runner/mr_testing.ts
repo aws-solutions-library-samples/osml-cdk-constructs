@@ -212,7 +212,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLModelContainer",
         {
-          sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
+          sourceUri: this.modelContainerSourceUri,
           repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
           removalPolicy: this.removalPolicy,
           osmlVpc: props.osmlVpc

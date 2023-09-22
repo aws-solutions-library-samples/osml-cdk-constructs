@@ -95,7 +95,7 @@ export interface MRDataplaneProps {
   // enable autoscaling for the fargate service
   enableAutoscaling?: boolean;
   // custom autoscaling configuration
-  mrAutoscalingConfig: MRAutoscalingConfig
+  mrAutoscalingConfig?: MRAutoscalingConfig
   // subnets to deploy infrastructure into
   targetSubnets?: string[];
 }
