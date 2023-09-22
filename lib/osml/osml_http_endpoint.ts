@@ -3,6 +3,7 @@
  */
 
 import { Duration, RemovalPolicy } from "aws-cdk-lib";
+import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import {
   Cluster,
   Compatibility,
@@ -32,12 +33,15 @@ export interface OSMLHTTPEndpointProps {
   healthcheckPath: string;
   loadBalancerName: string;
   containerEnv?: { [key: string]: string };
+  securityGroupId?: string;
 }
 
 export class OSMLHTTPModelEndpoint extends Construct {
   public networkHTTPEndpoint: ApplicationLoadBalancedFargateService;
   public logGroup: LogGroup;
   public removalPolicy: RemovalPolicy;
+  public securityGroups: ISecurityGroup[];
+
   constructor(scope: Construct, id: string, props: OSMLHTTPEndpointProps) {
     super(scope, id);
     const httpEndpointCluster = new Cluster(this, props.clusterName, {
@@ -83,6 +87,17 @@ export class OSMLHTTPModelEndpoint extends Construct {
       environment: props.containerEnv
     });
 
+    // if a custom security group was provided
+    if (props.securityGroupId) {
+      this.securityGroups = [
+        SecurityGroup.fromSecurityGroupId(
+          this,
+          "MRImportSecurityGroup",
+          props.securityGroupId
+        )
+      ];
+    }
+
     this.networkHTTPEndpoint = new ApplicationLoadBalancedFargateService(
       this,
       `${id}-HTTPEndpointService`,
@@ -92,7 +107,8 @@ export class OSMLHTTPModelEndpoint extends Construct {
         healthCheckGracePeriod: Duration.seconds(120),
         taskDefinition: taskDefinition,
         taskSubnets: props.osmlVpc.selectedSubnets,
-        publicLoadBalancer: false
+        publicLoadBalancer: false,
+        securityGroups: this.securityGroups
       }
     );
 
