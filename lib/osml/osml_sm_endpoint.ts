@@ -74,8 +74,13 @@ export class OSMLSMEndpoint extends Construct {
           initialVariantWeight: props.initialVariantWeight,
           instanceType: props.instanceType,
           modelName: this.model.attrModelName,
-          variantName: props.variantName
+          variantName: props.variantName,
+          volumeSizeInGb: 250
         }
+      ],
+      tags: [
+        { key: "Name", value: props.modelName },
+        { key: "Timestamp", value: new Date().toISOString() }
       ]
     });
 
