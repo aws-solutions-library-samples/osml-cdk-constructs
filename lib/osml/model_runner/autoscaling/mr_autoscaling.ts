@@ -11,8 +11,8 @@ import { Queue } from "aws-cdk-lib/aws-sqs";
 import { NagSuppressions } from "cdk-nag";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "../osml/osml_account";
-import { MRDataplaneConfig } from "./mr_dataplane";
+import { OSMLAccount } from "../../osml_account";
+import { MRDataplaneConfig } from "../mr_dataplane";
 
 // mutable configuration dataclass for model runner
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.

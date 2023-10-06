@@ -1,38 +1,25 @@
 /*
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
-
-import { RemovalPolicy, Size, SymlinkFollowMode } from "aws-cdk-lib";
+import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
+import { ContainerImage } from "aws-cdk-lib/aws-ecs";
 import { IRole } from "aws-cdk-lib/aws-iam";
-import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
-import { BucketAccessControl } from "aws-cdk-lib/aws-s3";
-import {
-  BucketDeployment,
-  ServerSideEncryption,
-  Source
-} from "aws-cdk-lib/aws-s3-deployment";
 import { ITopic } from "aws-cdk-lib/aws-sns";
-import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "../osml/osml_account";
-import { OSMLBucket } from "../osml/osml_bucket";
-import { OSMLECRDeployment } from "../osml/osml_ecr_deployment";
-import { OSMLHTTPModelEndpoint } from "../osml/osml_http_endpoint";
-import { OSMLHTTPEndpointRole } from "../osml/osml_http_endpoint_role";
-import { OSMLQueue } from "../osml/osml_queue";
-import { OSMLSMEndpoint } from "../osml/osml_sm_endpoint";
-import { OSMLVpc } from "../osml/osml_vpc";
-import { MRSMRole } from "./mr_sm_role";
+import { OSMLHTTPModelEndpoint } from "../../model_endpoints/osml_http_endpoint";
+import { OSMLHTTPEndpointRole } from "../../model_endpoints/osml_http_endpoint_role";
+import { OSMLSMEndpoint } from "../../model_endpoints/osml_sm_endpoint";
+import { OSMLAccount } from "../../osml_account";
+import { OSMLECRDeployment } from "../../osml_ecr_deployment";
+import { OSMLVpc } from "../../osml_vpc";
+import { MRSMRole } from "../roles/mr_sm_role";
 
 // mutable configuration dataclass for the model runner testing Construct
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
-export class MRTestingConfig {
+export class MRModelEndpointsConfig {
   constructor(
-    // queue names
-    public SQS_IMAGE_STATUS_QUEUE = "ImageStatusQueue",
-    public SQS_REGION_STATUS_QUEUE = "RegionStatusQueue",
     // sagemaker endpoint params
     public SM_CENTER_POINT_MODEL = "centerpoint",
     public SM_FLOOD_MODEL = "flood",
@@ -52,12 +39,6 @@ export class MRTestingConfig {
     public HTTP_ENDPOINT_CPU = 4096,
     public HTTP_ENDPOINT_HEALTHCHECK_PATH = "/ping",
     public HTTP_ENDPOINT_DOMAIN_NAME = "test-http-model-endpoint",
-    // bucket names
-    public S3_RESULTS_BUCKET = "test-results",
-    public S3_IMAGE_BUCKET = "test-images",
-    // path to test images
-    public S3_TEST_IMAGES_PATH = "assets/images",
-    // default model container to pull from
     public MODEL_DEFAULT_CONTAINER = "awsosml/osml-models:main",
     // ecr repo names
     public ECR_MODEL_REPOSITORY = "model-container",
@@ -69,7 +50,7 @@ export class MRTestingConfig {
   ) {}
 }
 
-export interface MRTestingProps {
+export interface MRModelEndpointsProps {
   // the osml account interface
   account: OSMLAccount;
   // the model runner vpc
@@ -81,12 +62,11 @@ export interface MRTestingProps {
   // role to apply to the http endpoint fargate tasks
   httpEndpointRole?: IRole;
   // optional custom configuration for the testing resources - will be defaulted if not provided
-  mrTestingConfig?: MRTestingConfig;
+  mrModelEndpointsConfig?: MRModelEndpointsConfig;
   // optional sage maker iam role to use for endpoint construction - will be defaulted if not provided
   smRole?: IRole;
   // optional custom model container ECR URIs
   modelContainer?: string;
-
   // security groups to apply to the vpc config for SM endpoints
   securityGroupId?: string;
   // optional deploy custom model resources
@@ -96,16 +76,10 @@ export interface MRTestingProps {
   deployHttpCenterpointModel?: boolean;
 }
 
-export class MRTesting extends Construct {
-  public resultsBucket: OSMLBucket;
-  public imageBucket: OSMLBucket;
-  public resultStream: Stream;
-  public modelContainerSourceUri: string;
+export class MREndpoints extends Construct {
   public modelContainerEcrDeployment: OSMLECRDeployment;
-  public imageStatusQueue: OSMLQueue;
-  public regionStatusQueue: OSMLQueue;
   public removalPolicy: RemovalPolicy;
-  public mrTestingConfig: MRTestingConfig;
+  public mrTestingConfig: MRModelEndpointsConfig;
   public smRole?: IRole;
   public httpEndpointRole?: IRole;
   public httpCenterpointModelEndpoint?: OSMLHTTPModelEndpoint;
@@ -113,6 +87,8 @@ export class MRTesting extends Construct {
   public floodModelEndpoint?: OSMLSMEndpoint;
   public aircraftModelEndpoint?: OSMLSMEndpoint;
   public securityGroupId: string;
+  public modelContainerImage: ContainerImage;
+  public modelContainerUri: string;
 
   /**
    * Creates an MRTesting construct.
@@ -121,56 +97,22 @@ export class MRTesting extends Construct {
    * @param props the properties of this construct.
    * @returns the MRTesting construct.
    */
-  constructor(scope: Construct, id: string, props: MRTestingProps) {
+  constructor(scope: Construct, id: string, props: MRModelEndpointsProps) {
     super(scope, id);
 
     // check if a custom config was provided
-    if (props.mrTestingConfig != undefined) {
+    if (props.mrModelEndpointsConfig != undefined) {
       // import existing pass in MR configuration
-      this.mrTestingConfig = props.mrTestingConfig;
+      this.mrTestingConfig = props.mrModelEndpointsConfig;
     } else {
       // create a new default configuration
-      this.mrTestingConfig = new MRTestingConfig();
+      this.mrTestingConfig = new MRModelEndpointsConfig();
     }
 
     // setup a removal policy
     this.removalPolicy = props.account.prodLike
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
-
-    // bucket to store images in
-    this.imageBucket = new OSMLBucket(this, `OSMLTestImageBucket`, {
-      bucketName: `${this.mrTestingConfig.S3_IMAGE_BUCKET}-${props.account.id}`,
-      prodLike: props.account.prodLike,
-      removalPolicy: this.removalPolicy
-    });
-
-    // deploy test images into bucket
-    new BucketDeployment(this, "OSMLTestImageDeployment", {
-      sources: [Source.asset(this.mrTestingConfig.S3_TEST_IMAGES_PATH)],
-      destinationBucket: this.imageBucket.bucket,
-      accessControl: BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
-      memoryLimit: 10240,
-      ephemeralStorageSize: Size.mebibytes(8196),
-      vpc: props.osmlVpc.vpc,
-      vpcSubnets: props.osmlVpc.selectedSubnets,
-      retainOnDelete: props.account.prodLike,
-      serverSideEncryption: ServerSideEncryption.AES_256
-    });
-
-    // bucket to store rest results in
-    this.resultsBucket = new OSMLBucket(this, `OSMLTestResultsBucket`, {
-      bucketName: `${this.mrTestingConfig.S3_RESULTS_BUCKET}-${props.account.id}`,
-      prodLike: props.account.prodLike,
-      removalPolicy: this.removalPolicy
-    });
-
-    // a simple provisioned stream for testing the kinesis sink
-    this.resultStream = new Stream(this, "TestStream", {
-      streamName: `test-stream-${props.account.id}`,
-      streamMode: StreamMode.PROVISIONED,
-      shardCount: 1
-    });
 
     // check if a role was provided
     if (props.smRole != undefined) {
@@ -198,26 +140,31 @@ export class MRTesting extends Construct {
       }
 
       if (props.account.isDev == true) {
-        this.modelContainerSourceUri = new DockerImageAsset(this, id, {
+        const dockerImageAsset = new DockerImageAsset(this, id, {
           directory: this.mrTestingConfig.ECR_MODELS_PATH,
           file: "Dockerfile",
           followSymlinks: SymlinkFollowMode.ALWAYS,
           target: this.mrTestingConfig.ECR_MODEL_TARGET
-        }).imageUri;
+        });
+
+        this.modelContainerImage =
+          ContainerImage.fromDockerImageAsset(dockerImageAsset);
+
+        this.modelContainerUri = dockerImageAsset.imageUri;
       } else {
-        this.modelContainerSourceUri =
-          this.mrTestingConfig.MODEL_DEFAULT_CONTAINER;
+        const osmlEcrDeployment = new OSMLECRDeployment(
+          this,
+          "OSMLModelContainer",
+          {
+            sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
+            repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
+            removalPolicy: this.removalPolicy,
+            osmlVpc: props.osmlVpc
+          }
+        );
+        this.modelContainerImage = osmlEcrDeployment.containerImage;
+        this.modelContainerUri = osmlEcrDeployment.ecrContainerUri;
       }
-      this.modelContainerEcrDeployment = new OSMLECRDeployment(
-        this,
-        "OSMLModelContainer",
-        {
-          sourceUri: this.modelContainerSourceUri,
-          repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
-          removalPolicy: this.removalPolicy,
-          osmlVpc: props.osmlVpc
-        }
-      );
     }
     if (props.deployHttpCenterpointModel != false) {
       // check if a role was provided
@@ -243,7 +190,7 @@ export class MRTesting extends Construct {
         {
           account: props.account,
           osmlVpc: props.osmlVpc,
-          image: this.modelContainerEcrDeployment.containerImage,
+          image: this.modelContainerImage,
           clusterName: this.mrTestingConfig.HTTP_ENDPOINT_NAME,
           role: this.httpEndpointRole,
           memory: this.mrTestingConfig.HTTP_ENDPOINT_MEMORY,
@@ -258,9 +205,11 @@ export class MRTesting extends Construct {
           securityGroupId: this.securityGroupId
         }
       );
-      this.httpCenterpointModelEndpoint.node.addDependency(
-        this.modelContainerEcrDeployment
-      );
+      if (props.account.isDev == false) {
+        this.httpCenterpointModelEndpoint.node.addDependency(
+          this.modelContainerEcrDeployment
+        );
+      }
     }
 
     if (props.deployCenterpointModel != false) {
@@ -269,7 +218,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLCenterPointModelEndpoint",
         {
-          ecrContainerUri: this.modelContainerEcrDeployment.ecrContainerUri,
+          ecrContainerUri: this.modelContainerUri,
           modelName: this.mrTestingConfig.SM_CENTER_POINT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -281,9 +230,11 @@ export class MRTesting extends Construct {
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
-      this.centerPointModelEndpoint.node.addDependency(
-        this.modelContainerEcrDeployment
-      );
+      if (props.account.isDev == false) {
+        this.centerPointModelEndpoint.node.addDependency(
+          this.modelContainerEcrDeployment
+        );
+      }
     }
 
     if (props.deployFloodModel != false) {
@@ -292,7 +243,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLFloodModelEndpoint",
         {
-          ecrContainerUri: this.modelContainerEcrDeployment.ecrContainerUri,
+          ecrContainerUri: this.modelContainerUri,
           modelName: this.mrTestingConfig.SM_FLOOD_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
@@ -304,9 +255,11 @@ export class MRTesting extends Construct {
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
-      this.floodModelEndpoint.node.addDependency(
-        this.modelContainerEcrDeployment
-      );
+      if (props.account.isDev == false) {
+        this.floodModelEndpoint.node.addDependency(
+          this.modelContainerEcrDeployment
+        );
+      }
     }
 
     if (props.deployAircraftModel != false) {
@@ -315,7 +268,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLAircraftModelEndpoint",
         {
-          ecrContainerUri: this.modelContainerEcrDeployment.ecrContainerUri,
+          ecrContainerUri: this.modelContainerUri,
           modelName: this.mrTestingConfig.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrTestingConfig.SM_GPU_INSTANCE_TYPE,
@@ -327,29 +280,11 @@ export class MRTesting extends Construct {
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
-      this.aircraftModelEndpoint.node.addDependency(
-        this.modelContainerEcrDeployment
-      );
+      if (props.account.isDev == false) {
+        this.aircraftModelEndpoint.node.addDependency(
+          this.modelContainerEcrDeployment
+        );
+      }
     }
-
-    // create an SQS queue for region status processing updates
-    this.regionStatusQueue = new OSMLQueue(this, "OSMLRegionStatusQueue", {
-      queueName: this.mrTestingConfig.SQS_REGION_STATUS_QUEUE
-    });
-
-    // subscribe the region status topic to the queue
-    props.regionStatusTopic.addSubscription(
-      new SqsSubscription(this.regionStatusQueue.queue)
-    );
-
-    // create an SQS queue for image processing status updates
-    this.imageStatusQueue = new OSMLQueue(this, "OSMLImageStatusQueue", {
-      queueName: this.mrTestingConfig.SQS_IMAGE_STATUS_QUEUE
-    });
-
-    // subscribe the image status topic to the queue
-    props.imageStatusTopic.addSubscription(
-      new SqsSubscription(this.imageStatusQueue.queue)
-    );
   }
 }

@@ -5,15 +5,15 @@ import { region_info } from "aws-cdk-lib";
 import {
   CompositePrincipal,
   Effect,
+  IRole,
   ManagedPolicy,
   PolicyStatement,
-  IRole,
   Role,
   ServicePrincipal
 } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "../osml/osml_account";
+import { OSMLAccount } from "../../osml_account";
 
 export interface MRTaskRoleProps {
   // the osml account interface
@@ -41,7 +41,7 @@ export class MRTaskRole extends Construct {
     )!;
 
     // model runner Fargate ECS task role
-    let mrTaskRole = new Role(this, "MRTaskRole", {
+    const mrTaskRole = new Role(this, "MRTaskRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(
         new ServicePrincipal("ecs-tasks.amazonaws.com"),

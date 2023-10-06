@@ -10,7 +10,7 @@ import {
 } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "./osml_account";
+import { OSMLAccount } from "../osml_account";
 
 export interface MRTaskRoleProps {
   // the osml account interface
@@ -49,7 +49,7 @@ export class OSMLHTTPEndpointRole extends Construct {
         ManagedPolicy.fromAwsManagedPolicyName(
           "AmazonElasticContainerRegistryPublicFullAccess"
         ),
-        ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess"),
+        ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess")
       ],
       description:
         "Allows the OversightML HTTP model endpoint to access necessary resources."
