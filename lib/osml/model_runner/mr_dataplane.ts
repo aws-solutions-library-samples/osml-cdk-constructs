@@ -15,6 +15,7 @@ import {
   Cluster,
   Compatibility,
   ContainerDefinition,
+  ContainerImage,
   FargateService,
   FireLensLogDriver,
   FirelensLogRouterType,
@@ -27,14 +28,13 @@ import { IRole } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "../osml/osml_account";
-import { OSMLECRDeployment } from "../osml/osml_ecr_deployment";
-import { OSMLQueue } from "../osml/osml_queue";
-import { OSMLTable } from "../osml/osml_table";
-import { OSMLTopic } from "../osml/osml_topic";
-import { OSMLVpc } from "../osml/osml_vpc";
-import { MRAutoScaling, MRAutoscalingConfig } from "./mr_autoscaling";
-import { MRTaskRole } from "./mr_task_role";
+import { OSMLAccount } from "../osml_account";
+import { OSMLECRDeployment } from "../osml_ecr_deployment";
+import { OSMLQueue } from "../osml_queue";
+import { OSMLTable } from "../osml_table";
+import { OSMLTopic } from "../osml_topic";
+import { OSMLVpc } from "../osml_vpc";
+import { MRTaskRole } from "./roles/mr_task_role";
 
 // mutable configuration dataclass for model runner
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
@@ -94,8 +94,6 @@ export interface MRDataplaneProps {
   dataplaneConfig?: MRDataplaneConfig;
   // enable autoscaling for the fargate service
   enableAutoscaling?: boolean;
-  // custom autoscaling configuration
-  mrAutoscalingConfig?: MRAutoscalingConfig
   // subnets to deploy infrastructure into
   targetSubnets?: string[];
 }
@@ -123,8 +121,8 @@ export class MRDataplane extends Construct {
   public containerDefinition: ContainerDefinition;
   public fargateService: FargateService;
   public securityGroups?: [ISecurityGroup];
-  public autoScaling?: MRAutoScaling;
   public mrTerrainUri?: string;
+  public mrContainerImage: ContainerImage;
 
   /**
    * This construct is responsible for managing the data plane of the model runner application
@@ -190,27 +188,31 @@ export class MRDataplane extends Construct {
     });
 
     if (props.account.isDev == true) {
-      this.mrContainerSourceUri = new DockerImageAsset(this, id, {
+      const dockerImageAsset = new DockerImageAsset(this, id, {
         directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
         file: "Dockerfile",
         followSymlinks: SymlinkFollowMode.ALWAYS,
         target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET
-      }).imageUri;
-    } else {
-      this.mrContainerSourceUri = this.mrDataplaneConfig.MR_DEFAULT_CONTAINER;
-    }
+      });
 
-    // build and deploy model runner container to target repo
-    this.mrEcrDeployment = new OSMLECRDeployment(
-      this,
-      "MRModelRunnerContainer",
-      {
-        sourceUri: this.mrContainerSourceUri,
-        repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
-        removalPolicy: this.removalPolicy,
-        osmlVpc: this.osmlVpc
-      }
-    );
+      this.mrContainerImage =
+        ContainerImage.fromDockerImageAsset(dockerImageAsset);
+
+      this.mrContainerSourceUri = dockerImageAsset.imageUri;
+    } else {
+      const osmlEcrDeployment = new OSMLECRDeployment(
+        this,
+        "MRModelRunnerContainer",
+        {
+          sourceUri: this.mrContainerSourceUri,
+          repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
+          removalPolicy: this.removalPolicy,
+          osmlVpc: this.osmlVpc
+        }
+      );
+      this.mrContainerImage = osmlEcrDeployment.containerImage;
+      this.mrContainerSourceUri = osmlEcrDeployment.ecrContainerUri;
+    }
 
     // job status table to store worker status info
     this.jobStatusTable = new OSMLTable(this, "MRJobStatusTable", {
@@ -439,19 +441,5 @@ export class MRDataplane extends Construct {
         retries: 3
       }
     });
-
-    if (props.account.enableAutoscaling) {
-      // build a service autoscaling group for MR fargate service
-      this.autoScaling = new MRAutoScaling(this, "MRAutoScaling", {
-        account: props.account,
-        role: this.mrRole,
-        imageRequestQueue: this.imageRequestQueue.queue,
-        regionRequestQueue: this.regionRequestQueue.queue,
-        cluster: this.cluster,
-        service: this.fargateService,
-        mrDataplaneConfig: this.mrDataplaneConfig,
-        mrAutoscalingConfig: props.mrAutoscalingConfig
-      });
-    }
   }
 }

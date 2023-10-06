@@ -17,8 +17,8 @@ import { IRole } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "./osml_account";
-import { OSMLVpc } from "./osml_vpc";
+import { OSMLAccount } from "../osml_account";
+import { OSMLVpc } from "../osml_vpc";
 
 export interface OSMLHTTPEndpointProps {
   account: OSMLAccount;

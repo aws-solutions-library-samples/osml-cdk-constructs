@@ -11,8 +11,8 @@ import { FargateService } from "aws-cdk-lib/aws-ecs";
 import { Queue } from "aws-cdk-lib/aws-sqs";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "../osml/osml_account";
-import { MRDataplaneConfig } from "./mr_dataplane";
+import { OSMLAccount } from "../../osml_account";
+import { MRDataplaneConfig } from "../mr_dataplane";
 
 export interface MRMonitoringProps {
   // the osml account interface
