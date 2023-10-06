@@ -9,7 +9,7 @@ import {
 } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "../osml/osml_account";
+import { OSMLAccount } from "../../osml_account";
 
 export interface MRSMRoleProps {
   // the osml account interface
