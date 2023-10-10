@@ -5,14 +5,11 @@
 import { EcsIsoServiceAutoscaler } from "@cdklabs/cdk-enterprise-iac";
 import { Duration } from "aws-cdk-lib";
 import { Alarm } from "aws-cdk-lib/aws-cloudwatch";
-import { Cluster, FargateService } from "aws-cdk-lib/aws-ecs";
-import { IRole } from "aws-cdk-lib/aws-iam";
-import { Queue } from "aws-cdk-lib/aws-sqs";
 import { NagSuppressions } from "cdk-nag";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
-import { MRDataplaneConfig } from "../mr_dataplane";
+import { MRDataplane } from "../mr_dataplane";
 
 // mutable configuration dataclass for model runner
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
@@ -31,23 +28,13 @@ export interface MRAutoScalingProps {
   // the osml account interface
   account: OSMLAccount;
   // the iam role to use for autoscaling components
-  role: IRole;
-  // the model runner ecs cluster
-  cluster: Cluster;
-  // the model runner fargate service
-  service: FargateService;
-  // the model runner image request queue
-  imageRequestQueue: Queue;
-  // the model runner region request queue
-  regionRequestQueue: Queue;
-  // the model runner service configuration
-  mrDataplaneConfig: MRDataplaneConfig;
+  mrDataplane: MRDataplane;
   // the optional autoscaling custom configuration
   mrAutoscalingConfig?: MRAutoscalingConfig;
 }
 
 export class MRAutoScaling extends Construct {
-  readonly serviceAutoscaler: EcsIsoServiceAutoscaler;
+  serviceAutoscaler: EcsIsoServiceAutoscaler;
   mrAutoscalingConfig: MRAutoscalingConfig;
 
   /**
@@ -81,7 +68,7 @@ export class MRAutoScaling extends Construct {
         "RegionQueueScalingAlarm",
         {
           metric:
-            props.regionRequestQueue.metricApproximateNumberOfMessagesVisible(),
+            props.mrDataplane.regionRequestQueue.queue.metricApproximateNumberOfMessagesVisible(),
           evaluationPeriods: 1,
           threshold: 3
         }
@@ -104,9 +91,9 @@ export class MRAutoScaling extends Construct {
         this,
         "MRServiceScaler",
         {
-          role: props.role,
-          ecsCluster: props.cluster,
-          ecsService: props.service,
+          role: props.mrDataplane.mrRole,
+          ecsCluster: props.mrDataplane.cluster,
+          ecsService: props.mrDataplane.fargateService,
           minimumTaskCount:
             this.mrAutoscalingConfig.MR_AUTOSCALING_TASK_MIN_COUNT,
           maximumTaskCount:
@@ -130,14 +117,14 @@ export class MRAutoScaling extends Construct {
        * partitions. We can swap fully to this when the autoscaling
        *  capability is enabled for ECS.
        */
-      const mrServiceScaling = props.service.autoScaleTaskCount({
+      const mrServiceScaling = props.mrDataplane.fargateService.autoScaleTaskCount({
         maxCapacity: this.mrAutoscalingConfig.MR_AUTOSCALING_TASK_MAX_COUNT,
         minCapacity: this.mrAutoscalingConfig.MR_AUTOSCALING_TASK_MIN_COUNT
       });
 
       mrServiceScaling.scaleOnMetric("MRRegionQueueScaling", {
         metric:
-          props.regionRequestQueue.metricApproximateNumberOfMessagesVisible(),
+          props.mrDataplane.regionRequestQueue.queue.metricApproximateNumberOfMessagesVisible(),
         scalingSteps: [
           { change: +3, lower: 1 },
           { change: +5, lower: 5 },
@@ -147,7 +134,7 @@ export class MRAutoScaling extends Construct {
       });
 
       mrServiceScaling.scaleOnMetric("MRImageQueueScaling", {
-        metric: props.imageRequestQueue.metricNumberOfMessagesReceived({
+        metric: props.mrDataplane.imageRequestQueue.queue.metricNumberOfMessagesReceived({
           period: Duration.minutes(5),
           statistic: "sum"
         }),

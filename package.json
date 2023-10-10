@@ -38,9 +38,5 @@
     "prettier": "^2.8.3",
     "ts-jest": "^29.0.5",
     "typescript": "^5.1.6"
-  },
-  "peerDependencies": {
-    "aws-cdk-lib": "^2.63.2",
-    "constructs": "^10.1.252"
   }
 }
