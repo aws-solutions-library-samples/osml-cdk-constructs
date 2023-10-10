@@ -13,7 +13,7 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
 import { OSMLBucket } from "../../osml_bucket";
-import { OSMLVpc } from "../../osml_vpc";
+import { IVpc } from "aws-cdk-lib/aws-ec2";
 
 // mutable configuration dataclass for the model runner testing Construct
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
@@ -31,7 +31,7 @@ export interface MRImageryProps {
   // the osml account interface
   account: OSMLAccount;
   // the model runner vpc
-  osmlVpc: OSMLVpc;
+  vpc: IVpc;
   mrImageryConfig?: MRImageryConfig;
 
   // security groups to apply to the vpc config for SM endpoints
@@ -81,7 +81,7 @@ export class MRImagery extends Construct {
       accessControl: BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
       memoryLimit: 10240,
       useEfs: true,
-      vpc: props.osmlVpc.vpc,
+      vpc: props.vpc,
       retainOnDelete: props.account.prodLike,
       serverSideEncryption: ServerSideEncryption.AES_256
     });
