@@ -40,8 +40,6 @@ import { MRTaskRole } from "./roles/mr_task_role";
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
 export class MRDataplaneConfig {
   constructor(
-    // osmlVpc names
-    public VPC_NAME = "OSMLVPC",
     // topic names
     public SNS_IMAGE_STATUS_TOPIC = "ImageStatusTopic",
     public SNS_REGION_STATUS_TOPIC = "RegionStatusTopic",
@@ -70,7 +68,7 @@ export class MRDataplaneConfig {
     public MR_LOGGING_MEMORY = 512,
     public MR_LOGGING_CPU = 512,
     public MR_WORKERS_PER_CPU = 1,
-    public MR_REGION_SIZE = "(2048, 2048)",
+    public MR_REGION_SIZE = "(8192, 8192)",
     public MR_DEFAULT_CONTAINER = "awsosml/osml-model-runner:main",
     // repository name for the model runner container
     public ECR_MODEL_RUNNER_REPOSITORY = "model-runner-container",
@@ -84,6 +82,8 @@ export class MRDataplaneConfig {
 export interface MRDataplaneProps {
   // the account that owns the data plane as defined by the OSMLAccount interface
   account: OSMLAccount;
+  // the vpc to deploy into
+  osmlVpc: OSMLVpc;
   // URI link to a s3 hosted terrain dataset
   mrTerrainUri?: string;
   // optional security group id to provide to the model runner Fargate service
@@ -101,7 +101,6 @@ export class MRDataplane extends Construct {
   public mrDataplaneConfig: MRDataplaneConfig;
   public removalPolicy: RemovalPolicy;
   public regionalS3Endpoint: string;
-  public osmlVpc: OSMLVpc;
   public jobStatusTable: OSMLTable;
   public featureTable: OSMLTable;
   public endpointStatisticsTable: OSMLTable;
@@ -124,7 +123,6 @@ export class MRDataplane extends Construct {
   /**
    * This construct is responsible for managing the data plane of the model runner application
    * It is responsible for:
-   * - creating the VPC
    * - creating the DDB tables
    * - creating the SQS queues
    * - creating the SNS topics
@@ -134,8 +132,6 @@ export class MRDataplane extends Construct {
    * - creating the ECS task definition
    * - creating the ECS container
    * - creating the ECS service
-   * - creating the ECS auto-scaling group
-   * - creating the ECS monitoring dashboards
    *
    * @param scope the scope/stack in which to define this construct.
    * @param id the id of this construct within the current scope.
@@ -176,14 +172,6 @@ export class MRDataplane extends Construct {
       region_info.FactName.servicePrincipal("s3.amazonaws.com")
     )!;
 
-    // build a VPC to house containers and services
-    this.osmlVpc = new OSMLVpc(this, "MRVPC", {
-      vpcId: props.account.vpcId,
-      account: props.account,
-      vpcName: this.mrDataplaneConfig.VPC_NAME,
-      targetSubnets: props.targetSubnets
-    });
-
     if (props.account.isDev == true) {
       const dockerImageAsset = new DockerImageAsset(this, id, {
         directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
@@ -202,7 +190,7 @@ export class MRDataplane extends Construct {
           sourceUri: this.mrDataplaneConfig.MR_DEFAULT_CONTAINER,
           repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
           removalPolicy: this.removalPolicy,
-          vpc: this.osmlVpc.vpc
+          vpc: props.osmlVpc.vpc
         }
       );
       this.mrContainerImage = osmlEcrDeployment.containerImage;
@@ -307,7 +295,7 @@ export class MRDataplane extends Construct {
     // build cluster to house our containers when they spin up
     this.cluster = new Cluster(this, "MRCluster", {
       clusterName: this.mrDataplaneConfig.MR_CLUSTER_NAME,
-      vpc: this.osmlVpc.vpc
+      vpc: props.osmlVpc.vpc
     });
 
     // define our ecs task
@@ -401,7 +389,7 @@ export class MRDataplane extends Construct {
       cluster: this.cluster,
       minHealthyPercent: 100,
       securityGroups: this.securityGroups,
-      vpcSubnets: this.osmlVpc.selectedSubnets
+      vpcSubnets: props.osmlVpc.selectedSubnets
     });
 
     // build a fluent bit log router for the MR container
