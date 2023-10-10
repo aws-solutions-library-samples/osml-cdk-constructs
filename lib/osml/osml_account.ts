@@ -18,6 +18,9 @@ export interface OSMLAccount {
   name: string;
   region: string;
   prodLike: boolean;
+  enableMonitoring?: boolean;
+  enableAutoscaling?: boolean;
+  enableTesting?: boolean;
   isAdc?: boolean;
   isDev?: boolean;
   vpcId?: string;
