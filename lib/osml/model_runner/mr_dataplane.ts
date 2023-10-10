@@ -92,8 +92,6 @@ export interface MRDataplaneProps {
   taskRole?: IRole;
   // optional service level configuration that can be provided by the user but will be defaulted if not
   dataplaneConfig?: MRDataplaneConfig;
-  // enable autoscaling for the fargate service
-  enableAutoscaling?: boolean;
   // subnets to deploy infrastructure into
   targetSubnets?: string[];
 }
@@ -109,7 +107,7 @@ export class MRDataplane extends Construct {
   public endpointStatisticsTable: OSMLTable;
   public regionRequestTable: OSMLTable;
   public mrContainerSourceUri: string;
-  public mrEcrDeployment: OSMLECRDeployment;
+  public mrContainerImage: ContainerImage;
   public imageStatusTopic: OSMLTopic;
   public regionStatusTopic: OSMLTopic;
   public imageRequestQueue: OSMLQueue;
@@ -122,7 +120,6 @@ export class MRDataplane extends Construct {
   public fargateService: FargateService;
   public securityGroups?: [ISecurityGroup];
   public mrTerrainUri?: string;
-  public mrContainerImage: ContainerImage;
 
   /**
    * This construct is responsible for managing the data plane of the model runner application
@@ -194,20 +191,18 @@ export class MRDataplane extends Construct {
         followSymlinks: SymlinkFollowMode.ALWAYS,
         target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET
       });
-
       this.mrContainerImage =
         ContainerImage.fromDockerImageAsset(dockerImageAsset);
-
       this.mrContainerSourceUri = dockerImageAsset.imageUri;
     } else {
       const osmlEcrDeployment = new OSMLECRDeployment(
         this,
         "MRModelRunnerContainer",
         {
-          sourceUri: this.mrContainerSourceUri,
+          sourceUri: this.mrDataplaneConfig.MR_DEFAULT_CONTAINER,
           repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
           removalPolicy: this.removalPolicy,
-          osmlVpc: this.osmlVpc
+          vpc: this.osmlVpc.vpc
         }
       );
       this.mrContainerImage = osmlEcrDeployment.containerImage;
@@ -361,7 +356,7 @@ export class MRDataplane extends Construct {
       "MRContainerDefinition",
       {
         containerName: this.mrDataplaneConfig.MR_CONTAINER_NAME,
-        image: this.mrEcrDeployment.containerImage,
+        image: this.mrContainerImage,
         memoryLimitMiB: this.mrDataplaneConfig.MR_CONTAINER_MEMORY,
         cpu: this.mrDataplaneConfig.MR_CONTAINER_CPU,
         environment: containerEnv,
@@ -381,8 +376,6 @@ export class MRDataplane extends Construct {
         disableNetworking: false
       }
     );
-
-    this.containerDefinition.node.addDependency(this.mrEcrDeployment);
 
     // add port mapping to container
     this.taskDefinition.defaultContainer?.addPortMappings({

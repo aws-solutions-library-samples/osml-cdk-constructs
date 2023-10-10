@@ -5,7 +5,6 @@ import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import { ContainerImage } from "aws-cdk-lib/aws-ecs";
 import { IRole } from "aws-cdk-lib/aws-iam";
-import { ITopic } from "aws-cdk-lib/aws-sns";
 import { Construct } from "constructs";
 
 import { OSMLHTTPModelEndpoint } from "../../model_endpoints/osml_http_endpoint";
@@ -55,10 +54,6 @@ export interface MRModelEndpointsProps {
   account: OSMLAccount;
   // the model runner vpc
   osmlVpc: OSMLVpc;
-  // the model runner image status topic
-  imageStatusTopic: ITopic;
-  // the model runner region status topic
-  regionStatusTopic: ITopic;
   // role to apply to the http endpoint fargate tasks
   httpEndpointRole?: IRole;
   // optional custom configuration for the testing resources - will be defaulted if not provided
@@ -79,7 +74,7 @@ export interface MRModelEndpointsProps {
 export class MREndpoints extends Construct {
   public modelContainerEcrDeployment: OSMLECRDeployment;
   public removalPolicy: RemovalPolicy;
-  public mrTestingConfig: MRModelEndpointsConfig;
+  public mrModelEndpointsConfig: MRModelEndpointsConfig;
   public smRole?: IRole;
   public httpEndpointRole?: IRole;
   public httpCenterpointModelEndpoint?: OSMLHTTPModelEndpoint;
@@ -103,10 +98,10 @@ export class MREndpoints extends Construct {
     // check if a custom config was provided
     if (props.mrModelEndpointsConfig != undefined) {
       // import existing pass in MR configuration
-      this.mrTestingConfig = props.mrModelEndpointsConfig;
+      this.mrModelEndpointsConfig = props.mrModelEndpointsConfig;
     } else {
       // create a new default configuration
-      this.mrTestingConfig = new MRModelEndpointsConfig();
+      this.mrModelEndpointsConfig = new MRModelEndpointsConfig();
     }
 
     // setup a removal policy
@@ -122,7 +117,7 @@ export class MREndpoints extends Construct {
       // create a new role
       this.smRole = new MRSMRole(this, "MRSMRole", {
         account: props.account,
-        roleName: this.mrTestingConfig.SM_ROLE_NAME
+        roleName: this.mrModelEndpointsConfig.SM_ROLE_NAME
       }).role;
     }
 
@@ -141,10 +136,10 @@ export class MREndpoints extends Construct {
 
       if (props.account.isDev == true) {
         const dockerImageAsset = new DockerImageAsset(this, id, {
-          directory: this.mrTestingConfig.ECR_MODELS_PATH,
+          directory: this.mrModelEndpointsConfig.ECR_MODELS_PATH,
           file: "Dockerfile",
           followSymlinks: SymlinkFollowMode.ALWAYS,
-          target: this.mrTestingConfig.ECR_MODEL_TARGET
+          target: this.mrModelEndpointsConfig.ECR_MODEL_TARGET
         });
 
         this.modelContainerImage =
@@ -156,10 +151,11 @@ export class MREndpoints extends Construct {
           this,
           "OSMLModelContainer",
           {
-            sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
-            repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
+            sourceUri: this.mrModelEndpointsConfig.MODEL_DEFAULT_CONTAINER,
+            repositoryName: this.mrModelEndpointsConfig.ECR_MODEL_REPOSITORY,
             removalPolicy: this.removalPolicy,
-            osmlVpc: props.osmlVpc
+            vpc: props.osmlVpc.vpc,
+            vpcSubnets: props.osmlVpc.selectedSubnets
           }
         );
         this.modelContainerImage = osmlEcrDeployment.containerImage;
@@ -178,7 +174,7 @@ export class MREndpoints extends Construct {
           "HTTPEndpointTaskRole",
           {
             account: props.account,
-            roleName: this.mrTestingConfig.HTTP_ENDPOINT_ROLE_NAME
+            roleName: this.mrModelEndpointsConfig.HTTP_ENDPOINT_ROLE_NAME
           }
         ).role;
       }
@@ -191,16 +187,16 @@ export class MREndpoints extends Construct {
           account: props.account,
           osmlVpc: props.osmlVpc,
           image: this.modelContainerImage,
-          clusterName: this.mrTestingConfig.HTTP_ENDPOINT_NAME,
+          clusterName: this.mrModelEndpointsConfig.HTTP_ENDPOINT_NAME,
           role: this.httpEndpointRole,
-          memory: this.mrTestingConfig.HTTP_ENDPOINT_MEMORY,
-          cpu: this.mrTestingConfig.HTTP_ENDPOINT_CPU,
-          hostPort: this.mrTestingConfig.HTTP_ENDPOINT_HOST_PORT,
-          containerPort: this.mrTestingConfig.HTTP_ENDPOINT_CONTAINER_PORT,
-          healthcheckPath: this.mrTestingConfig.HTTP_ENDPOINT_HEALTHCHECK_PATH,
-          loadBalancerName: this.mrTestingConfig.HTTP_ENDPOINT_DOMAIN_NAME,
+          memory: this.mrModelEndpointsConfig.HTTP_ENDPOINT_MEMORY,
+          cpu: this.mrModelEndpointsConfig.HTTP_ENDPOINT_CPU,
+          hostPort: this.mrModelEndpointsConfig.HTTP_ENDPOINT_HOST_PORT,
+          containerPort: this.mrModelEndpointsConfig.HTTP_ENDPOINT_CONTAINER_PORT,
+          healthcheckPath: this.mrModelEndpointsConfig.HTTP_ENDPOINT_HEALTHCHECK_PATH,
+          loadBalancerName: this.mrModelEndpointsConfig.HTTP_ENDPOINT_DOMAIN_NAME,
           containerEnv: {
-            MODEL_SELECTION: this.mrTestingConfig.SM_CENTER_POINT_MODEL
+            MODEL_SELECTION: this.mrModelEndpointsConfig.SM_CENTER_POINT_MODEL
           },
           securityGroupId: this.securityGroupId
         }
@@ -219,13 +215,13 @@ export class MREndpoints extends Construct {
         "OSMLCenterPointModelEndpoint",
         {
           ecrContainerUri: this.modelContainerUri,
-          modelName: this.mrTestingConfig.SM_CENTER_POINT_MODEL,
+          modelName: this.mrModelEndpointsConfig.SM_CENTER_POINT_MODEL,
           roleArn: this.smRole.roleArn,
-          instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
-          initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
-          initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
-          variantName: this.mrTestingConfig.SM_VARIANT_NAME,
-          repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
+          instanceType: this.mrModelEndpointsConfig.SM_CPU_INSTANCE_TYPE,
+          initialInstanceCount: this.mrModelEndpointsConfig.SM_INITIAL_INSTANCE_COUNT,
+          initialVariantWeight: this.mrModelEndpointsConfig.SM_INITIAL_VARIANT_WEIGHT,
+          variantName: this.mrModelEndpointsConfig.SM_VARIANT_NAME,
+          repositoryAccessMode: this.mrModelEndpointsConfig.REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
@@ -244,13 +240,13 @@ export class MREndpoints extends Construct {
         "OSMLFloodModelEndpoint",
         {
           ecrContainerUri: this.modelContainerUri,
-          modelName: this.mrTestingConfig.SM_FLOOD_MODEL,
+          modelName: this.mrModelEndpointsConfig.SM_FLOOD_MODEL,
           roleArn: this.smRole.roleArn,
-          instanceType: this.mrTestingConfig.SM_CPU_INSTANCE_TYPE,
-          initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
-          initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
-          variantName: this.mrTestingConfig.SM_VARIANT_NAME,
-          repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
+          instanceType: this.mrModelEndpointsConfig.SM_CPU_INSTANCE_TYPE,
+          initialInstanceCount: this.mrModelEndpointsConfig.SM_INITIAL_INSTANCE_COUNT,
+          initialVariantWeight: this.mrModelEndpointsConfig.SM_INITIAL_VARIANT_WEIGHT,
+          variantName: this.mrModelEndpointsConfig.SM_VARIANT_NAME,
+          repositoryAccessMode: this.mrModelEndpointsConfig.REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
@@ -269,13 +265,13 @@ export class MREndpoints extends Construct {
         "OSMLAircraftModelEndpoint",
         {
           ecrContainerUri: this.modelContainerUri,
-          modelName: this.mrTestingConfig.SM_AIRCRAFT_MODEL,
+          modelName: this.mrModelEndpointsConfig.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
-          instanceType: this.mrTestingConfig.SM_GPU_INSTANCE_TYPE,
-          initialInstanceCount: this.mrTestingConfig.SM_INITIAL_INSTANCE_COUNT,
-          initialVariantWeight: this.mrTestingConfig.SM_INITIAL_VARIANT_WEIGHT,
-          variantName: this.mrTestingConfig.SM_VARIANT_NAME,
-          repositoryAccessMode: this.mrTestingConfig.REPOSITORY_ACCESS_MODE,
+          instanceType: this.mrModelEndpointsConfig.SM_GPU_INSTANCE_TYPE,
+          initialInstanceCount: this.mrModelEndpointsConfig.SM_INITIAL_INSTANCE_COUNT,
+          initialVariantWeight: this.mrModelEndpointsConfig.SM_INITIAL_VARIANT_WEIGHT,
+          variantName: this.mrModelEndpointsConfig.SM_VARIANT_NAME,
+          repositoryAccessMode: this.mrModelEndpointsConfig.REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }

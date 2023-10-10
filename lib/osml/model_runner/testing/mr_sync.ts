@@ -62,7 +62,7 @@ export class MRSync extends Construct {
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
-    if (props.deploySyncBucket) {
+    if (props.deploySyncBucket != false) {
       // create a bucket to store results in
       this.resultsBucket = new OSMLBucket(this, `OSMLTestResultsBucket`, {
         bucketName: `${this.mrSyncConfig.S3_RESULTS_BUCKET}-${props.account.id}`,
@@ -71,7 +71,7 @@ export class MRSync extends Construct {
       });
     }
 
-    if (props.deploySyncStream) {
+    if (props.deploySyncStream != false) {
       // create a kinesis stream to store results in
       this.resultStream = new Stream(this, "OSMLTestResultsStream", {
         streamName: `${this.mrSyncConfig.KINESIS_RESULTS_STREAM}-${props.account.id}`,
