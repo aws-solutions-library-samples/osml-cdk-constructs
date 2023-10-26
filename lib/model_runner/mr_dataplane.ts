@@ -33,7 +33,7 @@ import { OSMLQueue } from "../osml/osml_queue";
 import { OSMLTable } from "../osml/osml_table";
 import { OSMLTopic } from "../osml/osml_topic";
 import { OSMLVpc } from "../osml/osml_vpc";
-import { MRAutoScaling } from "./mr_autoscaling";
+import { MRAutoScaling, MRAutoscalingConfig } from "./mr_autoscaling";
 import { MRTaskRole } from "./mr_task_role";
 
 // mutable configuration dataclass for model runner
@@ -94,6 +94,8 @@ export interface MRDataplaneProps {
   dataplaneConfig?: MRDataplaneConfig;
   // enable autoscaling for the fargate service
   enableAutoscaling?: boolean;
+  // custom autoscaling configuration
+  mrAutoscalingConfig?: MRAutoscalingConfig
   // subnets to deploy infrastructure into
   targetSubnets?: string[];
 }
@@ -447,7 +449,8 @@ export class MRDataplane extends Construct {
         regionRequestQueue: this.regionRequestQueue.queue,
         cluster: this.cluster,
         service: this.fargateService,
-        mrDataplaneConfig: this.mrDataplaneConfig
+        mrDataplaneConfig: this.mrDataplaneConfig,
+        mrAutoscalingConfig: props.mrAutoscalingConfig
       });
     }
   }

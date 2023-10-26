@@ -2,8 +2,7 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
-import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
-import { SecurityGroup } from "aws-cdk-lib/aws-ec2";
+import { RemovalPolicy, Size, SymlinkFollowMode } from "aws-cdk-lib";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
@@ -152,8 +151,9 @@ export class MRTesting extends Construct {
       destinationBucket: this.imageBucket.bucket,
       accessControl: BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
       memoryLimit: 10240,
-      useEfs: true,
+      ephemeralStorageSize: Size.mebibytes(8196),
       vpc: props.osmlVpc.vpc,
+      vpcSubnets: props.osmlVpc.selectedSubnets,
       retainOnDelete: props.account.prodLike,
       serverSideEncryption: ServerSideEncryption.AES_256
     });
@@ -212,7 +212,7 @@ export class MRTesting extends Construct {
         this,
         "OSMLModelContainer",
         {
-          sourceUri: this.mrTestingConfig.MODEL_DEFAULT_CONTAINER,
+          sourceUri: this.modelContainerSourceUri,
           repositoryName: this.mrTestingConfig.ECR_MODEL_REPOSITORY,
           removalPolicy: this.removalPolicy,
           osmlVpc: props.osmlVpc
@@ -254,6 +254,8 @@ export class MRTesting extends Construct {
           loadBalancerName: this.mrTestingConfig.HTTP_ENDPOINT_DOMAIN_NAME,
           containerEnv: {
             MODEL_SELECTION: this.mrTestingConfig.SM_CENTER_POINT_MODEL
+          },
+          securityGroupId: this.securityGroupId
           }
         }
       );
