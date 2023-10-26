@@ -256,6 +256,7 @@ export class MRTesting extends Construct {
             MODEL_SELECTION: this.mrTestingConfig.SM_CENTER_POINT_MODEL
           },
           securityGroupId: this.securityGroupId
+          }
         }
       );
       this.httpCenterpointModelEndpoint.node.addDependency(
