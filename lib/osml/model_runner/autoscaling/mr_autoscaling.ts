@@ -117,10 +117,11 @@ export class MRAutoScaling extends Construct {
        * partitions. We can swap fully to this when the autoscaling
        *  capability is enabled for ECS.
        */
-      const mrServiceScaling = props.mrDataplane.fargateService.autoScaleTaskCount({
-        maxCapacity: this.mrAutoscalingConfig.MR_AUTOSCALING_TASK_MAX_COUNT,
-        minCapacity: this.mrAutoscalingConfig.MR_AUTOSCALING_TASK_MIN_COUNT
-      });
+      const mrServiceScaling =
+        props.mrDataplane.fargateService.autoScaleTaskCount({
+          maxCapacity: this.mrAutoscalingConfig.MR_AUTOSCALING_TASK_MAX_COUNT,
+          minCapacity: this.mrAutoscalingConfig.MR_AUTOSCALING_TASK_MIN_COUNT
+        });
 
       mrServiceScaling.scaleOnMetric("MRRegionQueueScaling", {
         metric:
@@ -134,10 +135,13 @@ export class MRAutoScaling extends Construct {
       });
 
       mrServiceScaling.scaleOnMetric("MRImageQueueScaling", {
-        metric: props.mrDataplane.imageRequestQueue.queue.metricNumberOfMessagesReceived({
-          period: Duration.minutes(5),
-          statistic: "sum"
-        }),
+        metric:
+          props.mrDataplane.imageRequestQueue.queue.metricNumberOfMessagesReceived(
+            {
+              period: Duration.minutes(5),
+              statistic: "sum"
+            }
+          ),
         scalingSteps: [
           { change: -1, upper: 0 },
           { change: +1, lower: 1 }
