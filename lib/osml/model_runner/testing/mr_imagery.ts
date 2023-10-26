@@ -3,6 +3,7 @@
  */
 
 import { RemovalPolicy } from "aws-cdk-lib";
+import { IVpc } from "aws-cdk-lib/aws-ec2";
 import { BucketAccessControl } from "aws-cdk-lib/aws-s3";
 import {
   BucketDeployment,
@@ -13,7 +14,6 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
 import { OSMLBucket } from "../../osml_bucket";
-import { IVpc } from "aws-cdk-lib/aws-ec2";
 
 // mutable configuration dataclass for the model runner testing Construct
 // for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
