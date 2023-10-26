@@ -192,14 +192,16 @@ export class MREndpoints extends Construct {
           memory: this.mrModelEndpointsConfig.HTTP_ENDPOINT_MEMORY,
           cpu: this.mrModelEndpointsConfig.HTTP_ENDPOINT_CPU,
           hostPort: this.mrModelEndpointsConfig.HTTP_ENDPOINT_HOST_PORT,
-          containerPort: this.mrModelEndpointsConfig.HTTP_ENDPOINT_CONTAINER_PORT,
-          healthcheckPath: this.mrModelEndpointsConfig.HTTP_ENDPOINT_HEALTHCHECK_PATH,
-          loadBalancerName: this.mrModelEndpointsConfig.HTTP_ENDPOINT_DOMAIN_NAME,
+          containerPort:
+            this.mrModelEndpointsConfig.HTTP_ENDPOINT_CONTAINER_PORT,
+          healthcheckPath:
+            this.mrModelEndpointsConfig.HTTP_ENDPOINT_HEALTHCHECK_PATH,
+          loadBalancerName:
+            this.mrModelEndpointsConfig.HTTP_ENDPOINT_DOMAIN_NAME,
           containerEnv: {
             MODEL_SELECTION: this.mrModelEndpointsConfig.SM_CENTER_POINT_MODEL
           },
           securityGroupId: this.securityGroupId
-          }
         }
       );
       if (props.account.isDev == false) {
@@ -219,10 +221,13 @@ export class MREndpoints extends Construct {
           modelName: this.mrModelEndpointsConfig.SM_CENTER_POINT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrModelEndpointsConfig.SM_CPU_INSTANCE_TYPE,
-          initialInstanceCount: this.mrModelEndpointsConfig.SM_INITIAL_INSTANCE_COUNT,
-          initialVariantWeight: this.mrModelEndpointsConfig.SM_INITIAL_VARIANT_WEIGHT,
+          initialInstanceCount:
+            this.mrModelEndpointsConfig.SM_INITIAL_INSTANCE_COUNT,
+          initialVariantWeight:
+            this.mrModelEndpointsConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrModelEndpointsConfig.SM_VARIANT_NAME,
-          repositoryAccessMode: this.mrModelEndpointsConfig.REPOSITORY_ACCESS_MODE,
+          repositoryAccessMode:
+            this.mrModelEndpointsConfig.REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
@@ -244,10 +249,13 @@ export class MREndpoints extends Construct {
           modelName: this.mrModelEndpointsConfig.SM_FLOOD_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrModelEndpointsConfig.SM_CPU_INSTANCE_TYPE,
-          initialInstanceCount: this.mrModelEndpointsConfig.SM_INITIAL_INSTANCE_COUNT,
-          initialVariantWeight: this.mrModelEndpointsConfig.SM_INITIAL_VARIANT_WEIGHT,
+          initialInstanceCount:
+            this.mrModelEndpointsConfig.SM_INITIAL_INSTANCE_COUNT,
+          initialVariantWeight:
+            this.mrModelEndpointsConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrModelEndpointsConfig.SM_VARIANT_NAME,
-          repositoryAccessMode: this.mrModelEndpointsConfig.REPOSITORY_ACCESS_MODE,
+          repositoryAccessMode:
+            this.mrModelEndpointsConfig.REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
@@ -269,10 +277,13 @@ export class MREndpoints extends Construct {
           modelName: this.mrModelEndpointsConfig.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrModelEndpointsConfig.SM_GPU_INSTANCE_TYPE,
-          initialInstanceCount: this.mrModelEndpointsConfig.SM_INITIAL_INSTANCE_COUNT,
-          initialVariantWeight: this.mrModelEndpointsConfig.SM_INITIAL_VARIANT_WEIGHT,
+          initialInstanceCount:
+            this.mrModelEndpointsConfig.SM_INITIAL_INSTANCE_COUNT,
+          initialVariantWeight:
+            this.mrModelEndpointsConfig.SM_INITIAL_VARIANT_WEIGHT,
           variantName: this.mrModelEndpointsConfig.SM_VARIANT_NAME,
-          repositoryAccessMode: this.mrModelEndpointsConfig.REPOSITORY_ACCESS_MODE,
+          repositoryAccessMode:
+            this.mrModelEndpointsConfig.REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
