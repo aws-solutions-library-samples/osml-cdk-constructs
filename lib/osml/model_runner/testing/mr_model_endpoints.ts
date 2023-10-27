@@ -38,7 +38,9 @@ export class MRModelEndpointsConfig {
     public HTTP_ENDPOINT_CPU = 4096,
     public HTTP_ENDPOINT_HEALTHCHECK_PATH = "/ping",
     public HTTP_ENDPOINT_DOMAIN_NAME = "test-http-model-endpoint",
-    public MODEL_DEFAULT_CONTAINER = "awsosml/osml-models:main",
+    // default model deployment metadata
+    public MODEL_CONTAINER = "awsosml/osml-models",
+    public MODEL_TAG = "main",
     // ecr repo names
     public ECR_MODEL_REPOSITORY = "model-container",
     // path to the control model source
@@ -151,11 +153,15 @@ export class MREndpoints extends Construct {
           this,
           "OSMLModelContainer",
           {
-            sourceUri: this.mrModelEndpointsConfig.MODEL_DEFAULT_CONTAINER,
+            sourceUri:
+              this.mrModelEndpointsConfig.MODEL_CONTAINER +
+              ":" +
+              this.mrModelEndpointsConfig.MODEL_TAG,
             repositoryName: this.mrModelEndpointsConfig.ECR_MODEL_REPOSITORY,
             removalPolicy: this.removalPolicy,
             vpc: props.osmlVpc.vpc,
-            vpcSubnets: props.osmlVpc.selectedSubnets
+            vpcSubnets: props.osmlVpc.selectedSubnets,
+            tag: this.mrModelEndpointsConfig.MODEL_TAG
           }
         );
         this.modelContainerImage = osmlEcrDeployment.containerImage;
@@ -206,7 +212,7 @@ export class MREndpoints extends Construct {
       );
       if (props.account.isDev == false) {
         this.httpCenterpointModelEndpoint.node.addDependency(
-          this.modelContainerEcrDeployment
+          this.modelContainerImage
         );
       }
     }
