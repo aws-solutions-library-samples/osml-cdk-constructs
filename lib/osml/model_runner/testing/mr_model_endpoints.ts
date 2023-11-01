@@ -147,7 +147,7 @@ export class MREndpoints extends Construct {
 
         this.modelContainerUri = dockerImageAsset.imageUri;
       } else {
-        const osmlEcrDeployment = new OSMLECRDeployment(
+        this.modelContainerEcrDeployment = new OSMLECRDeployment(
           this,
           "OSMLModelContainer",
           {
@@ -158,8 +158,10 @@ export class MREndpoints extends Construct {
             vpcSubnets: props.osmlVpc.selectedSubnets
           }
         );
-        this.modelContainerImage = osmlEcrDeployment.containerImage;
-        this.modelContainerUri = osmlEcrDeployment.ecrContainerUri;
+        this.modelContainerImage =
+          this.modelContainerEcrDeployment.containerImage;
+        this.modelContainerUri =
+          this.modelContainerEcrDeployment.ecrContainerUri;
       }
     }
     if (props.deployHttpCenterpointModel != false) {
