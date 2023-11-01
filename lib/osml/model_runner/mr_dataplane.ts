@@ -2,15 +2,9 @@
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
 
-import {
-  Duration,
-  region_info,
-  RemovalPolicy,
-  SymlinkFollowMode
-} from "aws-cdk-lib";
+import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
 import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
-import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import {
   Cluster,
   Compatibility,
@@ -29,7 +23,6 @@ import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
-import { OSMLECRDeployment } from "../osml_ecr_deployment";
 import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
 import { OSMLTopic } from "../osml_topic";
@@ -68,14 +61,7 @@ export class MRDataplaneConfig {
     public MR_LOGGING_MEMORY = 512,
     public MR_LOGGING_CPU = 512,
     public MR_WORKERS_PER_CPU = 1,
-    public MR_REGION_SIZE = "(8192, 8192)",
-    public MR_DEFAULT_CONTAINER = "awsosml/osml-model-runner:main",
-    // repository name for the model runner container
-    public ECR_MODEL_RUNNER_REPOSITORY = "model-runner-container",
-    // path to the local source for model runner to build against
-    public ECR_MODEL_RUNNER_BUILD_PATH = "lib/osml-model-runner",
-    // build target for model runner container
-    public ECR_MODEL_RUNNER_TARGET = "model_runner"
+    public MR_REGION_SIZE = "(8192, 8192)"
   ) {}
 }
 
@@ -94,6 +80,7 @@ export interface MRDataplaneProps {
   dataplaneConfig?: MRDataplaneConfig;
   // subnets to deploy infrastructure into
   targetSubnets?: string[];
+  mrContainerImage: ContainerImage;
 }
 
 export class MRDataplane extends Construct {
@@ -105,8 +92,6 @@ export class MRDataplane extends Construct {
   public featureTable: OSMLTable;
   public endpointStatisticsTable: OSMLTable;
   public regionRequestTable: OSMLTable;
-  public mrContainerSourceUri: string;
-  public mrContainerImage: ContainerImage;
   public imageStatusTopic: OSMLTopic;
   public regionStatusTopic: OSMLTopic;
   public imageRequestQueue: OSMLQueue;
@@ -126,7 +111,6 @@ export class MRDataplane extends Construct {
    * - creating the DDB tables
    * - creating the SQS queues
    * - creating the SNS topics
-   * - creating the ECR repositories
    * - creating the ECR containers
    * - creating the ECS cluster
    * - creating the ECS task definition
@@ -171,31 +155,6 @@ export class MRDataplane extends Construct {
       props.account.region,
       region_info.FactName.servicePrincipal("s3.amazonaws.com")
     )!;
-
-    if (props.account.isDev == true) {
-      const dockerImageAsset = new DockerImageAsset(this, id, {
-        directory: this.mrDataplaneConfig.ECR_MODEL_RUNNER_BUILD_PATH,
-        file: "Dockerfile",
-        followSymlinks: SymlinkFollowMode.ALWAYS,
-        target: this.mrDataplaneConfig.ECR_MODEL_RUNNER_TARGET
-      });
-      this.mrContainerImage =
-        ContainerImage.fromDockerImageAsset(dockerImageAsset);
-      this.mrContainerSourceUri = dockerImageAsset.imageUri;
-    } else {
-      const osmlEcrDeployment = new OSMLECRDeployment(
-        this,
-        "MRModelRunnerContainer",
-        {
-          sourceUri: this.mrDataplaneConfig.MR_DEFAULT_CONTAINER,
-          repositoryName: this.mrDataplaneConfig.ECR_MODEL_RUNNER_REPOSITORY,
-          removalPolicy: this.removalPolicy,
-          vpc: props.osmlVpc.vpc
-        }
-      );
-      this.mrContainerImage = osmlEcrDeployment.containerImage;
-      this.mrContainerSourceUri = osmlEcrDeployment.ecrContainerUri;
-    }
 
     // job status table to store worker status info
     this.jobStatusTable = new OSMLTable(this, "MRJobStatusTable", {
@@ -344,7 +303,7 @@ export class MRDataplane extends Construct {
       "MRContainerDefinition",
       {
         containerName: this.mrDataplaneConfig.MR_CONTAINER_NAME,
-        image: this.mrContainerImage,
+        image: props.mrContainerImage,
         memoryLimitMiB: this.mrDataplaneConfig.MR_CONTAINER_MEMORY,
         cpu: this.mrDataplaneConfig.MR_CONTAINER_CPU,
         environment: containerEnv,

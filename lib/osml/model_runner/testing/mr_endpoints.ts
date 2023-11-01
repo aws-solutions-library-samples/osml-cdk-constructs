@@ -1,8 +1,7 @@
 /*
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
-import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
-import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
+import { RemovalPolicy } from "aws-cdk-lib";
 import { ContainerImage } from "aws-cdk-lib/aws-ecs";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
@@ -11,7 +10,6 @@ import { OSMLHTTPModelEndpoint } from "../../model_endpoints/osml_http_endpoint"
 import { OSMLHTTPEndpointRole } from "../../model_endpoints/osml_http_endpoint_role";
 import { OSMLSMEndpoint } from "../../model_endpoints/osml_sm_endpoint";
 import { OSMLAccount } from "../../osml_account";
-import { OSMLECRDeployment } from "../../osml_ecr_deployment";
 import { OSMLVpc } from "../../osml_vpc";
 import { MRSMRole } from "../roles/mr_sm_role";
 
@@ -38,7 +36,6 @@ export class MRModelEndpointsConfig {
     public HTTP_ENDPOINT_CPU = 4096,
     public HTTP_ENDPOINT_HEALTHCHECK_PATH = "/ping",
     public HTTP_ENDPOINT_DOMAIN_NAME = "test-http-model-endpoint",
-    public MODEL_DEFAULT_CONTAINER = "awsosml/osml-models:main",
     // ecr repo names
     public ECR_MODEL_REPOSITORY = "model-container",
     // path to the control model source
@@ -60,8 +57,6 @@ export interface MRModelEndpointsProps {
   mrModelEndpointsConfig?: MRModelEndpointsConfig;
   // optional sage maker iam role to use for endpoint construction - will be defaulted if not provided
   smRole?: IRole;
-  // optional custom model container ECR URIs
-  modelContainer?: string;
   // security groups to apply to the vpc config for SM endpoints
   securityGroupId?: string;
   // optional deploy custom model resources
@@ -69,10 +64,11 @@ export interface MRModelEndpointsProps {
   deployFloodModel?: boolean;
   deployAircraftModel?: boolean;
   deployHttpCenterpointModel?: boolean;
+  modelContainerImage: ContainerImage;
+  modelContainerUri: string;
 }
 
 export class MREndpoints extends Construct {
-  public modelContainerEcrDeployment: OSMLECRDeployment;
   public removalPolicy: RemovalPolicy;
   public mrModelEndpointsConfig: MRModelEndpointsConfig;
   public smRole?: IRole;
@@ -82,8 +78,6 @@ export class MREndpoints extends Construct {
   public floodModelEndpoint?: OSMLSMEndpoint;
   public aircraftModelEndpoint?: OSMLSMEndpoint;
   public securityGroupId: string;
-  public modelContainerImage: ContainerImage;
-  public modelContainerUri: string;
 
   /**
    * Creates an MRTesting construct.
@@ -133,36 +127,6 @@ export class MREndpoints extends Construct {
       } else {
         this.securityGroupId = props.osmlVpc.vpcDefaultSecurityGroup;
       }
-
-      if (props.account.isDev == true) {
-        const dockerImageAsset = new DockerImageAsset(this, id, {
-          directory: this.mrModelEndpointsConfig.ECR_MODELS_PATH,
-          file: "Dockerfile",
-          followSymlinks: SymlinkFollowMode.ALWAYS,
-          target: this.mrModelEndpointsConfig.ECR_MODEL_TARGET
-        });
-
-        this.modelContainerImage =
-          ContainerImage.fromDockerImageAsset(dockerImageAsset);
-
-        this.modelContainerUri = dockerImageAsset.imageUri;
-      } else {
-        this.modelContainerEcrDeployment = new OSMLECRDeployment(
-          this,
-          "OSMLModelContainer",
-          {
-            sourceUri: this.mrModelEndpointsConfig.MODEL_DEFAULT_CONTAINER,
-            repositoryName: this.mrModelEndpointsConfig.ECR_MODEL_REPOSITORY,
-            removalPolicy: this.removalPolicy,
-            vpc: props.osmlVpc.vpc,
-            vpcSubnets: props.osmlVpc.selectedSubnets
-          }
-        );
-        this.modelContainerImage =
-          this.modelContainerEcrDeployment.containerImage;
-        this.modelContainerUri =
-          this.modelContainerEcrDeployment.ecrContainerUri;
-      }
     }
     if (props.deployHttpCenterpointModel != false) {
       // check if a role was provided
@@ -188,7 +152,7 @@ export class MREndpoints extends Construct {
         {
           account: props.account,
           osmlVpc: props.osmlVpc,
-          image: this.modelContainerImage,
+          image: props.modelContainerImage,
           clusterName: this.mrModelEndpointsConfig.HTTP_ENDPOINT_NAME,
           role: this.httpEndpointRole,
           memory: this.mrModelEndpointsConfig.HTTP_ENDPOINT_MEMORY,
@@ -206,11 +170,6 @@ export class MREndpoints extends Construct {
           securityGroupId: this.securityGroupId
         }
       );
-      if (props.account.isDev == false) {
-        this.httpCenterpointModelEndpoint.node.addDependency(
-          this.modelContainerEcrDeployment
-        );
-      }
     }
 
     if (props.deployCenterpointModel != false) {
@@ -219,7 +178,7 @@ export class MREndpoints extends Construct {
         this,
         "OSMLCenterPointModelEndpoint",
         {
-          ecrContainerUri: this.modelContainerUri,
+          ecrContainerUri: props.modelContainerUri,
           modelName: this.mrModelEndpointsConfig.SM_CENTER_POINT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrModelEndpointsConfig.SM_CPU_INSTANCE_TYPE,
@@ -234,11 +193,6 @@ export class MREndpoints extends Construct {
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
-      if (props.account.isDev == false) {
-        this.centerPointModelEndpoint.node.addDependency(
-          this.modelContainerEcrDeployment
-        );
-      }
     }
 
     if (props.deployFloodModel != false) {
@@ -247,7 +201,7 @@ export class MREndpoints extends Construct {
         this,
         "OSMLFloodModelEndpoint",
         {
-          ecrContainerUri: this.modelContainerUri,
+          ecrContainerUri: props.modelContainerUri,
           modelName: this.mrModelEndpointsConfig.SM_FLOOD_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrModelEndpointsConfig.SM_CPU_INSTANCE_TYPE,
@@ -262,11 +216,6 @@ export class MREndpoints extends Construct {
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
-      if (props.account.isDev == false) {
-        this.floodModelEndpoint.node.addDependency(
-          this.modelContainerEcrDeployment
-        );
-      }
     }
 
     if (props.deployAircraftModel != false) {
@@ -275,7 +224,7 @@ export class MREndpoints extends Construct {
         this,
         "OSMLAircraftModelEndpoint",
         {
-          ecrContainerUri: this.modelContainerUri,
+          ecrContainerUri: props.modelContainerUri,
           modelName: this.mrModelEndpointsConfig.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.mrModelEndpointsConfig.SM_GPU_INSTANCE_TYPE,
@@ -290,11 +239,6 @@ export class MREndpoints extends Construct {
           subnetIds: props.osmlVpc.selectedSubnets.subnetIds
         }
       );
-      if (props.account.isDev == false) {
-        this.aircraftModelEndpoint.node.addDependency(
-          this.modelContainerEcrDeployment
-        );
-      }
     }
   }
 }
