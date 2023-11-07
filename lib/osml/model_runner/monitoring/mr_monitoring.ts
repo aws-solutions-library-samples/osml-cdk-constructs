@@ -14,45 +14,92 @@ import { Construct } from "constructs";
 import { OSMLAccount } from "../../osml_account";
 import { MRDataplaneConfig } from "../mr_dataplane";
 
+/**
+ * Interface for MR Monitoring Props.
+ *
+ * @interface MRMonitoringProps
+ */
 export interface MRMonitoringProps {
-  // the osml account interface
+  /**
+   * The OSML account interface.
+   *
+   * @type {OSMLAccount}
+   */
   account: OSMLAccount;
-  // the model runner region request queue
+
+  /**
+   * The model runner region request queue.
+   *
+   * @type {Queue}
+   */
   regionRequestQueue: Queue;
-  // the model runner region request DLQ
+
+  /**
+   * The model runner region request DLQ (Dead Letter Queue).
+   *
+   * @type {Queue}
+   */
   regionRequestDlQueue: Queue;
-  // the model runner image request queue
+
+  /**
+   * The model runner image request queue.
+   *
+   * @type {Queue}
+   */
   imageRequestQueue: Queue;
-  // the model runner image request DLQ
+
+  /**
+   * The model runner image request DLQ (Dead Letter Queue).
+   *
+   * @type {Queue}
+   */
   imageRequestDlQueue: Queue;
-  // the model runner fargate service
+
+  /**
+   * The model runner Fargate service.
+   *
+   * @type {FargateService}
+   */
   service: FargateService;
-  // the model runner dataplane configuration
+
+  /**
+   * The model runner dataplane configuration.
+   *
+   * @type {MRDataplaneConfig}
+   */
   mrDataplaneConfig: MRDataplaneConfig;
+
+  /**
+   * Optional model information.
+   *
+   * @type {string | undefined}
+   */
   model?: string;
 }
 
+/**
+ * Represents an MRMonitoring construct for monitoring various metrics and statistics.
+ */
 export class MRMonitoring extends Construct {
+  /**
+   * Creates a new MRMonitoring construct.
+   * @param {Construct} scope - The scope/stack in which to define this construct.
+   * @param {string} id - The id of this construct within the current scope.
+   * @param {MRMonitoringProps} props - The properties of this construct.
+   * @returns {MRMonitoring} - The MRMonitoring construct.
+   */
   public modelStatsWidget: SingleValueWidget;
   public dashboard: Dashboard;
   public requestsWidget: SingleValueWidget;
-
-  /**
-   * Creates a new MRMonitoring construct.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the MRMonitoring construct.
-   */
   constructor(scope: Construct, id: string, props: MRMonitoringProps) {
     super(scope, id);
 
+    // Create a dashboard for monitoring
     this.dashboard = new Dashboard(this, "OSMLDashboard", {
       dashboardName: "OSML"
     });
-    // It doesn't seem like sparklines are supported in CDK yet
-    // but the dashboard looks a little better with them. We should
-    // add them here once support is added.
+
+    // Create a widget for monitoring pending requests
     this.requestsWidget = new SingleValueWidget({
       title: "Pending Requests",
       region: props.account.region,
@@ -60,6 +107,7 @@ export class MRMonitoring extends Construct {
       height: 3,
       sparkline: true,
       metrics: [
+        // Metrics for pending region requests and oldest pending region request
         props.regionRequestQueue.metricApproximateNumberOfMessagesVisible({
           label: "Pending Region Requests",
           statistic: "sum",
@@ -69,6 +117,7 @@ export class MRMonitoring extends Construct {
           label: "Oldest Pending Region Request",
           statistic: "max"
         }),
+        // Metrics for failed region requests, pending image requests, and oldest pending image request
         props.regionRequestDlQueue.metricApproximateNumberOfMessagesVisible({
           label: "Failed Region Requests",
           statistic: "sum"
@@ -88,12 +137,9 @@ export class MRMonitoring extends Construct {
       ]
     });
 
+    // Create a widget for monitoring model statistics if a model is provided
     if (props.model != undefined) {
-      // There does not appear to be a great way to dynamically define
-      // a widget set that includes multiple dynamic dimensions. We're
-      // currently tracking model name as a dimension but from a graph
-      // standpoint it may make sense to track these stats without that
-      // dimension too.
+      // Metrics for model inference latency, invocations, model errors, throttling exceptions, and image latency
       this.modelStatsWidget = new SingleValueWidget({
         title: "Model Statistics",
         width: 14,
@@ -212,11 +258,11 @@ export class MRMonitoring extends Construct {
 
   /**
    * Builds a metric widget in Cloudwatch Dashboard
-   * @param metricName: the name of a metric
-   * @param label: the label of this metric
-   * @param imageFormat: image format based on an extension of an image
+   * @param metricName
+   * @param label
+   * @param imageFormat
    * @param metricsNamespace metricsNamespace the name to apply to the metric namespace
-   * @param statistic: type of statistic used for aggregating the datapoints
+   * @param statistic
    * @returns: cloudwatch metric
    */
   buildProcessingMetric(
@@ -239,10 +285,10 @@ export class MRMonitoring extends Construct {
 
   /**
    * Generates a widget that contains metrics for processing images, regions, and tiles
-   * @param imageFormat: image format based on an extension of an image
-   * @param region: what region it resides in
-   * @param metricsNameSpace: name to apply to the metrics namespace
    * @returns: cloudwatch Widget
+   * @param imageFormat
+   * @param region
+   * @param metricsNameSpace
    */
   generateProcessingWidget(
     imageFormat: string,

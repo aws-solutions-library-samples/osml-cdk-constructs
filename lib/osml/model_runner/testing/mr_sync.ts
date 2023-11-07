@@ -9,61 +9,106 @@ import { Construct } from "constructs";
 import { OSMLAccount } from "../../osml_account";
 import { OSMLBucket } from "../../osml_bucket";
 
-// mutable configuration dataclass for the model runner testing Construct
-// for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
+/**
+ * Represents a configuration class for the MRSync Construct.
+ */
 export class MRSyncConfig {
+  /**
+   * Creates an instance of MRSyncConfig.
+   * @param {string} S3_RESULTS_BUCKET - The name of the S3 bucket for storing results. Default is "test-results".
+   * @param {string} KINESIS_RESULTS_STREAM - The name of the Kinesis stream for publishing results. Default is "test-stream".
+   */
   constructor(
-    // bucket names
-    public S3_RESULTS_BUCKET = "test-results",
-    public KINESIS_RESULTS_STREAM = "test-stream"
+    public S3_RESULTS_BUCKET: string = "test-results",
+    public KINESIS_RESULTS_STREAM: string = "test-stream"
   ) {}
 }
 
+/**
+ * Interface for configuring the MRSync Construct.
+ * @interface MRSyncProps
+ */
 export interface MRSyncProps {
-  // the osml account interface
+  /**
+   * The OSML deployment account.
+   * @type {OSMLAccount}
+   */
   account: OSMLAccount;
-  // optional custom configuration for the testing resources - will be defaulted if not provided
+
+  /**
+   * Optional custom configuration for testing resources. Will be defaulted if not provided.
+   * @type {MRSyncConfig | undefined}
+   */
   mrSyncConfig?: MRSyncConfig;
-  // deploy results s3 bucket
+
+  /**
+   * Whether to deploy results to an S3 bucket.
+   * @type {boolean | undefined}
+   */
   deploySyncBucket?: boolean;
-  // deploy results kinesis stream
+
+  /**
+   * Whether to deploy results to a Kinesis stream.
+   * @type {boolean | undefined}
+   */
   deploySyncStream?: boolean;
-  // security groups to apply to the vpc config for SM endpoints
+
+  /**
+   * The security group ID(s) to apply to the VPC configuration for SM endpoints.
+   * @type {string | undefined}
+   */
   securityGroupId?: string;
 }
 
+/**
+ * Represents an MRSync construct for managing MapReduce synchronization.
+ */
 export class MRSync extends Construct {
+  /**
+   * The bucket used to store MRSync results.
+   */
   public resultsBucket: OSMLBucket;
+
+  /**
+   * The Kinesis stream used to store MRSync results.
+   */
   public resultStream: Stream;
+
+  /**
+   * The removal policy for the MRSync construct.
+   */
   public removalPolicy: RemovalPolicy;
+
+  /**
+   * The configuration for MRSync.
+   */
   public mrSyncConfig: MRSyncConfig;
 
   /**
-   * Creates an MRTesting construct.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the MRTesting construct.
+   * Creates an MRSync construct.
+   * @param {Construct} scope - The scope/stack in which to define this construct.
+   * @param {string} id - The ID of this construct within the current scope.
+   * @param {MRSyncProps} props - The properties of this construct.
    */
   constructor(scope: Construct, id: string, props: MRSyncProps) {
     super(scope, id);
 
-    // check if a custom config was provided
+    // Check if a custom config was provided
     if (props.mrSyncConfig != undefined) {
-      // import existing pass in MR configuration
+      // Import existing MR configuration
       this.mrSyncConfig = props.mrSyncConfig;
     } else {
-      // create a new default configuration
+      // Create a new default configuration
       this.mrSyncConfig = new MRSyncConfig();
     }
 
-    // setup a removal policy
+    // Set up a removal policy based on whether it's a production-like environment
     this.removalPolicy = props.account.prodLike
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
-    if (props.deploySyncBucket != false) {
-      // create a bucket to store results in
+    // Create a bucket to store results if deploySyncBucket is not explicitly set to false
+    if (props.deploySyncBucket !== false) {
       this.resultsBucket = new OSMLBucket(this, `OSMLTestResultsBucket`, {
         bucketName: `${this.mrSyncConfig.S3_RESULTS_BUCKET}-${props.account.id}`,
         prodLike: props.account.prodLike,
@@ -71,8 +116,8 @@ export class MRSync extends Construct {
       });
     }
 
-    if (props.deploySyncStream != false) {
-      // create a kinesis stream to store results in
+    // Create a Kinesis stream to store results if deploySyncStream is not explicitly set to false
+    if (props.deploySyncStream !== false) {
       this.resultStream = new Stream(this, "OSMLTestResultsStream", {
         streamName: `${this.mrSyncConfig.KINESIS_RESULTS_STREAM}-${props.account.id}`,
         streamMode: StreamMode.PROVISIONED,

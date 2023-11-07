@@ -6,33 +6,69 @@ import { Duration } from "aws-cdk-lib";
 import { Queue, QueueEncryption } from "aws-cdk-lib/aws-sqs";
 import { Construct } from "constructs";
 
+/**
+ * Represents the properties required to define an OSMLQueue Construct.
+ *
+ * @interface OSMLQueueProps
+ */
 export interface OSMLQueueProps {
-  // the name of the queue to create
+  /**
+   * The name to give the queue.
+   *
+   * @type {string}
+   */
   queueName: string;
-  // the maximum number of times a message can be received before being discarded.
+
+  /**
+   * The maximum number of times a message can be received (default is unlimited).
+   * If set, the message will be moved to the dead-letter queue after reaching
+   * this maximum receive count.
+   *
+   * @type {number}
+   * @default undefined (unlimited)
+   */
   maxReceiveCount?: number;
-  // the DLQ to use for this queue. If not provided, one will be created.
+
+  /**
+   * The dead-letter queue (DLQ) associated with this queue.
+   * Messages that fail to be processed can be moved to the DLQ.
+   *
+   * @type {Queue}
+   * @default undefined (no DLQ)
+   */
   dlQueue?: Queue;
 }
 
+/**
+ * Represents an OSML (OversightML) Queue and its associated Dead Letter Queue (DLQ).
+ */
 export class OSMLQueue extends Construct {
+  /**
+   * The primary queue used for storing messages.
+   */
   public queue: Queue;
+
+  /**
+   * The Dead Letter Queue (DLQ) associated with the primary queue.
+   */
   public dlQueue: Queue;
 
   /**
-   * Creates an OSML Queue and Dead Letter Queue.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the OSMLQueue construct.
+   * Creates an instance of OSMLQueue.
+   * @param {Construct} scope - The scope or stack in which to define this construct.
+   * @param {string} id - The ID of this construct within the current scope.
+   * @param {OSMLQueueProps} props - The properties of this construct.
+   * @returns OSMLQueue - The OSMLQueue construct.
    */
   constructor(scope: Construct, id: string, props: OSMLQueueProps) {
     super(scope, id);
-    // if user passed in a DLQueue to use
+
+    // Initialize the Dead Letter Queue (DLQ)
     if (props.dlQueue) {
+      // If a DLQueue is provided, use it
       this.dlQueue = props.dlQueue;
     } else {
-      // else make one
+      // Otherwise, create a new DLQ
       this.dlQueue = new Queue(this, `${id}DLQ`, {
         queueName: `${props.queueName}DLQ`,
         retentionPeriod: Duration.days(1),
@@ -40,7 +76,7 @@ export class OSMLQueue extends Construct {
       });
     }
 
-    // build the target queue
+    // Build the primary queue
     this.queue = new Queue(this, id, {
       queueName: props.queueName,
       visibilityTimeout: Duration.minutes(30),

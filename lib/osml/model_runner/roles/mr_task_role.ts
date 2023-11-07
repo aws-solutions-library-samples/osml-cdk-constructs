@@ -15,32 +15,58 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
 
+/**
+ * Represents the properties required to define a model runner ECS task role.
+ *
+ * @interface MRTaskRoleProps
+ */
 export interface MRTaskRoleProps {
-  // the osml account interface
+  /**
+   * The OSML (OversightML) deployment account associated with this role.
+   *
+   * @type {OSMLAccount}
+   */
   account: OSMLAccount;
-  // the name to give the role
+
+  /**
+   * The name to give to the role.
+   *
+   * @type {string}
+   */
   roleName: string;
 }
 
+/**
+ * Represents an MRTaskRole construct.
+ */
 export class MRTaskRole extends Construct {
+  /**
+   * The AWS IAM role associated with this MRTaskRole.
+   */
   public role: IRole;
+
+  /**
+   * The AWS partition to be used for this MRTaskRole.
+   */
   public partition: string;
 
   /**
    * Creates an MRTaskRole construct.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the MRTaskRole construct.
+   * @param {Construct} scope - The scope/stack in which to define this construct.
+   * @param {string} id - The id of this construct within the current scope.
+   * @param {MRTaskRoleProps} props - The properties of this construct.
+   * @returns MRTaskRole - The MRTaskRole construct.
    */
   constructor(scope: Construct, id: string, props: MRTaskRoleProps) {
     super(scope, id);
+
+    // Determine the AWS partition based on the provided AWS region
     this.partition = region_info.Fact.find(
       props.account.region,
       region_info.FactName.PARTITION
     )!;
 
-    // model runner Fargate ECS task role
+    // Create an AWS IAM role for the Model Runner Fargate ECS task
     const mrTaskRole = new Role(this, "MRTaskRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(
@@ -62,8 +88,7 @@ export class MRTaskRole extends Construct {
         "Allows the Oversight Model Runner to access necessary AWS services (S3, SQS, DynamoDB, ...)"
     });
 
-    // needs the ability to assume roles to read from/write to remote account S3 buckets,
-    // kinesis streams, and invoke SM endpoints
+    // Add permissions to assume roles
     mrTaskRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
@@ -72,7 +97,7 @@ export class MRTaskRole extends Construct {
       })
     );
 
-    // kms permissions
+    // Add permissions for AWS Key Management Service (KMS)
     mrTaskRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
@@ -83,7 +108,7 @@ export class MRTaskRole extends Construct {
       })
     );
 
-    // events permissions
+    // Add permissions for AWS Events
     mrTaskRole.addToPolicy(
       new PolicyStatement({
         actions: ["events:PutRule", "events:PutTargets", "events:DescribeRule"],
@@ -94,7 +119,7 @@ export class MRTaskRole extends Construct {
       })
     );
 
-    // kinesis permissions
+    // Add permissions for Amazon Kinesis
     mrTaskRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
@@ -105,8 +130,7 @@ export class MRTaskRole extends Construct {
       })
     );
 
-    // need to describe ec2 instance types in order to perform max in-progress
-    // region calculations
+    // Add permissions to describe EC2 instance types
     mrTaskRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
@@ -115,6 +139,7 @@ export class MRTaskRole extends Construct {
       })
     );
 
+    // Set the MRTaskRole property to the created role
     this.role = mrTaskRole;
   }
 }

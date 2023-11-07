@@ -11,58 +11,95 @@ import { Construct } from "constructs";
 import { OSMLAccount } from "../../osml_account";
 import { MRDataplane } from "../mr_dataplane";
 
-// mutable configuration dataclass for model runner
-// for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
+/**
+ * Configuration settings for autoscaling the ModelRunner service.
+ */
 export class MRAutoscalingConfig {
+  /**
+   * Creates an instance of MRAutoscalingConfig.
+   * @param {number} [MR_AUTOSCALING_TASK_MAX_COUNT=40] - The maximum number of tasks allowed in the cluster.
+   * @param {number} [MR_AUTOSCALING_TASK_MIN_COUNT=5] - The minimum number of tasks required in the cluster.
+   * @param {number} [MR_AUTOSCALING_TASK_OUT_COOLDOWN=3] - The cooldown period (in minutes) after scaling out tasks.
+   * @param {number} [MR_AUTOSCALING_TASK_IN_COOLDOWN=1] - The cooldown period (in minutes) after scaling in tasks.
+   * @param {number} [MR_AUTOSCALING_TASK_IN_INCREMENT=8] - The number of tasks to increment when scaling in.
+   * @param {number} [MR_AUTOSCALING_TASK_OUT_INCREMENT=8] - The number of tasks to increment when scaling out.
+   */
   constructor(
-    public MR_AUTOSCALING_TASK_MAX_COUNT = 40,
-    public MR_AUTOSCALING_TASK_MIN_COUNT = 5,
-    public MR_AUTOSCALING_TASK_OUT_COOLDOWN = 3,
-    public MR_AUTOSCALING_TASK_IN_COOLDOWN = 1,
-    public MR_AUTOSCALING_TASK_IN_INCREMENT = 8,
-    public MR_AUTOSCALING_TASK_OUT_INCREMENT = 8
+    public MR_AUTOSCALING_TASK_MAX_COUNT: number = 40,
+    public MR_AUTOSCALING_TASK_MIN_COUNT: number = 5,
+    public MR_AUTOSCALING_TASK_OUT_COOLDOWN: number = 3,
+    public MR_AUTOSCALING_TASK_IN_COOLDOWN: number = 1,
+    public MR_AUTOSCALING_TASK_IN_INCREMENT: number = 8,
+    public MR_AUTOSCALING_TASK_OUT_INCREMENT: number = 8
   ) {}
 }
 
+/**
+ * Represents the properties required for configuring auto-scaling in the MR system.
+ *
+ * @interface MRAutoScalingProps
+ */
 export interface MRAutoScalingProps {
-  // the osml account interface
+  /**
+   * The OSML account interface.
+   *
+   * @type {OSMLAccount}
+   */
   account: OSMLAccount;
-  // the iam role to use for autoscaling components
+
+  /**
+   * The IAM role to use for auto-scaling components.
+   *
+   * @type {MRDataplane}
+   */
   mrDataplane: MRDataplane;
-  // the optional autoscaling custom configuration
+
+  /**
+   * The optional auto-scaling custom configuration.
+   *
+   * @type {MRAutoscalingConfig|undefined}
+   */
   mrAutoscalingConfig?: MRAutoscalingConfig;
 }
 
+/**
+ * Represents a custom autoscaling implementation for model runner.
+ */
 export class MRAutoScaling extends Construct {
+  /**
+   * The service autoscaler for ECS tasks.
+   */
   serviceAutoscaler: EcsIsoServiceAutoscaler;
+
+  /**
+   * The custom configuration for MRAutoscaling.
+   */
   mrAutoscalingConfig: MRAutoscalingConfig;
 
   /**
-   * Creates a custom autoscaling implementation for model runner.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the MRAutoScaling construct.
+   * Creates a new instance of the MRAutoScaling construct.
+   * @param {Construct} scope - The scope/stack in which to define this construct.
+   * @param {string} id - The id of this construct within the current scope.
+   * @param {MRAutoScalingProps} props - The properties of this construct.
    */
   constructor(scope: Construct, id: string, props: MRAutoScalingProps) {
     super(scope, id);
 
-    // check and see if a custom autoscaling configuration was provided
+    // Check and see if a custom autoscaling configuration was provided.
     if (props.mrAutoscalingConfig) {
       this.mrAutoscalingConfig = props.mrAutoscalingConfig;
     } else {
-      // if not set to default
+      // If not set to default configuration.
       this.mrAutoscalingConfig = new MRAutoscalingConfig();
     }
 
-    // Create custom autoscaling for ADC regions where it isn't available
+    // Create custom autoscaling for ADC regions where it isn't available.
     if (props.account.isAdc) {
       /**
-       * CloudWatch Scheduled Job to control scaling
+       * CloudWatch Scheduled Job to control scaling.
        * This is currently used to provide scaling capability for ECS
        * tasks in the ADC partitions.
        */
-
       const regionQueueScalingAlarm = new Alarm(
         this,
         "RegionQueueScalingAlarm",
@@ -89,7 +126,7 @@ export class MRAutoScaling extends Construct {
 
       this.serviceAutoscaler = new EcsIsoServiceAutoscaler(
         this,
-        "MRServiceScaler",
+        "MRServiceAutoscaling",
         {
           role: props.mrDataplane.mrRole,
           ecsCluster: props.mrDataplane.cluster,
@@ -115,7 +152,7 @@ export class MRAutoScaling extends Construct {
       /**
        * This is currently used when not deploying into ADC
        * partitions. We can swap fully to this when the autoscaling
-       *  capability is enabled for ECS.
+       * capability is enabled for ECS.
        */
       const mrServiceScaling =
         props.mrDataplane.fargateService.autoScaleTaskCount({

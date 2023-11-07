@@ -11,31 +11,69 @@ import {
 } from "aws-cdk-lib/aws-dynamodb";
 import { Construct } from "constructs";
 
+/**
+ * Represents the properties required to define the OSMLTable Construct.
+ *
+ * @interface OSMLTableProps
+ */
 export interface OSMLTableProps {
-  // the name of the table to create
+  /**
+   * The name of the table.
+   *
+   * @type {string}
+   */
   tableName: string;
-  // the partition key of the table - must be of type String
+
+  /**
+   * The partition key attribute of the table.
+   *
+   * @type {Attribute}
+   */
   partitionKey: Attribute;
-  //  the removal policy to apply to the table
+
+  /**
+   * The removal policy for the table when it is deleted or removed from the stack.
+   *
+   * @type {RemovalPolicy}
+   */
   removalPolicy: RemovalPolicy;
-  // the sort key of the table - must be of type String or Number
+
+  /**
+   * (Optional) The sort key attribute of the table.
+   *
+   * @type {Attribute | undefined}
+   */
   sortKey?: Attribute;
-  // the TTL attribute of the table - must be of type String or Number
+
+  /**
+   * (Optional) The time-to-live (TTL) attribute of the table.
+   *
+   * @type {string | undefined}
+   */
   ttlAttribute?: string;
 }
 
+/**
+ * Represents an OSML DynamoDB Table construct.
+ */
 export class OSMLTable extends Construct {
   public table: Table;
 
   /**
-   * Creates an OSML DDB Table.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the OSMLTable construct.
+   * Creates an OSML DynamoDB Table.
+   *
+   * @param {Construct} scope - The scope/stack in which to define this construct.
+   * @param {string} id - The ID of this construct within the current scope.
+   * @param {OSMLTableProps} props - The properties of this construct.
+   * @returns OSMLTable - The OSMLTable construct.
    */
   constructor(scope: Construct, id: string, props: OSMLTableProps) {
     super(scope, id);
+
+    /**
+     * The DynamoDB Table instance associated with this OSMLTable.
+     * @type {Table}
+     */
     this.table = new Table(this, id, {
       tableName: props.tableName,
       partitionKey: props.partitionKey,
