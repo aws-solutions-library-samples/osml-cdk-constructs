@@ -1,13 +1,16 @@
 name: Publish Package to npmjs
+
 on:
   push:
     branches: [main]
+
 jobs:
   build:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout source code'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: 'cat package.json'
         run: cat ./package.json
       - name: 'Automated Version Bump'
@@ -23,13 +26,13 @@ jobs:
         env:
           NEW_TAG: ${{ steps.version-bump.outputs.newTag }}
         run: echo "new tag $NEW_TAG"
-      # Setup .npmrc file to publish to npm
       - uses: actions/setup-node@v3
         with:
           node-version: '16.x'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
       - run: npm run build
+      - uses: pre-commit/action@v3.0.0
       - run: npm publish -access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
