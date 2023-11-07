@@ -6,7 +6,7 @@ on:
 
 jobs:
   Build_NPM:
-    uses: ./.github/workflows/python-tox.yml
+    uses: ./.github/workflows/npm-build.yml
     secrets: inherit
   Publish_NPM:
     needs: [Build_NPM]
