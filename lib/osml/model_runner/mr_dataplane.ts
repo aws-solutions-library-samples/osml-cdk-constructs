@@ -29,61 +29,124 @@ import { OSMLTopic } from "../osml_topic";
 import { OSMLVpc } from "../osml_vpc";
 import { MRTaskRole } from "./roles/mr_task_role";
 
-// mutable configuration dataclass for model runner
-// for a more detailed breakdown of the configuration see: configuration_guide.md in the documentation directory.
+/**
+ * Configuration class for MRDataplane Construct.
+ */
 export class MRDataplaneConfig {
+  /**
+   * Constructor for MRDataplaneConfig.
+   * @param {string} SNS_IMAGE_STATUS_TOPIC - The name of the SNS topic for image status.
+   * @param {string} SNS_REGION_STATUS_TOPIC - The name of the SNS topic for region status.
+   * @param {string} SQS_IMAGE_REQUEST_QUEUE - The name of the SQS queue for image requests.
+   * @param {string} SQS_REGION_REQUEST_QUEUE - The name of the SQS queue for region requests.
+   * @param {string} DDB_JOB_STATUS_TABLE - The name of the DynamoDB table for job status.
+   * @param {string} DDB_FEATURES_TABLE - The name of the DynamoDB table for image processing features.
+   * @param {string} DDB_ENDPOINT_PROCESSING_TABLE - The name of the DynamoDB table for endpoint processing statistics.
+   * @param {string} DDB_REGION_REQUEST_TABLE - The name of the DynamoDB table for region request status.
+   * @param {string} DDB_TTL_ATTRIBUTE - The attribute name for expiration time in DynamoDB.
+   * @param {string} METRICS_NAMESPACE - The namespace for metrics.
+   * @param {string} MR_CLUSTER_NAME - The name of the MR cluster.
+   * @param {string} MR_TASK_ROLE_NAME - The name of the MR task execution role.
+   * @param {string} MR_CONTAINER_NAME - The name of the MR container.
+   * @param {number} MR_TASK_MEMORY - The memory configuration for MR tasks.
+   * @param {number} MR_TASK_CPU - The CPU configuration for MR tasks.
+   * @param {number} MR_CONTAINER_MEMORY - The memory configuration for MR containers.
+   * @param {number} MR_CONTAINER_CPU - The CPU configuration for MR containers.
+   * @param {number} MR_LOGGING_MEMORY - The memory configuration for logging.
+   * @param {number} MR_LOGGING_CPU - The CPU configuration for logging.
+   * @param {number} MR_WORKERS_PER_CPU - The number of workers per CPU.
+   * @param {string} MR_REGION_SIZE - The size of MR regions in the format "(width, height)".
+   */
   constructor(
-    // topic names
-    public SNS_IMAGE_STATUS_TOPIC = "ImageStatusTopic",
-    public SNS_REGION_STATUS_TOPIC = "RegionStatusTopic",
-    // queue names
-    public SQS_IMAGE_REQUEST_QUEUE = "ImageRequestQueue",
-    public SQS_REGION_REQUEST_QUEUE = "RegionRequestQueue",
-    // table names
-    public DDB_JOB_STATUS_TABLE = "ImageProcessingJobStatus",
-    public DDB_FEATURES_TABLE = "ImageProcessingFeatures",
-    public DDB_ENDPOINT_PROCESSING_TABLE = "EndpointProcessingStatistics",
-    public DDB_REGION_REQUEST_TABLE = "RegionProcessingJobStatus",
-    // time to live attribute to be used on tables
-    public DDB_TTL_ATTRIBUTE = "expire_time",
-    // metrics constants
-    public METRICS_NAMESPACE = "OSML",
-    // fargate configuration
-    // for valid task resource values see:
-    // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html
-    public MR_CLUSTER_NAME = "OSMLCluster",
-    public MR_TASK_ROLE_NAME = "OSMLTaskExecutionRole",
-    public MR_CONTAINER_NAME = "OSMLModelRunnerContainer",
-    public MR_TASK_MEMORY = 16384,
-    public MR_TASK_CPU = 8192,
-    public MR_CONTAINER_MEMORY = 15360,
-    public MR_CONTAINER_CPU = 7168,
-    public MR_LOGGING_MEMORY = 512,
-    public MR_LOGGING_CPU = 512,
-    public MR_WORKERS_PER_CPU = 1,
-    public MR_REGION_SIZE = "(8192, 8192)"
+    public SNS_IMAGE_STATUS_TOPIC: string = "ImageStatusTopic",
+    public SNS_REGION_STATUS_TOPIC: string = "RegionStatusTopic",
+    public SQS_IMAGE_REQUEST_QUEUE: string = "ImageRequestQueue",
+    public SQS_REGION_REQUEST_QUEUE: string = "RegionRequestQueue",
+    public DDB_JOB_STATUS_TABLE: string = "ImageProcessingJobStatus",
+    public DDB_FEATURES_TABLE: string = "ImageProcessingFeatures",
+    public DDB_ENDPOINT_PROCESSING_TABLE: string = "EndpointProcessingStatistics",
+    public DDB_REGION_REQUEST_TABLE: string = "RegionProcessingJobStatus",
+    public DDB_TTL_ATTRIBUTE: string = "expire_time",
+    public METRICS_NAMESPACE: string = "OSML",
+    public MR_CLUSTER_NAME: string = "OSMLCluster",
+    public MR_TASK_ROLE_NAME: string = "OSMLTaskExecutionRole",
+    public MR_CONTAINER_NAME: string = "OSMLModelRunnerContainer",
+    public MR_TASK_MEMORY: number = 16384,
+    public MR_TASK_CPU: number = 8192,
+    public MR_CONTAINER_MEMORY: number = 15360,
+    public MR_CONTAINER_CPU: number = 7168,
+    public MR_LOGGING_MEMORY: number = 512,
+    public MR_LOGGING_CPU: number = 512,
+    public MR_WORKERS_PER_CPU: number = 1,
+    public MR_REGION_SIZE: string = "(8192, 8192)"
   ) {}
 }
 
+/**
+ * Interface representing properties for configuring the MRDataplane Construct.
+ */
 export interface MRDataplaneProps {
-  // the account that owns the data plane as defined by the OSMLAccount interface
+  /**
+   * The OSML deployment account.
+   * @type {OSMLAccount}
+   */
   account: OSMLAccount;
-  // the vpc to deploy into
+
+  /**
+   * The OSML VPC (Virtual Private Cloud) configuration for the Dataplane.
+   * @type {OSMLVpc}
+   */
   osmlVpc: OSMLVpc;
-  // URI link to a s3 hosted terrain dataset
+
+  /**
+   * The URI for the terrain to use for geolocation (optional).
+   * @type {string | undefined}
+   */
   mrTerrainUri?: string;
-  // optional security group id to provide to the model runner Fargate service
+
+  /**
+   * The security group ID to use for the Dataplane (optional).
+   * @type {string | undefined}
+   */
   securityGroupId?: string;
-  // optional role to give the model runner task execution permissions - will be crated if not provided
+
+  /**
+   * The IAM (Identity and Access Management) role to be used for MR tasks (optional).
+   * @type {IRole | undefined}
+   */
   taskRole?: IRole;
-  // optional service level configuration that can be provided by the user but will be defaulted if not
+
+  /**
+   * Custom configuration for the MRDataplane Construct (optional).
+   * @type {MRDataplaneConfig | undefined}
+   */
   dataplaneConfig?: MRDataplaneConfig;
-  // subnets to deploy infrastructure into
+
+  /**
+   * An array of target subnets for the Dataplane.
+   * @type {string[] | undefined}
+   */
   targetSubnets?: string[];
+
+  /**
+   * The container image to be used for the model runner ecs tasks.
+   * @type {ContainerImage}
+   */
   mrContainerImage: ContainerImage;
 }
 
+/**
+ * Represents the MRDataplane construct responsible for managing the data plane
+ * of the model runner application. It handles various AWS resources and configurations
+ * required for the application's operation.
+ *
+ * @param {Construct} scope - The scope/stack in which to define this construct.
+ * @param {string} id - The id of this construct within the current scope.
+ * @param {MRDataplaneProps} props - The properties of this construct.
+ * @returns {MRDataplane} - The MRDataplane construct.
+ */
 export class MRDataplane extends Construct {
+  // Public properties
   public mrRole: IRole;
   public mrDataplaneConfig: MRDataplaneConfig;
   public removalPolicy: RemovalPolicy;
@@ -106,57 +169,49 @@ export class MRDataplane extends Construct {
   public mrTerrainUri?: string;
 
   /**
-   * This construct is responsible for managing the data plane of the model runner application
-   * It is responsible for:
-   * - creating the DDB tables
-   * - creating the SQS queues
-   * - creating the SNS topics
-   * - creating the ECR containers
-   * - creating the ECS cluster
-   * - creating the ECS task definition
-   * - creating the ECS container
-   * - creating the ECS service
+   * Constructs an instance of MRDataplane.
    *
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the MRDataplane construct
+   * @constructor
+   * @param {Construct} scope - The scope/stack in which to define this construct.
+   * @param {string} id - The id of this construct within the current scope.
+   * @param {MRDataplaneProps} props - The properties of this construct.
    */
   constructor(scope: Construct, id: string, props: MRDataplaneProps) {
     super(scope, id);
-    // setup a removal policy
+
+    // Setup a removal policy
     this.removalPolicy = props.account.prodLike
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
-    // check if a custom configuration was provided
+    // Check if a custom configuration was provided
     if (props.dataplaneConfig != undefined) {
-      // import existing pass in MR configuration
+      // Import existing passed-in MR configuration
       this.mrDataplaneConfig = props.dataplaneConfig;
     } else {
-      // create a new default configuration
+      // Create a new default configuration
       this.mrDataplaneConfig = new MRDataplaneConfig();
     }
 
-    // check if a role was provided
+    // Check if a role was provided
     if (props.taskRole != undefined) {
-      // import passed in an MR task role
+      // Import passed-in MR task role
       this.mrRole = props.taskRole;
     } else {
-      // create a new role
+      // Create a new role
       this.mrRole = new MRTaskRole(this, "MRRole", {
         account: props.account,
         roleName: this.mrDataplaneConfig.MR_TASK_ROLE_NAME
       }).role;
     }
 
-    // set up a regional s3 endpoint for GDAL to use
+    // Set up a regional S3 endpoint for GDAL to use
     this.regionalS3Endpoint = region_info.Fact.find(
       props.account.region,
       region_info.FactName.servicePrincipal("s3.amazonaws.com")
     )!;
 
-    // job status table to store worker status info
+    // Job status table to store worker status info
     this.jobStatusTable = new OSMLTable(this, "MRJobStatusTable", {
       tableName: this.mrDataplaneConfig.DDB_JOB_STATUS_TABLE,
       partitionKey: {
@@ -167,7 +222,7 @@ export class MRDataplane extends Construct {
       ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
     });
 
-    // geojson feature storage for mapping back to images
+    // GeoJSON feature storage for mapping back to images
     this.featureTable = new OSMLTable(this, "MRFeaturesTable", {
       tableName: this.mrDataplaneConfig.DDB_FEATURES_TABLE,
       partitionKey: {
@@ -182,7 +237,7 @@ export class MRDataplane extends Construct {
       ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
     });
 
-    // used to track in-progress regions by model endpoint
+    // Used to track in-progress regions by model endpoint
     this.endpointStatisticsTable = new OSMLTable(
       this,
       "MREndpointProcessingTable",
@@ -197,7 +252,7 @@ export class MRDataplane extends Construct {
       }
     );
 
-    // region request table to store region status info
+    // Region request table to store region status info
     this.regionRequestTable = new OSMLTable(this, "MRRegionRequestTable", {
       tableName: this.mrDataplaneConfig.DDB_REGION_REQUEST_TABLE,
       partitionKey: {
@@ -212,52 +267,40 @@ export class MRDataplane extends Construct {
       ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
     });
 
-    // create a topic for image request status notifications
+    // Create a topic for image request status notifications
     this.imageStatusTopic = new OSMLTopic(this, "MRImageStatusTopic", {
       topicName: this.mrDataplaneConfig.SNS_IMAGE_STATUS_TOPIC
     });
 
-    // create a topic for region request status notifications
+    // Create a topic for region request status notifications
     this.regionStatusTopic = new OSMLTopic(this, "MRRegionStatusTopic", {
       topicName: this.mrDataplaneConfig.SNS_REGION_STATUS_TOPIC
     });
 
-    /**
-     * Create a SQS queue for the image processing jobs.
-     * This queue is subscribed to the SNS topic for new
-     * image processing tasks and will eventually filter those tasks to make
-     * sure they are destined for this processing cell.
-     * If a task fails multiple times, it will be sent to a DLQ.
-     **/
+    // Create a SQS queue for the image processing jobs
     this.imageRequestQueue = new OSMLQueue(this, "MRImageRequestQueue", {
       queueName: this.mrDataplaneConfig.SQS_IMAGE_REQUEST_QUEUE
     });
 
-    /**
-     * Create a SQS queue for the image region processing tasks.
-     * If an image is too large to be handled by that a single instance,
-     * it will divide the image into regions and place a task for each in this queue.
-     * That allows other model runner instances to pickup part of the overall
-     * processing load for this image.
-     **/
+    // Create a SQS queue for the image region processing tasks
     this.regionRequestQueue = new OSMLQueue(this, "MRRegionRequestQueue", {
       queueName: this.mrDataplaneConfig.SQS_REGION_REQUEST_QUEUE
     });
 
-    // log group for MR container
+    // Log group for MR container
     this.logGroup = new LogGroup(this, "MRServiceLogGroup", {
       logGroupName: "/aws/OSML/MRService",
       retention: RetentionDays.TEN_YEARS,
       removalPolicy: this.removalPolicy
     });
 
-    // build cluster to house our containers when they spin up
+    // Build cluster to house our containers when they spin up
     this.cluster = new Cluster(this, "MRCluster", {
       clusterName: this.mrDataplaneConfig.MR_CLUSTER_NAME,
       vpc: props.osmlVpc.vpc
     });
 
-    // define our ecs task
+    // Define our ECS task
     this.taskDefinition = new TaskDefinition(this, "MRTaskDefinition", {
       // Guessing what specs are needed
       memoryMiB: this.mrDataplaneConfig.MR_TASK_MEMORY.toString(),
@@ -266,13 +309,13 @@ export class MRDataplane extends Construct {
       taskRole: this.mrRole
     });
 
-    // calculate the workers to assign per task instance
+    // Calculate the workers to assign per task instance
     this.workers = Math.ceil(
       (this.mrDataplaneConfig.MR_TASK_CPU / 1024) *
         this.mrDataplaneConfig.MR_WORKERS_PER_CPU
     ).toString();
 
-    // build our container to run our service
+    // Build our container to run our service
     let containerEnv = {
       AWS_DEFAULT_REGION: props.account.region,
       JOB_TABLE: this.jobStatusTable.table.tableName,
@@ -289,16 +332,16 @@ export class MRDataplane extends Construct {
       REGION_SIZE: this.mrDataplaneConfig.MR_REGION_SIZE
     };
 
-    // check if a custom model runner container image was provided
+    // Check if a custom model runner container image was provided
     if (props.mrTerrainUri != undefined) {
-      // import the passed image
+      // Import the passed image
       this.mrTerrainUri = props.mrTerrainUri;
       containerEnv = Object.assign(containerEnv, {
         ELEVATION_DATA_LOCATION: this.mrTerrainUri
       });
     }
 
-    // build a container definition to run our service
+    // Build a container definition to run our service
     this.containerDefinition = this.taskDefinition.addContainer(
       "MRContainerDefinition",
       {
@@ -309,7 +352,7 @@ export class MRDataplane extends Construct {
         environment: containerEnv,
         startTimeout: Duration.minutes(1),
         stopTimeout: Duration.minutes(1),
-        // create a log group for console output (STDOUT)
+        // Create a log group for console output (STDOUT)
         logging: new FireLensLogDriver({
           options: {
             Name: "cloudwatch",
@@ -324,14 +367,14 @@ export class MRDataplane extends Construct {
       }
     );
 
-    // add port mapping to container
+    // Add port mapping to container
     this.taskDefinition.defaultContainer?.addPortMappings({
       containerPort: 80,
       hostPort: 80,
       protocol: Protocol.TCP
     });
 
-    // if a custom security group was provided
+    // If a custom security group was provided
     if (props.securityGroupId) {
       this.securityGroups = [
         SecurityGroup.fromSecurityGroupId(
@@ -342,7 +385,7 @@ export class MRDataplane extends Construct {
       ];
     }
 
-    // set up fargate service
+    // Set up Fargate service
     this.fargateService = new FargateService(this, "MRService", {
       taskDefinition: this.taskDefinition,
       cluster: this.cluster,
@@ -351,7 +394,7 @@ export class MRDataplane extends Construct {
       vpcSubnets: props.osmlVpc.selectedSubnets
     });
 
-    // build a fluent bit log router for the MR container
+    // Build a fluent bit log router for the MR container
     this.taskDefinition.addFirelensLogRouter("MRFireLensContainer", {
       image: obtainDefaultFluentBitECRImage(
         this.taskDefinition,

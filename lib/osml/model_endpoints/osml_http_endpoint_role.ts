@@ -12,32 +12,61 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
 
+/**
+ * Represents the properties required for a Multi-Role Task Role.
+ * @interface
+ */
 export interface MRTaskRoleProps {
-  // the osml account interface
-  account: OSMLAccount;
-  // the name to give the role
-  roleName: string;
-}
+  /**
+   * The OSML deployment account
+   * @type {OSMLAccount}
+   * @readonly
+   */
+  readonly account: OSMLAccount;
 
+  /**
+   * The name to assign the role.
+   * @type {string}
+   * @readonly
+   */
+  readonly roleName: string;
+}
+/**
+ * Represents an AWS CDK construct for creating an OSML HTTP Endpoint Role.
+ */
 export class OSMLHTTPEndpointRole extends Construct {
+  /**
+   * The IAM role associated with the OSML HTTP endpoint.
+   */
   public role: Role;
+
+  /**
+   * The AWS partition in which the resources are located.
+   */
   public partition: string;
 
   /**
    * Creates an OSMLHTTPEndpointRole construct.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the MRTaskRole construct.
+   *
+   * @param {Construct} scope - The scope/stack in which to define this construct.
+   * @param {string} id - The id of this construct within the current scope.
+   * @param {MRTaskRoleProps} props - The properties of this construct.
+   * @returns OSMLHTTPEndpointRole - The OSMLHTTPEndpointRole construct.
    */
   constructor(scope: Construct, id: string, props: MRTaskRoleProps) {
     super(scope, id);
+
+    /**
+     * Retrieves the AWS partition based on the region provided.
+     *
+     * @type {string}
+     */
     this.partition = region_info.Fact.find(
       props.account.region,
       region_info.FactName.PARTITION
     )!;
 
-    // model runner Fargate ECS task role
+    // Create the IAM role for the OSML HTTP endpoint.
     this.role = new Role(this, "OSMLHTTPEndpointRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(

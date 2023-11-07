@@ -9,27 +9,68 @@ import {
 } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
+/**
+ * Represents the properties required to configure the OSMLBucket Construct.
+ *
+ * @interface OSMLBucketProps
+ */
 export interface OSMLBucketProps {
+  /**
+   * The name of the OSML bucket.
+   *
+   * @type {string}
+   */
   bucketName: string;
+
+  /**
+   * Indicates whether the OSML bucket should be configured for production-like usage.
+   *
+   * @type {boolean}
+   */
   prodLike: boolean;
+
+  /**
+   * The removal policy to apply to the OSML bucket when it is deleted or removed from the stack.
+   * This defines how the bucket and its contents should be handled.
+   *
+   * @type {RemovalPolicy}
+   */
   removalPolicy: RemovalPolicy;
+
+  /**
+   * (Optional) The access logs bucket where access logs for the OSML bucket should be stored.
+   * If not provided, access logs may not be enabled or stored separately.
+   *
+   * @type {IBucket | undefined}
+   */
   accessLogsBucket?: IBucket;
 }
 
+/**
+ * Represents an OSML (Object Storage with Access Logging) Bucket construct.
+ */
 export class OSMLBucket extends Construct {
+  /**
+   * The core bucket for storing objects.
+   */
   public bucket: Bucket;
+
+  /**
+   * An optional access logging bucket for storing access logs.
+   */
   public accessLogsBucket?: IBucket;
 
   /**
-   * Creates an OSML Bucket and Access Logging Bucket.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the OSMLBucket construct.
+   * Creates an OSML Bucket and optionally an Access Logging Bucket.
+   * @param {Construct} scope - The scope/stack in which to define this construct.
+   * @param {string} id - The id of this construct within the current scope.
+   * @param {OSMLBucketProps} props - The properties of this construct.
+   * @returns OSMLBucket - The OSMLBucket construct.
    */
   constructor(scope: Construct, id: string, props: OSMLBucketProps) {
     super(scope, id);
-    // set up shared properties for our bucket and access logging bucket
+
+    // Set up shared properties for our bucket and access logging bucket
     const bucketProps = {
       autoDeleteObjects: !props.prodLike,
       enforceSSL: true,
@@ -39,9 +80,9 @@ export class OSMLBucket extends Construct {
       objectOwnership: ObjectOwnership.OBJECT_WRITER
     };
 
-    // check if an access logging bucket is provided
-    if (props.accessLogsBucket == undefined && props.prodLike) {
-      // create an accessing logging bucket for the core bucket
+    // Check if an access logging bucket is provided or needs to be created
+    if (props.accessLogsBucket === undefined && props.prodLike) {
+      // Create an accessing logging bucket for the core bucket
       this.accessLogsBucket = new Bucket(
         this,
         `${id}AccessLogs`,
@@ -51,11 +92,11 @@ export class OSMLBucket extends Construct {
         })
       );
     } else if (props.prodLike) {
-      // import the existing access logging bucket
+      // Import the existing access logging bucket
       this.accessLogsBucket = props.accessLogsBucket;
     }
 
-    // create the bucket and w/ access logging bucket
+    // Create the core bucket with optional access logging
     this.bucket = new Bucket(
       this,
       id,
