@@ -43,7 +43,7 @@ export interface OSMLEndpointContainerProps {
  * Represents a construct responsible for deploying an ECR container image
  * for the model to be used with the model runner.
  */
-export class OMSLEndpointContainer extends Construct {
+export class OSMLEndpointContainer extends Construct {
   /**
    * Configuration for the OSMLEndpointContainer.
    */
@@ -69,7 +69,7 @@ export class OMSLEndpointContainer extends Construct {
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
    * @param {OSMLEndpointContainerProps} props - The properties of this construct.
-   * @returns OMSLEndpointContainer - The OMSLEndpointContainer instance.
+   * @returns OSMLEndpointContainer - The OMSLEndpointContainer instance.
    */
   constructor(scope: Construct, id: string, props: OSMLEndpointContainerProps) {
     super(scope, id);
