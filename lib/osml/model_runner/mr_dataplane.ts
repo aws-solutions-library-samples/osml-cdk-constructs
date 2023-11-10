@@ -20,6 +20,7 @@ import {
 } from "aws-cdk-lib/aws-ecs";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
@@ -37,6 +38,8 @@ export class MRDataplaneConfig {
    * Constructor for MRDataplaneConfig.
    * @param {string} SNS_IMAGE_STATUS_TOPIC - The name of the SNS topic for image status.
    * @param {string} SNS_REGION_STATUS_TOPIC - The name of the SNS topic for region status.
+   * @param {string} SQS_IMAGE_STATUS_QUEUE - The name of the SQS queue for image status.
+   * @param {string} SQS_REGION_STATUS_QUEUE -  - The name of the SQS queue for region status.
    * @param {string} SQS_IMAGE_REQUEST_QUEUE - The name of the SQS queue for image requests.
    * @param {string} SQS_REGION_REQUEST_QUEUE - The name of the SQS queue for region requests.
    * @param {string} DDB_JOB_STATUS_TABLE - The name of the DynamoDB table for job status.
@@ -56,10 +59,14 @@ export class MRDataplaneConfig {
    * @param {number} MR_LOGGING_CPU - The CPU configuration for logging.
    * @param {number} MR_WORKERS_PER_CPU - The number of workers per CPU.
    * @param {string} MR_REGION_SIZE - The size of MR regions in the format "(width, height)".
+   * @param {boolean} MR_ENABLE_IMAGE_STATUS - Whether to deploy image status messages.
+   * @param {boolean} MR_ENABLE_REGION_STATUS - Whether to deploy region status messages.
    */
   constructor(
     public SNS_IMAGE_STATUS_TOPIC: string = "ImageStatusTopic",
     public SNS_REGION_STATUS_TOPIC: string = "RegionStatusTopic",
+    public SQS_IMAGE_STATUS_QUEUE: string = "ImageStatusQueue",
+    public SQS_REGION_STATUS_QUEUE: string = "RegionStatusQueue",
     public SQS_IMAGE_REQUEST_QUEUE: string = "ImageRequestQueue",
     public SQS_REGION_REQUEST_QUEUE: string = "RegionRequestQueue",
     public DDB_JOB_STATUS_TABLE: string = "ImageProcessingJobStatus",
@@ -78,7 +85,9 @@ export class MRDataplaneConfig {
     public MR_LOGGING_MEMORY: number = 512,
     public MR_LOGGING_CPU: number = 512,
     public MR_WORKERS_PER_CPU: number = 1,
-    public MR_REGION_SIZE: string = "(8192, 8192)"
+    public MR_REGION_SIZE: string = "(8192, 8192)",
+    public MR_ENABLE_IMAGE_STATUS: boolean = true,
+    public MR_ENABLE_REGION_STATUS: boolean = false
   ) {}
 }
 
@@ -167,6 +176,8 @@ export class MRDataplane extends Construct {
   public fargateService: FargateService;
   public securityGroups?: [ISecurityGroup];
   public mrTerrainUri?: string;
+  public imageStatusQueue?: OSMLQueue;
+  public regionStatusQueue?: OSMLQueue;
 
   /**
    * Constructs an instance of MRDataplane.
@@ -267,15 +278,39 @@ export class MRDataplane extends Construct {
       ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
     });
 
-    // Create a topic for image request status notifications
-    this.imageStatusTopic = new OSMLTopic(this, "MRImageStatusTopic", {
-      topicName: this.mrDataplaneConfig.SNS_IMAGE_STATUS_TOPIC
-    });
+    if (this.mrDataplaneConfig.MR_ENABLE_REGION_STATUS) {
+      // Create a topic for region request status notifications
+      this.regionStatusTopic = new OSMLTopic(this, "MRRegionStatusTopic", {
+        topicName: this.mrDataplaneConfig.SNS_REGION_STATUS_TOPIC
+      });
 
-    // Create a topic for region request status notifications
-    this.regionStatusTopic = new OSMLTopic(this, "MRRegionStatusTopic", {
-      topicName: this.mrDataplaneConfig.SNS_REGION_STATUS_TOPIC
-    });
+      // Create an SQS queue for region status processing updates
+      this.regionStatusQueue = new OSMLQueue(this, "OSMLRegionStatusQueue", {
+        queueName: this.mrDataplaneConfig.SQS_REGION_STATUS_QUEUE
+      });
+
+      // Subscribe the region status topic to the queue
+      this.regionStatusTopic.topic.addSubscription(
+        new SqsSubscription(this.regionStatusQueue.queue)
+      );
+    }
+
+    if (this.mrDataplaneConfig.MR_ENABLE_IMAGE_STATUS) {
+      // Create a topic for image request status notifications
+      this.imageStatusTopic = new OSMLTopic(this, "MRImageStatusTopic", {
+        topicName: this.mrDataplaneConfig.SNS_IMAGE_STATUS_TOPIC
+      });
+
+      // Create an SQS queue for image processing status updates
+      this.imageStatusQueue = new OSMLQueue(this, "OSMLImageStatusQueue", {
+        queueName: this.mrDataplaneConfig.SQS_IMAGE_STATUS_QUEUE
+      });
+
+      // Subscribe the image status topic to the queue
+      this.imageStatusTopic.topic.addSubscription(
+        new SqsSubscription(this.imageStatusQueue.queue)
+      );
+    }
 
     // Create a SQS queue for the image processing jobs
     this.imageRequestQueue = new OSMLQueue(this, "MRImageRequestQueue", {
@@ -316,30 +351,7 @@ export class MRDataplane extends Construct {
     ).toString();
 
     // Build our container to run our service
-    let containerEnv = {
-      AWS_DEFAULT_REGION: props.account.region,
-      JOB_TABLE: this.jobStatusTable.table.tableName,
-      FEATURE_TABLE: this.featureTable.table.tableName,
-      ENDPOINT_TABLE: this.endpointStatisticsTable.table.tableName,
-      REGION_REQUEST_TABLE: this.regionRequestTable.table.tableName,
-      IMAGE_QUEUE: this.imageRequestQueue.queue.queueUrl,
-      REGION_QUEUE: this.regionRequestQueue.queue.queueUrl,
-      IMAGE_STATUS_TOPIC: this.imageStatusTopic.topic.topicArn,
-      REGION_STATUS_TOPIC: this.regionStatusTopic.topic.topicArn,
-      AWS_S3_ENDPOINT: this.regionalS3Endpoint,
-      WORKERS_PER_CPU: this.mrDataplaneConfig.MR_WORKERS_PER_CPU.toString(),
-      WORKERS: this.workers,
-      REGION_SIZE: this.mrDataplaneConfig.MR_REGION_SIZE
-    };
-
-    // Check if a custom model runner container image was provided
-    if (props.mrTerrainUri != undefined) {
-      // Import the passed image
-      this.mrTerrainUri = props.mrTerrainUri;
-      containerEnv = Object.assign(containerEnv, {
-        ELEVATION_DATA_LOCATION: this.mrTerrainUri
-      });
-    }
+    const containerEnv = this.buildContainerEnv(props);
 
     // Build a container definition to run our service
     this.containerDefinition = this.taskDefinition.addContainer(
@@ -424,5 +436,47 @@ export class MRDataplane extends Construct {
         retries: 3
       }
     });
+  }
+
+  buildContainerEnv(props: MRDataplaneProps) {
+    // Build our container to run our service
+    let containerEnv = {
+      AWS_DEFAULT_REGION: props.account.region,
+      JOB_TABLE: this.jobStatusTable.table.tableName,
+      FEATURE_TABLE: this.featureTable.table.tableName,
+      ENDPOINT_TABLE: this.endpointStatisticsTable.table.tableName,
+      REGION_REQUEST_TABLE: this.regionRequestTable.table.tableName,
+      IMAGE_QUEUE: this.imageRequestQueue.queue.queueUrl,
+      REGION_QUEUE: this.regionRequestQueue.queue.queueUrl,
+      AWS_S3_ENDPOINT: this.regionalS3Endpoint,
+      WORKERS_PER_CPU: this.mrDataplaneConfig.MR_WORKERS_PER_CPU.toString(),
+      WORKERS: this.workers,
+      REGION_SIZE: this.mrDataplaneConfig.MR_REGION_SIZE
+    };
+
+    // Check if a custom model runner container image was provided
+    if (props.mrTerrainUri != undefined) {
+      // Import the passed image
+      this.mrTerrainUri = props.mrTerrainUri;
+      containerEnv = Object.assign(containerEnv, {
+        ELEVATION_DATA_LOCATION: this.mrTerrainUri
+      });
+    }
+
+    // Check if a custom model runner container image was provided
+    if (this.imageStatusTopic != undefined) {
+      containerEnv = Object.assign(containerEnv, {
+        IMAGE_STATUS_TOPIC: this.imageStatusTopic.topic.topicArn
+      });
+    }
+
+    // Check if we are deploying a regin status message
+    if (this.regionStatusTopic != undefined) {
+      containerEnv = Object.assign(containerEnv, {
+        REGION_STATUS_TOPIC: this.regionStatusTopic.topic.topicArn
+      });
+    }
+
+    return containerEnv;
   }
 }

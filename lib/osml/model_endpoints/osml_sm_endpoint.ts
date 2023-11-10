@@ -37,6 +37,13 @@ export interface OSMLSMEndpointProps {
   modelName: string;
 
   /**
+   * Whether to include segmentation masks in the model output.
+   *
+   * @type {string}
+   */
+  enableSegmentation: boolean;
+
+  /**
    * The initial number of instances to run for the endpoint.
    *
    * @type {number}
@@ -112,7 +119,8 @@ export class OSMLSMEndpoint extends Construct {
         {
           image: props.ecrContainerUri,
           environment: {
-            MODEL_SELECTION: props.modelName
+            MODEL_SELECTION: props.modelName,
+            ENABLE_SEGMENTATION: props.enableSegmentation ? "true" : "false"
           },
           imageConfig: {
             repositoryAccessMode: props.repositoryAccessMode
