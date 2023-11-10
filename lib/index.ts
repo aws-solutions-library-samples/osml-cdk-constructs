@@ -6,7 +6,6 @@ export * from "./osml/model_runner/roles/mr_sm_role";
 export * from "./osml/model_runner/roles/mr_task_role";
 export * from "./osml/model_runner/testing/mr_imagery";
 export * from "./osml/model_runner/testing/mr_endpoints";
-export * from "./osml/model_runner/testing/mr_status";
 export * from "./osml/model_runner/testing/mr_sync";
 export * from "./osml/model_endpoints/osml_endpoint_container";
 export * from "./osml/osml_account";

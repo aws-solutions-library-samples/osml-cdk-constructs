@@ -311,7 +311,8 @@ export class MREndpoints extends Construct {
           repositoryAccessMode:
             this.mrModelEndpointsConfig.SM_REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
-          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds,
+          enableSegmentation: false
         }
       );
     }
@@ -334,7 +335,8 @@ export class MREndpoints extends Construct {
           repositoryAccessMode:
             this.mrModelEndpointsConfig.SM_REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
-          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds,
+          enableSegmentation: false
         }
       );
     }
@@ -357,7 +359,8 @@ export class MREndpoints extends Construct {
           repositoryAccessMode:
             this.mrModelEndpointsConfig.SM_REPOSITORY_ACCESS_MODE,
           securityGroupId: this.securityGroupId,
-          subnetIds: props.osmlVpc.selectedSubnets.subnetIds
+          subnetIds: props.osmlVpc.selectedSubnets.subnetIds,
+          enableSegmentation: true
         }
       );
     }
