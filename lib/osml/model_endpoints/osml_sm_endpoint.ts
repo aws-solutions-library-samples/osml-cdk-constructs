@@ -141,8 +141,7 @@ export class OSMLSMEndpoint extends Construct {
           initialVariantWeight: props.initialVariantWeight,
           instanceType: props.instanceType,
           modelName: this.model.attrModelName,
-          variantName: props.variantName,
-          volumeSizeInGb: 250
+          variantName: props.variantName
         }
       ],
       tags: [
