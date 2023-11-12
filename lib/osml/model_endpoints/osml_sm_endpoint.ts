@@ -9,30 +9,93 @@ import {
 } from "aws-cdk-lib/aws-sagemaker";
 import { Construct } from "constructs";
 
+/**
+ * Represents the properties required to configure an OSML model endpoint.
+ *
+ * @interface OSMLSMEndpointProps
+ */
 export interface OSMLSMEndpointProps {
-  // sagemaker execution role arn to use for the model endpoint
+  /**
+   * The Amazon Resource Name (ARN) of the role that provides permissions for the endpoint.
+   *
+   * @type {string}
+   */
   roleArn: string;
-  // URI to the container image that contains the model
+
+  /**
+   * The URI of the Amazon Elastic Container Registry (ECR) container image.
+   *
+   * @type {string}
+   */
   ecrContainerUri: string;
-  //  name of the model to host on the endpoint on
+
+  /**
+   * The name of the machine learning model.
+   *
+   * @type {string}
+   */
   modelName: string;
-  //  number of instances to start the endpoint with
+
+  /**
+   * Whether to include segmentation masks in the model output.
+   *
+   * @type {string}
+   */
+  enableSegmentation: boolean;
+
+  /**
+   * The initial number of instances to run for the endpoint.
+   *
+   * @type {number}
+   */
   initialInstanceCount: number;
-  //  weight of the variant to start the endpoint with (0-1)
+
+  /**
+   * The initial weight for the model variant when using traffic splitting.
+   *
+   * @type {number}
+   */
   initialVariantWeight: number;
-  //  instance type to start the endpoint with (e.g. ml.t2.medium)
-  //  see https://aws.amazon.com/sagemaker/pricing/ for pricing information
+
+  /**
+   * The instance type for the endpoint.
+   *
+   * @type {string}
+   */
   instanceType: string;
-  //  name of the variant to host the model on (e.g. 'AllTraffic')
+
+  /**
+   * The name of the model variant.
+   *
+   * @type {string}
+   */
   variantName: string;
-  // security groups to apply to the vpc config
+
+  /**
+   * The security group ID to associate with the endpoint.
+   *
+   * @type {string}
+   */
   securityGroupId: string;
-  // subnets to deploy endpoint into
+
+  /**
+   * An array of subnet IDs where the endpoint should be deployed.
+   *
+   * @type {string[]}
+   */
   subnetIds: string[];
-  // the SM endpoint repository access mode
+
+  /**
+   * The access mode for the model repository (e.g., "ReadWrite" or "ReadOnly").
+   *
+   * @type {string}
+   */
   repositoryAccessMode: string;
 }
 
+/**
+ * Represents an AWS SageMaker endpoint for a specified model.
+ */
 export class OSMLSMEndpoint extends Construct {
   public model: CfnModel;
   public endpointConfig: CfnEndpointConfig;
@@ -40,20 +103,24 @@ export class OSMLSMEndpoint extends Construct {
 
   /**
    * Creates a SageMaker endpoint for the specified model.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the OSMLSMEndpoint construct.
+   *
+   * @param {Construct} scope - The scope/stack in which to define this construct.
+   * @param {string} id - The id of this construct within the current scope.
+   * @param {OSMLSMEndpointProps} props - The properties of this construct.
+   * @returns OSMLSMEndpoint- The OSMLSMEndpoint construct.
    */
   constructor(scope: Construct, id: string, props: OSMLSMEndpointProps) {
     super(scope, id);
+
+    // Create a SageMaker model
     this.model = new CfnModel(this, id, {
       executionRoleArn: props.roleArn,
       containers: [
         {
           image: props.ecrContainerUri,
           environment: {
-            MODEL_SELECTION: props.modelName
+            MODEL_SELECTION: props.modelName,
+            ENABLE_SEGMENTATION: props.enableSegmentation ? "true" : "false"
           },
           imageConfig: {
             repositoryAccessMode: props.repositoryAccessMode
@@ -66,7 +133,7 @@ export class OSMLSMEndpoint extends Construct {
       }
     });
 
-    // configure our SageMaker endpoint
+    // Configure the SageMaker endpoint settings
     this.endpointConfig = new CfnEndpointConfig(this, `${id}-EndpointConfig`, {
       productionVariants: [
         {
@@ -74,8 +141,7 @@ export class OSMLSMEndpoint extends Construct {
           initialVariantWeight: props.initialVariantWeight,
           instanceType: props.instanceType,
           modelName: this.model.attrModelName,
-          variantName: props.variantName,
-          volumeSizeInGb: 250
+          variantName: props.variantName
         }
       ],
       tags: [
@@ -84,7 +150,7 @@ export class OSMLSMEndpoint extends Construct {
       ]
     });
 
-    // host a SageMaker endpoint on top of the imported centerPointModel
+    // Host a SageMaker endpoint on top of the imported model container
     this.endpoint = new CfnEndpoint(this, `${id}-Endpoint`, {
       endpointConfigName: this.endpointConfig.attrEndpointConfigName,
       endpointName: props.modelName

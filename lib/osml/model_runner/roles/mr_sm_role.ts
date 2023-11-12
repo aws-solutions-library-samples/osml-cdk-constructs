@@ -11,26 +11,44 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
 
+/**
+ * Represents the properties required to create a new SageMaker role.
+ * @interface
+ */
 export interface MRSMRoleProps {
-  // the osml account interface
+  /**
+   * The OSML account associated with the role.
+   * @type {OSMLAccount}
+   */
   account: OSMLAccount;
-  // the name to give the role
+
+  /**
+   * The name to give to the role.
+   * @type {string}
+   */
   roleName: string;
 }
 
+/**
+ * Represents a SageMaker execution role for hosting Computer Vision (CV) models at a SageMaker endpoint.
+ * @class
+ */
 export class MRSMRole extends Construct {
-  public role: IRole;
-
+  public role: Role;
   /**
-   * Creates a SageMaker execution role for hosting CV models at SM endpoint.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the MRSMRole construct.
+   * Creates a SageMaker execution role for hosting CV models at a SageMaker endpoint.
+   * @constructor
+   * @param {Construct} scope - The scope/stack in which to define this construct.
+   * @param {string} id - The ID of this construct within the current scope.
+   * @param {MRSMRoleProps} props - The properties of this construct.
    */
   constructor(scope: Construct, id: string, props: MRSMRoleProps) {
     super(scope, id);
-    // sage maker execution role for hosting CV model at SM endpoint
+
+    /**
+     * The IAM Role associated with the SageMaker execution role.
+     * @member {IRole}
+     */
     this.role = new Role(this, "MRSageMakerExecutionRole", {
       roleName: props.roleName,
       assumedBy: new ServicePrincipal("sagemaker.amazonaws.com"),

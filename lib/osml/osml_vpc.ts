@@ -15,38 +15,78 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "./osml_account";
 
+/**
+ * Represents the properties for configuring the OSMLVpc Construct.
+ *
+ * @interface OSMLVpcProps
+ */
 export interface OSMLVpcProps {
-  // the osml deployment account
+  /**
+   * The OSML account associated with this VPC.
+   *
+   * @type {OSMLAccount}
+   */
   account: OSMLAccount;
-  // name of the VPC to create
+
+  /**
+   * An optional name for the VPC.
+   *
+   * @type {string | undefined}
+   */
   vpcName?: string;
-  // the vpc id to import
+
+  /**
+   * An optional unique identifier for the VPC.
+   *
+   * @type {string | undefined}
+   */
   vpcId?: string;
-  // a list of subnet ids to deploy infrastructure into
+
+  /**
+   * An optional array of target subnets within the VPC.
+   *
+   * @type {string[] | undefined}
+   */
   targetSubnets?: string[];
 }
 
+/**
+ * Represents a Virtual Private Cloud (VPC) for OSML (Open Source Machine Learning) to operate in.
+ */
 export class OSMLVpc extends Construct {
+  /**
+   * The VPC resource.
+   */
   public readonly vpc: IVpc;
+
+  /**
+   * The default security group associated with the VPC.
+   */
   public readonly vpcDefaultSecurityGroup: string;
+
+  /**
+   * The selected subnets within the VPC.
+   */
   public readonly selectedSubnets: SelectedSubnets;
 
   /**
    * Creates or imports a VPC for OSML to operate in.
-   * @param scope the scope/stack in which to define this construct.
-   * @param id the id of this construct within the current scope.
-   * @param props the properties of this construct.
-   * @returns the OSMLVpc construct.
+   * @param scope - The scope/stack in which to define this construct.
+   * @param id - The ID of this construct within the current scope.
+   * @param props - The properties of this construct.
+   * @returns The OSMLVpc construct.
    */
   constructor(scope: Construct, id: string, props: OSMLVpcProps) {
     super(scope, id);
-    // if an osmlVpc id is not explicitly given, use the default osmlVpc
+
+    // if an osmlVpc ID is not explicitly given, use the default osmlVpc
     if (props.vpcId) {
       this.vpc = Vpc.fromLookup(this, "OSMLImportVPC", {
         vpcId: props.vpcId,
         isDefault: false
       });
     } else {
+      // Create a new VPC
       const vpc = new Vpc(this, "OSMLVPC", {
         vpcName: props.vpcName,
         subnetConfiguration: [
@@ -64,15 +104,15 @@ export class OSMLVpc extends Construct {
       });
       this.vpc = vpc;
 
-      // expose the default security group created with the VPC
+      // Expose the default security group created with the VPC
       this.vpcDefaultSecurityGroup = vpc.vpcDefaultSecurityGroup;
 
-      // expose the private subnets associated with the VPC
+      // Expose the private subnets associated with the VPC
       this.selectedSubnets = vpc.selectSubnets({
         subnetType: SubnetType.PRIVATE_WITH_EGRESS
       });
 
-      // create custom endpoint prefix's for know ADC regions requiring it
+      // Create custom endpoint prefixes for known ADC (AWS Direct Connect) regions requiring it
       let partitionPrefix;
       if (props.account.region === "us-iso-east-1") {
         partitionPrefix = "gov.ic.c2s";
@@ -80,7 +120,7 @@ export class OSMLVpc extends Construct {
         partitionPrefix = "gov.sgov.sc2s";
       }
 
-      // create vpc endpoints
+      // Create VPC endpoints
       this.vpc.addGatewayEndpoint("S3GatewayEndpoint", {
         service: GatewayVpcEndpointAwsService.S3
       });
@@ -100,7 +140,8 @@ export class OSMLVpc extends Construct {
           : InterfaceVpcEndpointAwsService.SAGEMAKER_RUNTIME,
         privateDnsEnabled: true
       });
-      // certain endpoints are not supported in ADC regions
+
+      // Certain endpoints are not supported in ADC regions
       if (!props.account.isAdc) {
         this.vpc.addGatewayEndpoint("DDBGatewayEndpoint", {
           service: GatewayVpcEndpointAwsService.DYNAMODB
@@ -115,13 +156,14 @@ export class OSMLVpc extends Construct {
         });
       }
     }
-    // if specified subnets are provided, use them
+
+    // If specified subnets are provided, use them
     if (props.targetSubnets) {
       this.selectedSubnets = this.vpc.selectSubnets({
         subnetFilters: [SubnetFilter.byIds(props.targetSubnets)]
       });
     } else {
-      // otherwise, select all private subnets
+      // Otherwise, select all private subnets
       this.selectedSubnets = this.vpc.selectSubnets({
         subnetType: SubnetType.PRIVATE_WITH_EGRESS
       });

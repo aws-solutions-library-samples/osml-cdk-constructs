@@ -1,0 +1,18 @@
+name: "OSML CDK Constructs Build and Publish Workflow"
+
+on:
+  push:
+    branches: ["main", "dev"]
+
+jobs:
+  Build_NPM:
+    uses: ./.github/workflows/npm-build.yml
+    secrets: inherit
+  Publish_NPM:
+    needs: [Build_NPM]
+    uses: ./.github/workflows/npm-publish.yml
+    secrets: inherit
+  Notify_Guidance_Repo:
+    needs: [Build_NPM]
+    uses: ./.github/workflows/notify-guidance-repo.yml
+    secrets: inherit
