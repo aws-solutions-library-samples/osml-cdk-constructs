@@ -89,6 +89,14 @@ export interface OSMLAccount {
   buildModelContainer?: boolean;
 
   /**
+   * Optional: Indicates whether to build the tile server container from source.
+   *
+   * @type {boolean|undefined}
+   * @memberof OSMLAccount
+   */
+  buildTileServerContainer?: boolean;
+
+  /**
    * Optional: The unique identifier of the Virtual Private Cloud (VPC) associated with the account.
    *
    * @type {string|undefined}

@@ -10,13 +10,13 @@ import {
 } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "../osml_account";
+import { OSMLAccount } from "../../osml_account";
 
 /**
- * Represents the properties required for a Multi-Role Task Role.
- * @interface
+ * Represents the properties required for a HTTP model task role.
+ * @interface MEHTTPRoleProps
  */
-export interface MRTaskRoleProps {
+export interface MEHTTPRoleProps {
   /**
    * The OSML deployment account
    * @type {OSMLAccount}
@@ -34,7 +34,7 @@ export interface MRTaskRoleProps {
 /**
  * Represents an AWS CDK construct for creating an OSML HTTP Endpoint Role.
  */
-export class OSMLHTTPEndpointRole extends Construct {
+export class MEHTTPRole extends Construct {
   /**
    * The IAM role associated with the OSML HTTP endpoint.
    */
@@ -50,10 +50,10 @@ export class OSMLHTTPEndpointRole extends Construct {
    *
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
-   * @param {MRTaskRoleProps} props - The properties of this construct.
-   * @returns OSMLHTTPEndpointRole - The OSMLHTTPEndpointRole construct.
+   * @param {MEHTTPRoleProps} props - The properties of this construct.
+   * @returns MEHTTPRole - The OSMLHTTPEndpointRole construct.
    */
-  constructor(scope: Construct, id: string, props: MRTaskRoleProps) {
+  constructor(scope: Construct, id: string, props: MEHTTPRoleProps) {
     super(scope, id);
 
     /**
@@ -67,7 +67,7 @@ export class OSMLHTTPEndpointRole extends Construct {
     )!;
 
     // Create the IAM role for the OSML HTTP endpoint.
-    this.role = new Role(this, "OSMLHTTPEndpointRole", {
+    this.role = new Role(this, "MEHTTPEndpointRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(
         new ServicePrincipal("ecs-tasks.amazonaws.com"),

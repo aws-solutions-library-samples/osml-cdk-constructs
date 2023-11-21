@@ -132,12 +132,6 @@ export interface MRDataplaneProps {
   dataplaneConfig?: MRDataplaneConfig;
 
   /**
-   * An array of target subnets for the Dataplane.
-   * @type {string[] | undefined}
-   */
-  targetSubnets?: string[];
-
-  /**
    * The container image to be used for the model runner ecs tasks.
    * @type {ContainerImage}
    */
@@ -285,7 +279,7 @@ export class MRDataplane extends Construct {
       });
 
       // Create an SQS queue for region status processing updates
-      this.regionStatusQueue = new OSMLQueue(this, "OSMLRegionStatusQueue", {
+      this.regionStatusQueue = new OSMLQueue(this, "MRRegionStatusQueue", {
         queueName: this.mrDataplaneConfig.SQS_REGION_STATUS_QUEUE
       });
 
@@ -302,7 +296,7 @@ export class MRDataplane extends Construct {
       });
 
       // Create an SQS queue for image processing status updates
-      this.imageStatusQueue = new OSMLQueue(this, "OSMLImageStatusQueue", {
+      this.imageStatusQueue = new OSMLQueue(this, "MRImageStatusQueue", {
         queueName: this.mrDataplaneConfig.SQS_IMAGE_STATUS_QUEUE
       });
 

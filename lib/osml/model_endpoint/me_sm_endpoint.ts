@@ -12,9 +12,9 @@ import { Construct } from "constructs";
 /**
  * Represents the properties required to configure an OSML model endpoint.
  *
- * @interface OSMLSMEndpointProps
+ * @interface MESMEndpointProps
  */
-export interface OSMLSMEndpointProps {
+export interface MESMEndpointProps {
   /**
    * The Amazon Resource Name (ARN) of the role that provides permissions for the endpoint.
    *
@@ -96,7 +96,7 @@ export interface OSMLSMEndpointProps {
 /**
  * Represents an AWS SageMaker endpoint for a specified model.
  */
-export class OSMLSMEndpoint extends Construct {
+export class MESMEndpoint extends Construct {
   public model: CfnModel;
   public endpointConfig: CfnEndpointConfig;
   public endpoint: CfnEndpoint;
@@ -106,10 +106,10 @@ export class OSMLSMEndpoint extends Construct {
    *
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
-   * @param {OSMLSMEndpointProps} props - The properties of this construct.
-   * @returns OSMLSMEndpoint- The OSMLSMEndpoint construct.
+   * @param {MESMEndpointProps} props - The properties of this construct.
+   * @returns MESMEndpoint- The MESMEndpoint construct.
    */
-  constructor(scope: Construct, id: string, props: OSMLSMEndpointProps) {
+  constructor(scope: Construct, id: string, props: MESMEndpointProps) {
     super(scope, id);
 
     // Create a SageMaker model

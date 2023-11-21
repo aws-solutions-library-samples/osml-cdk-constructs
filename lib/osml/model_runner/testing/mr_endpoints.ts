@@ -6,12 +6,12 @@ import { ContainerImage } from "aws-cdk-lib/aws-ecs";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
-import { OSMLHTTPModelEndpoint } from "../../model_endpoints/osml_http_endpoint";
-import { OSMLHTTPEndpointRole } from "../../model_endpoints/osml_http_endpoint_role";
-import { OSMLSMEndpoint } from "../../model_endpoints/osml_sm_endpoint";
+import { MEHTTPEndpoint } from "../../model_endpoint/me_http_endpoint";
+import { MESMEndpoint } from "../../model_endpoint/me_sm_endpoint";
+import { MEHTTPRole } from "../../model_endpoint/roles/me_http_role";
+import { MESMRole } from "../../model_endpoint/roles/me_sm_role";
 import { OSMLAccount } from "../../osml_account";
 import { OSMLVpc } from "../../osml_vpc";
-import { MRSMRole } from "../roles/mr_sm_role";
 
 /**
  * Configuration class for defining endpoints for OSML model endpoints.
@@ -178,22 +178,22 @@ export class MREndpoints extends Construct {
   /**
    * HTTP model endpoint for the center point model.
    */
-  public httpCenterpointModelEndpoint?: OSMLHTTPModelEndpoint;
+  public httpCenterpointModelEndpoint?: MEHTTPEndpoint;
 
   /**
    * SM model endpoint for the center point model.
    */
-  public centerPointModelEndpoint?: OSMLSMEndpoint;
+  public centerPointModelEndpoint?: MESMEndpoint;
 
   /**
    * SM model endpoint for the flood model.
    */
-  public floodModelEndpoint?: OSMLSMEndpoint;
+  public floodModelEndpoint?: MESMEndpoint;
 
   /**
    * SM model endpoint for the aircraft model.
    */
-  public aircraftModelEndpoint?: OSMLSMEndpoint;
+  public aircraftModelEndpoint?: MESMEndpoint;
 
   /**
    * Security Group ID associated with the endpoints.
@@ -230,7 +230,7 @@ export class MREndpoints extends Construct {
       this.smRole = props.smRole;
     } else {
       // Create a new role
-      this.smRole = new MRSMRole(this, "MRSMRole", {
+      this.smRole = new MESMRole(this, "MRSMRole", {
         account: props.account,
         roleName: this.mrModelEndpointsConfig.SM_ROLE_NAME
       }).role;
@@ -256,18 +256,14 @@ export class MREndpoints extends Construct {
         this.httpEndpointRole = props.httpEndpointRole;
       } else {
         // Create a new role for the HTTP endpoint
-        this.httpEndpointRole = new OSMLHTTPEndpointRole(
-          this,
-          "HTTPEndpointTaskRole",
-          {
-            account: props.account,
-            roleName: this.mrModelEndpointsConfig.HTTP_ENDPOINT_ROLE_NAME
-          }
-        ).role;
+        this.httpEndpointRole = new MEHTTPRole(this, "HTTPEndpointTaskRole", {
+          account: props.account,
+          roleName: this.mrModelEndpointsConfig.HTTP_ENDPOINT_ROLE_NAME
+        }).role;
       }
 
       // Build a Fargate HTTP endpoint from the centerpoint model container
-      this.httpCenterpointModelEndpoint = new OSMLHTTPModelEndpoint(
+      this.httpCenterpointModelEndpoint = new MEHTTPEndpoint(
         this,
         "OSMLHTTPCenterPointModelEndpoint",
         {
@@ -295,7 +291,7 @@ export class MREndpoints extends Construct {
 
     if (props.deployCenterpointModel != false) {
       // Build an SM endpoint from the centerpoint model container
-      this.centerPointModelEndpoint = new OSMLSMEndpoint(
+      this.centerPointModelEndpoint = new MESMEndpoint(
         this,
         "OSMLCenterPointModelEndpoint",
         {
@@ -319,7 +315,7 @@ export class MREndpoints extends Construct {
 
     if (props.deployFloodModel != false) {
       // Build an SM endpoint from the flood model container
-      this.floodModelEndpoint = new OSMLSMEndpoint(
+      this.floodModelEndpoint = new MESMEndpoint(
         this,
         "OSMLFloodModelEndpoint",
         {
@@ -343,7 +339,7 @@ export class MREndpoints extends Construct {
 
     if (props.deployAircraftModel != false) {
       // Build an SM endpoint from the aircraft model container
-      this.aircraftModelEndpoint = new OSMLSMEndpoint(
+      this.aircraftModelEndpoint = new MESMEndpoint(
         this,
         "OSMLAircraftModelEndpoint",
         {
