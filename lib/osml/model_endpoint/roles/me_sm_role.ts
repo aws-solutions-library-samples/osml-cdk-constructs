@@ -1,21 +1,16 @@
 /*
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
-import {
-  IRole,
-  ManagedPolicy,
-  Role,
-  ServicePrincipal
-} from "aws-cdk-lib/aws-iam";
+import { ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
 
 /**
  * Represents the properties required to create a new SageMaker role.
- * @interface
+ * @interface MESMRoleProps
  */
-export interface MRSMRoleProps {
+export interface MESMRoleProps {
   /**
    * The OSML account associated with the role.
    * @type {OSMLAccount}
@@ -33,23 +28,23 @@ export interface MRSMRoleProps {
  * Represents a SageMaker execution role for hosting Computer Vision (CV) models at a SageMaker endpoint.
  * @class
  */
-export class MRSMRole extends Construct {
+export class MESMRole extends Construct {
   public role: Role;
   /**
    * Creates a SageMaker execution role for hosting CV models at a SageMaker endpoint.
    * @constructor
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The ID of this construct within the current scope.
-   * @param {MRSMRoleProps} props - The properties of this construct.
+   * @param {MESMRoleProps} props - The properties of this construct.
    */
-  constructor(scope: Construct, id: string, props: MRSMRoleProps) {
+  constructor(scope: Construct, id: string, props: MESMRoleProps) {
     super(scope, id);
 
     /**
      * The IAM Role associated with the SageMaker execution role.
-     * @member {IRole}
+     * @member {Role}
      */
-    this.role = new Role(this, "MRSageMakerExecutionRole", {
+    this.role = new Role(this, "MESageMakerExecutionRole", {
       roleName: props.roleName,
       assumedBy: new ServicePrincipal("sagemaker.amazonaws.com"),
       managedPolicies: [

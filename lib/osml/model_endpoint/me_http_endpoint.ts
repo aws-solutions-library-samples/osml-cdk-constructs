@@ -24,9 +24,9 @@ import { OSMLVpc } from "../osml_vpc";
  * Represents the properties required to configure an OSML (OversightML)
  * HTTP endpoint within an AWS ECS (Elastic Container Service) cluster.
  *
- * @interface OSMLHTTPEndpointProps
+ * @interface MEHTTPEndpointProps
  */
-export interface OSMLHTTPEndpointProps {
+export interface MEHTTPEndpointProps {
   /**
    * The OSML (OversightML) account to associate with the endpoint.
    *
@@ -133,7 +133,7 @@ export interface OSMLHTTPEndpointProps {
 /**
  * Represents an AWS CDK construct for an OSML HTTP Model Endpoint.
  */
-export class OSMLHTTPModelEndpoint extends Construct {
+export class MEHTTPEndpoint extends Construct {
   /**
    * The network HTTP endpoint for the OSML service.
    */
@@ -158,10 +158,10 @@ export class OSMLHTTPModelEndpoint extends Construct {
    * Creates an instance of OSMLHTTPModelEndpoint.
    * @param {Construct} scope - The scope in which to create the construct.
    * @param {string} id - The ID for the construct.
-   * @param {OSMLHTTPEndpointProps} props - The properties for configuring the OSML HTTP Model Endpoint.
-   * @returns OSMLHTTPModelEndpoint - The OSMLHTTPModelEndpoint CDK Construct
+   * @param {MEHTTPEndpointProps} props - The properties for configuring the OSML HTTP Model Endpoint.
+   * @returns MEHTTPEndpoint - The OSMLHTTPModelEndpoint CDK Construct
    */
-  constructor(scope: Construct, id: string, props: OSMLHTTPEndpointProps) {
+  constructor(scope: Construct, id: string, props: MEHTTPEndpointProps) {
     super(scope, id);
 
     // Create an ECS Cluster for the HTTP Model Endpoint
@@ -176,7 +176,7 @@ export class OSMLHTTPModelEndpoint extends Construct {
       : RemovalPolicy.DESTROY;
 
     // Create a CloudWatch Logs log group for the service
-    this.logGroup = new LogGroup(this, "MRServiceLogGroup", {
+    this.logGroup = new LogGroup(this, "HTTPEndpointServiceLogGroup", {
       logGroupName: "/aws/OSML/HTTPEndpoint",
       retention: RetentionDays.TEN_YEARS,
       removalPolicy: this.removalPolicy
@@ -217,7 +217,7 @@ export class OSMLHTTPModelEndpoint extends Construct {
       this.securityGroups = [
         SecurityGroup.fromSecurityGroupId(
           this,
-          "MRImportSecurityGroup",
+          "HTTPEndpointImportSecurityGroup",
           props.securityGroupId
         )
       ];
@@ -226,7 +226,7 @@ export class OSMLHTTPModelEndpoint extends Construct {
     // Create the Application Load Balancer Fargate service
     this.networkHTTPEndpoint = new ApplicationLoadBalancedFargateService(
       this,
-      `${id}-HTTPEndpointService`,
+      `HTTPEndpointService`,
       {
         cluster: httpEndpointCluster,
         loadBalancerName: props.loadBalancerName,
