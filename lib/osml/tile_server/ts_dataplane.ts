@@ -4,7 +4,7 @@
 
 import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
-import { ISecurityGroup, Peer, Port, SecurityGroup } from "aws-cdk-lib/aws-ec2";
+import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import {
   AwsLogDriver,
   AwsLogDriverMode,
@@ -12,10 +12,10 @@ import {
   Compatibility,
   ContainerDefinition,
   ContainerImage,
+  FargateService,
   Protocol,
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
-import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
 import {
   FileSystem,
   LifecyclePolicy,
@@ -138,7 +138,7 @@ export class TSDataplane extends Construct {
   public cluster: Cluster;
   public taskDefinition: TaskDefinition;
   public containerDefinition: ContainerDefinition;
-  public fargateService: ApplicationLoadBalancedFargateService;
+  public fargateService: FargateService;
   public fileSystem: FileSystem;
   public securityGroup?: ISecurityGroup;
 
@@ -265,19 +265,13 @@ export class TSDataplane extends Construct {
     });
 
     // Set up Fargate service
-    this.fargateService = new ApplicationLoadBalancedFargateService(
-      this,
-      "TSService",
-      {
-        publicLoadBalancer: false,
-        assignPublicIp: false,
-        taskDefinition: this.taskDefinition,
-        cluster: this.cluster,
-        minHealthyPercent: 100,
-        securityGroups: this.securityGroup ? [this.securityGroup] : [],
-        taskSubnets: props.osmlVpc.selectedSubnets
-      }
-    );
+    this.fargateService = new FargateService(this, "TSService", {
+      taskDefinition: this.taskDefinition,
+      cluster: this.cluster,
+      minHealthyPercent: 100,
+      securityGroups: this.securityGroup ? [this.securityGroup] : [],
+      vpcSubnets: props.osmlVpc.selectedSubnets
+    });
 
     // Allow access to EFS from Fargate ECS
     this.fileSystem.grantRootAccess(
