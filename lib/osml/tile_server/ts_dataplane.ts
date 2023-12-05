@@ -165,7 +165,7 @@ export class TSDataplane extends Construct {
     this.jobTable = new OSMLTable(this, "TSJobTable", {
       tableName: this.config.DDB_JOB_TABLE,
       partitionKey: {
-        name: "request_id",
+        name: "viewpoint_id",
         type: AttributeType.STRING
       },
       removalPolicy: this.removalPolicy,
