@@ -64,7 +64,7 @@ export class TSDataplaneConfig {
     public ECS_TASK_CPU: number = 8192,
     public ECS_CONTAINER_MEMORY: number = 15360,
     public ECS_CONTAINER_CPU: number = 7168,
-    public ECS_CONTAINER_PORT: number = 80,
+    public ECS_CONTAINER_PORT: number = 8080,
     public EFS_MOUNT_NAME: string = "ts-efs-volume"
   ) {}
 }
@@ -187,7 +187,6 @@ export class TSDataplane extends Construct {
     // EFS volume mounted file system
     this.fileSystem = new FileSystem(this, "TSEfsFileSystem", {
       vpc: props.osmlVpc.vpc,
-      encrypted: true,
       lifecyclePolicy: LifecyclePolicy.AFTER_14_DAYS,
       performanceMode: PerformanceMode.GENERAL_PURPOSE,
       throughputMode: ThroughputMode.BURSTING,
@@ -224,7 +223,11 @@ export class TSDataplane extends Construct {
         {
           name: this.config.EFS_MOUNT_NAME,
           efsVolumeConfiguration: {
-            fileSystemId: this.fileSystem.fileSystemId
+            fileSystemId: this.fileSystem.fileSystemId,
+            transitEncryption: "ENABLED",
+            authorizationConfig: {
+              iam: "ENABLED"
+            }
           }
         }
       ]
@@ -280,12 +283,12 @@ export class TSDataplane extends Construct {
 
     // Allow connections to the file system from the ECS cluster
     this.fileSystem.connections.allowDefaultPortFrom(
-      this.fargateService.cluster.connections
+      this.fargateService.connections
     );
   }
 
   buildContainerEnv(props: TSDataplaneProps) {
-    // Build our container to run our service
+    // Build an ENV for our container deployment
     return {
       AWS_DEFAULT_REGION: props.account.region,
       JOB_TABLE: this.jobTable.table.tableName,
