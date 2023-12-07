@@ -23,6 +23,8 @@ import {
   ThroughputMode
 } from "aws-cdk-lib/aws-efs";
 import { AnyPrincipal, IRole, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
+import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
@@ -30,6 +32,7 @@ import { OSMLAccount } from "../osml_account";
 import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
 import { OSMLVpc } from "../osml_vpc";
+import { TSLambdaRole } from "./roles/ts_lambda_role";
 import { TSTaskRole } from "./roles/ts_task_role";
 
 /**
@@ -51,6 +54,7 @@ export class TSDataplaneConfig {
    * @param {number} ECS_CONTAINER_CPU - The CPU configuration for TS containers.
    * @param {number }ECS_CONTAINER_PORT - The port to use for the TS service.
    * @param {string} EFS_MOUNT_NAME - The name of the EFS volume to give tasks.
+   * @param {string} LAMBDA_ROLE_NAME - The name of the TS Lambda execution role.
    */
   constructor(
     public SQS_JOB_QUEUE: string = "TSJobQueue",
@@ -65,7 +69,8 @@ export class TSDataplaneConfig {
     public ECS_CONTAINER_MEMORY: number = 15360,
     public ECS_CONTAINER_CPU: number = 7168,
     public ECS_CONTAINER_PORT: number = 8080,
-    public EFS_MOUNT_NAME: string = "ts-efs-volume"
+    public EFS_MOUNT_NAME: string = "ts-efs-volume",
+    public LAMBDA_ROLE_NAME: string = "TSLambdaRole"
   ) {}
 }
 
@@ -96,6 +101,12 @@ export interface TSDataplaneProps {
    * @type {IRole | undefined}
    */
   taskRole?: IRole;
+
+  /**
+   * The IAM (Identity and Access Management) role to be used for Lambda (optional).
+   * @type {IRole | undefined}
+   */
+  lambdaRole?: IRole;
 
   /**
    * Custom configuration for the TSDataplane Construct (optional).
@@ -129,6 +140,7 @@ export interface TSDataplaneProps {
 export class TSDataplane extends Construct {
   // Public properties
   public taskRole: IRole;
+  public lambdaRole: IRole;
   public config: TSDataplaneConfig;
   public removalPolicy: RemovalPolicy;
   public regionalS3Endpoint: string;
@@ -141,6 +153,9 @@ export class TSDataplane extends Construct {
   public fargateService: FargateService;
   public fileSystem: FileSystem;
   public securityGroup?: ISecurityGroup;
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  public lambdaSweeperFunction: Function;
+  public sqsDlqEventSource: SqsEventSource;
 
   /**
    * Constructs an instance of TSDataplane.
@@ -176,6 +191,36 @@ export class TSDataplane extends Construct {
     this.jobQueue = new OSMLQueue(this, "TSJobQueue", {
       queueName: this.config.SQS_JOB_QUEUE
     });
+
+    // Check if a lambda role was provided
+    if (props.lambdaRole != undefined) {
+      // Import passed-in TS lambda role
+      this.lambdaRole = props.lambdaRole;
+    } else {
+      // Create a new role
+      this.lambdaRole = new TSLambdaRole(this, "TSLambdaRole", {
+        account: props.account,
+        roleName: this.config.LAMBDA_ROLE_NAME
+      }).role;
+    }
+
+    // Create a Lambda function to clean up the TS DLQ
+    this.lambdaSweeperFunction = new Function(this, "TSLambdaSweeperDLQ", {
+      code: Code.fromAsset(
+        "lib/osml-tile-server/src/aws/osml/tile_server/lambda"
+      ),
+      handler: "cleanup_dlq.lambda_handler",
+      functionName: "TSLambdaSweeperDLQ",
+      runtime: Runtime.PYTHON_3_11,
+      role: this.lambdaRole,
+      environment: {
+        JOB_TABLE: this.config.DDB_JOB_TABLE
+      }
+    });
+
+    // Attach DLQ Queue to Lambda Sweeper Function
+    this.sqsDlqEventSource = new SqsEventSource(this.jobQueue.dlQueue);
+    this.lambdaSweeperFunction.addEventSource(this.sqsDlqEventSource);
 
     // Log group for MR container
     this.logGroup = new LogGroup(this, "TSServiceLogGroup", {
