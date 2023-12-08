@@ -284,6 +284,7 @@ export class TSDataplane extends Construct {
       cpu: this.config.ECS_TASK_CPU.toString(),
       compatibility: Compatibility.FARGATE,
       taskRole: this.taskRole,
+      ephemeralStorageGiB: 21,
       volumes: [
         {
           name: this.config.EFS_MOUNT_NAME,
