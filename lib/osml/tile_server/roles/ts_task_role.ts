@@ -3,7 +3,6 @@
  */
 import { region_info } from "aws-cdk-lib";
 import {
-  AnyPrincipal,
   CompositePrincipal,
   Effect,
   IRole,
