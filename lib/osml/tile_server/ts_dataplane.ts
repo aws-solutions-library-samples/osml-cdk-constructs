@@ -17,6 +17,7 @@ import {
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
 import {
+  AccessPoint,
   FileSystem,
   LifecyclePolicy,
   PerformanceMode,
@@ -52,7 +53,7 @@ export class TSDataplaneConfig {
    * @param {number} ECS_TASK_CPU - The CPU configuration for TS tasks.
    * @param {number} ECS_CONTAINER_MEMORY - The memory configuration for TS containers.
    * @param {number} ECS_CONTAINER_CPU - The CPU configuration for TS containers.
-   * @param {number }ECS_CONTAINER_PORT - The port to use for the TS service.
+   * @param {number} ECS_CONTAINER_PORT - The port to use for the TS service.
    * @param {string} EFS_MOUNT_NAME - The name of the EFS volume to give tasks.
    * @param {string} LAMBDA_ROLE_NAME - The name of the TS Lambda execution role.
    */
@@ -156,6 +157,7 @@ export class TSDataplane extends Construct {
   // eslint-disable-next-line @typescript-eslint/ban-types
   public lambdaSweeperFunction: Function;
   public sqsDlqEventSource: SqsEventSource;
+  public accessPoint: AccessPoint;
 
   /**
    * Constructs an instance of TSDataplane.
@@ -242,7 +244,11 @@ export class TSDataplane extends Construct {
 
     this.fileSystem.addToResourcePolicy(
       new PolicyStatement({
-        actions: ["elasticfilesystem:ClientMount"],
+        actions: [
+          "elasticfilesystem:ClientMount",
+          "elasticfilesystem:ClientWrite",
+          "elasticfilesystem:ClientRootAccess"
+        ],
         principals: [new AnyPrincipal()],
         conditions: {
           Bool: {
@@ -251,6 +257,20 @@ export class TSDataplane extends Construct {
         }
       })
     );
+
+    // Create access point for TileServer (USER)
+    this.accessPoint = this.fileSystem.addAccessPoint("TSAccessPoint", {
+      path: "/" + this.config.EFS_MOUNT_NAME,
+      createAcl: {
+        ownerGid: "1000",
+        ownerUid: "1000",
+        permissions: "777"
+      },
+      posixUser: {
+        uid: "1000",
+        gid: "1000"
+      }
+    });
 
     // Build cluster to house our containers when they spin up
     this.cluster = new Cluster(this, "TSCluster", {
@@ -271,7 +291,8 @@ export class TSDataplane extends Construct {
             fileSystemId: this.fileSystem.fileSystemId,
             transitEncryption: "ENABLED",
             authorizationConfig: {
-              iam: "ENABLED"
+              iam: "ENABLED",
+              accessPointId: this.accessPoint.accessPointId
             }
           }
         }
