@@ -315,7 +315,13 @@ export class TSDataplane extends Construct {
           logGroup: this.logGroup,
           mode: AwsLogDriverMode.NON_BLOCKING
         }),
-        disableNetworking: false
+        disableNetworking: false,
+        healthCheck: {
+          command: ["curl --fail http://localhost:8080/ping || exit 1"],
+          interval: Duration.seconds(10),
+          retries: 3,
+          timeout: Duration.seconds(10)
+        }
       }
     );
 
