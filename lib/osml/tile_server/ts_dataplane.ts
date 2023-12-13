@@ -12,10 +12,10 @@ import {
   Compatibility,
   ContainerDefinition,
   ContainerImage,
-  FargateService,
   Protocol,
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
+import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
 import {
   AccessPoint,
   FileSystem,
@@ -153,7 +153,7 @@ export class TSDataplane extends Construct {
   public cluster: Cluster;
   public taskDefinition: TaskDefinition;
   public containerDefinition: ContainerDefinition;
-  public fargateService: FargateService;
+  public fargateService: ApplicationLoadBalancedFargateService;
   public fileSystem: FileSystem;
   public securityGroup?: ISecurityGroup;
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -343,13 +343,17 @@ export class TSDataplane extends Construct {
     });
 
     // Set up Fargate service
-    this.fargateService = new FargateService(this, "TSService", {
-      taskDefinition: this.taskDefinition,
-      cluster: this.cluster,
-      minHealthyPercent: 100,
-      securityGroups: this.securityGroup ? [this.securityGroup] : [],
-      vpcSubnets: props.osmlVpc.selectedSubnets
-    });
+    this.fargateService = new ApplicationLoadBalancedFargateService(
+      this,
+      "TSService",
+      {
+        taskDefinition: this.taskDefinition,
+        cluster: this.cluster,
+        minHealthyPercent: 100,
+        securityGroups: this.securityGroup ? [this.securityGroup] : [],
+        taskSubnets: props.osmlVpc.selectedSubnets
+      }
+    );
 
     // Allow access to EFS from Fargate ECS
     this.fileSystem.grantRootAccess(
@@ -358,7 +362,7 @@ export class TSDataplane extends Construct {
 
     // Allow connections to the file system from the ECS cluster
     this.fileSystem.connections.allowDefaultPortFrom(
-      this.fargateService.connections
+      this.fargateService.service.connections
     );
   }
 
