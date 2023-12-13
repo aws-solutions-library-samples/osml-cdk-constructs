@@ -3,6 +3,7 @@
  */
 import { region_info } from "aws-cdk-lib";
 import {
+  AccountPrincipal,
   CompositePrincipal,
   Effect,
   IRole,
@@ -14,6 +15,7 @@ import {
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
+import { TSDataplaneConfig } from "../ts_dataplane";
 
 /**
  * Represents the properties required to define a model runner ECS task role.
@@ -51,6 +53,11 @@ export class TSTaskRole extends Construct {
   public partition: string;
 
   /**
+   * The TSDataplane Configuration class to be used for TSLambdaRole.
+   */
+  public tsDataplaneConfig: TSDataplaneConfig = new TSDataplaneConfig();
+
+  /**
    * Creates an TSTaskRole construct.
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
@@ -74,18 +81,107 @@ export class TSTaskRole extends Construct {
         new ServicePrincipal("lambda.amazonaws.com")
       ),
       managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName("AmazonSQSFullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName("AmazonS3FullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName("AmazonDynamoDBFullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName("SecretsManagerReadWrite"),
-        ManagedPolicy.fromAwsManagedPolicyName(
-          "AmazonElasticContainerRegistryPublicFullAccess"
-        )
+        ManagedPolicy.fromAwsManagedPolicyName("SecretsManagerReadWrite")
       ],
       description:
         "Allows the OversightML Tile Server to access necessary AWS services (S3, SQS, DynamoDB, ...)"
     });
+
+    role.assumeRolePolicy?.addStatements(
+      new PolicyStatement({
+        actions: ["sts:AssumeRole"],
+        principals: [new AccountPrincipal(props.account.id)]
+      })
+    );
+
+    // ecr permissions
+    role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:DescribeImages",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetAuthorizationToken",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:PutImage",
+          "ecr:DescribeRepositories"
+        ],
+        resources: ["*"]
+      })
+    );
+
+    // dynamodb permissions
+    role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "dynamodb:Query",
+          "dynamodb:Scan",
+          "dynamodb:*GetItem",
+          "dynamodb:*PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DescribeTable"
+        ],
+        resources: [
+          `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${this.tsDataplaneConfig.DDB_JOB_TABLE}`
+        ]
+      })
+    );
+
+    // sqs permissions
+    role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "sqs:GetQueueUrl",
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:ListQueues"
+        ],
+        resources: [
+          `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${this.tsDataplaneConfig.SQS_JOB_QUEUE}*`
+        ]
+      })
+    );
+
+    // s3 permissions
+    role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "s3:GetBucketAcl",
+          "s3:ListBucket",
+          "s3:GetBucketLocation",
+          "s3:GetObject",
+          "s3:GetObjectAcl",
+          "s3:PutObject"
+        ],
+        resources: [`arn:${this.partition}:s3:::*`]
+      })
+    );
+
+    // cloudwatch permissions
+    role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "logs:PutLogEvents",
+          "logs:GetLogEvents",
+          "logs:DescribeLogStreams",
+          "logs:DescribeLogGroups",
+          "logs:CreateLogStream",
+          "logs:CreateLogGroup"
+        ],
+        resources: [
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.tsDataplaneConfig.ECS_METRICS_NAMESPACE}/${this.tsDataplaneConfig.CW_LOGGROUP_NAME}*`
+        ]
+      })
+    );
 
     // Add permissions to assume roles
     role.addToPolicy(
