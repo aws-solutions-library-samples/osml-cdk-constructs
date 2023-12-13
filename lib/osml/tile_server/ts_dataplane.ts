@@ -56,6 +56,7 @@ export class TSDataplaneConfig {
    * @param {number} ECS_CONTAINER_PORT - The port to use for the TS service.
    * @param {string} EFS_MOUNT_NAME - The name of the EFS volume to give tasks.
    * @param {string} LAMBDA_ROLE_NAME - The name of the TS Lambda execution role.
+   * @param {string} CW_LOGGROUP_NAME - The name of the TS Log Group name.
    */
   constructor(
     public SQS_JOB_QUEUE: string = "TSJobQueue",
@@ -71,7 +72,8 @@ export class TSDataplaneConfig {
     public ECS_CONTAINER_CPU: number = 7168,
     public ECS_CONTAINER_PORT: number = 8080,
     public EFS_MOUNT_NAME: string = "ts-efs-volume",
-    public LAMBDA_ROLE_NAME: string = "TSLambdaRole"
+    public LAMBDA_ROLE_NAME: string = "TSLambdaRole",
+    public CW_LOGGROUP_NAME: string = "TSService"
   ) {}
 }
 
@@ -226,7 +228,7 @@ export class TSDataplane extends Construct {
 
     // Log group for MR container
     this.logGroup = new LogGroup(this, "TSServiceLogGroup", {
-      logGroupName: "/aws/OSML/TSService",
+      logGroupName: "/aws/OSML/" + this.config.CW_LOGGROUP_NAME,
       retention: RetentionDays.TEN_YEARS,
       removalPolicy: this.removalPolicy
     });
@@ -319,7 +321,7 @@ export class TSDataplane extends Construct {
         disableNetworking: false,
         healthCheck: {
           command: ["curl --fail http://localhost:8080/ping || exit 1"],
-          interval: Duration.seconds(10),
+          interval: Duration.seconds(30),
           retries: 3,
           timeout: Duration.seconds(10)
         }
@@ -367,7 +369,8 @@ export class TSDataplane extends Construct {
       JOB_TABLE: this.jobTable.table.tableName,
       JOB_QUEUE: this.jobQueue.queue.queueName,
       AWS_S3_ENDPOINT: this.regionalS3Endpoint,
-      EFS_MOUNT_NAME: this.config.EFS_MOUNT_NAME
+      EFS_MOUNT_NAME: this.config.EFS_MOUNT_NAME,
+      STS_ARN: this.taskRole.roleArn
     };
   }
 
