@@ -351,7 +351,9 @@ export class TSDataplane extends Construct {
         cluster: this.cluster,
         minHealthyPercent: 100,
         securityGroups: this.securityGroup ? [this.securityGroup] : [],
-        taskSubnets: props.osmlVpc.selectedSubnets
+        taskSubnets: props.osmlVpc.selectedSubnets,
+        assignPublicIp: false,
+        publicLoadBalancer: false
       }
     );
 
