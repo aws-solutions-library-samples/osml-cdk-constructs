@@ -158,6 +158,8 @@ export class TSDataplane extends Construct {
   public securityGroup?: ISecurityGroup;
   // eslint-disable-next-line @typescript-eslint/ban-types
   public lambdaSweeperFunction: Function;
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  public lambdaIntegTest: Function;
   public sqsDlqEventSource: SqsEventSource;
   public accessPoint: AccessPoint;
 
@@ -220,6 +222,22 @@ export class TSDataplane extends Construct {
       environment: {
         JOB_TABLE: this.config.DDB_JOB_TABLE
       }
+    });
+
+    // Create a Lambda function to clean up the TS DLQ
+    this.lambdaIntegTest = new Function(this, "TSLambdaIntegTest", {
+      code: Code.fromAsset("lib/osml-tile-server/test-integ"),
+      handler: "aws.osml.tile_server.test_tileserver.test_tileserver",
+      functionName: "TSLambdaIntegTest",
+      runtime: Runtime.PYTHON_3_11,
+      role: this.lambdaRole,
+      environment: {
+        JOB_TABLE: this.config.DDB_JOB_TABLE
+      },
+      vpc: props.osmlVpc.vpc,
+      vpcSubnets: props.osmlVpc.selectedSubnets,
+      securityGroups: this.securityGroup ? [this.securityGroup] : [],
+      timeout: Duration.minutes(10)
     });
 
     // Attach DLQ Queue to Lambda Sweeper Function
