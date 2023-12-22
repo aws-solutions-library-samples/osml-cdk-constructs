@@ -123,20 +123,6 @@ export class TSLambdaRole extends Construct {
       })
     );
 
-    // Add permissions for Lambda to have access within the Lambda
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          "lambda:GetFunctionConfiguration",
-          "lambda:GetFunctionConfiguration"
-        ],
-        resources: [
-          `arn:${this.partition}:lambda:${props.account.region}:${props.account.id}:function:*`
-        ]
-      })
-    );
-
     // Add permissions for AWS Cloudwatch Event (DDB)
     role.addToPolicy(
       new PolicyStatement({
