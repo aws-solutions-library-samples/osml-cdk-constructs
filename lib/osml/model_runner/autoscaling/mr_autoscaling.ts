@@ -26,7 +26,7 @@ export class MRAutoscalingConfig {
    */
   constructor(
     public MR_AUTOSCALING_TASK_MAX_COUNT: number = 40,
-    public MR_AUTOSCALING_TASK_MIN_COUNT: number = 5,
+    public MR_AUTOSCALING_TASK_MIN_COUNT: number = 3,
     public MR_AUTOSCALING_TASK_OUT_COOLDOWN: number = 3,
     public MR_AUTOSCALING_TASK_IN_COOLDOWN: number = 1,
     public MR_AUTOSCALING_TASK_IN_INCREMENT: number = 8,
