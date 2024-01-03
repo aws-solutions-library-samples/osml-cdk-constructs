@@ -190,7 +190,7 @@ export class MRDataplane extends Construct {
       : RemovalPolicy.DESTROY;
 
     // Check if a custom configuration was provided
-    if (props.dataplaneConfig != undefined) {
+    if (props.dataplaneConfig) {
       // Import existing passed-in MR configuration
       this.mrDataplaneConfig = props.dataplaneConfig;
     } else {
