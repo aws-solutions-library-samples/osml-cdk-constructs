@@ -15,19 +15,19 @@ import { OSMLVpc } from "../osml_vpc";
 /**
  * Represents the configuration for the MRAppContainer Construct.
  */
-export class MRAppContainerConfig {
+export class MRContainerConfig {
   /**
    * Creates an instance of MRAppContainerConfig.
-   * @param {string} [MR_APP_CONTAINER="awsosml/osml-model-runner:main"] - The container image to use for the MRApp.
-   * @param {string} [MR_APP_BUILD_PATH="lib/osml-model-runner"] - The build path for the MRApp.
-   * @param {string} [MR_APP_BUILD_TARGET="model_runner"] - The build target for the MRApp.
-   * @param {string} [MR_APP_REPOSITORY="model-runner-container"] - The repository name for the MRApp.
+   * @param {string} [MR_DEFAULT_CONTAINER="awsosml/osml-model-runner:main"] - The container image to use for the MRApp.
+   * @param {string} [MR_CONTAINER_BUILD_PATH="lib/osml-model-runner"] - The build path for the MRApp.
+   * @param {string} [MR_CONTAINER_BUILD_TARGET="model_runner"] - The build target for the MRApp.
+   * @param {string} [MR_CONTAINER_REPOSITORY="model-runner-container"] - The repository name for the MRApp.
    */
   constructor(
-    public MR_APP_CONTAINER: string = "awsosml/osml-model-runner:main",
-    public MR_APP_BUILD_PATH: string = "lib/osml-model-runner",
-    public MR_APP_BUILD_TARGET: string = "model_runner",
-    public MR_APP_REPOSITORY: string = "model-runner-container"
+    public MR_DEFAULT_CONTAINER: string = "awsosml/osml-model-runner:main",
+    public MR_CONTAINER_BUILD_PATH: string = "lib/osml-model-runner",
+    public MR_CONTAINER_BUILD_TARGET: string = "model_runner",
+    public MR_CONTAINER_REPOSITORY: string = "model-runner-container"
   ) {}
 }
 
@@ -53,16 +53,16 @@ export interface MRAppContainerProps {
   /**
    * Optional configuration settings specific to the MRAppContainer.
    */
-  mrAppContainerConfig?: MRAppContainerConfig;
+  mrAppContainerConfig?: MRContainerConfig;
 }
 
 /**
  * Represents a construct responsible for deploying the ECR container image
  * for the model runner service.
  */
-export class MRAppContainer extends Construct {
+export class MRContainer extends Construct {
   public removalPolicy: RemovalPolicy;
-  public mrAppContainerConfig: MRAppContainerConfig;
+  public mrAppContainerConfig: MRContainerConfig;
   public containerImage: ContainerImage;
   /**
    * Creates an instance of MRAppContainer.
@@ -85,27 +85,27 @@ export class MRAppContainer extends Construct {
       this.mrAppContainerConfig = props.mrAppContainerConfig;
     } else {
       // Create a new default configuration.
-      this.mrAppContainerConfig = new MRAppContainerConfig();
+      this.mrAppContainerConfig = new MRContainerConfig();
     }
 
     if (props.account.buildAppContainer == true) {
       // Create a container image from a Docker image asset for development environment.
       this.containerImage = ContainerImage.fromDockerImageAsset(
         new DockerImageAsset(this, id, {
-          directory: this.mrAppContainerConfig.MR_APP_BUILD_PATH,
+          directory: this.mrAppContainerConfig.MR_CONTAINER_BUILD_PATH,
           file: "Dockerfile",
           followSymlinks: SymlinkFollowMode.ALWAYS,
-          target: this.mrAppContainerConfig.MR_APP_BUILD_TARGET
+          target: this.mrAppContainerConfig.MR_CONTAINER_BUILD_TARGET
         })
       );
     } else {
       // Create an ECR deployment for production environment.
       const ecrDeployment = new OSMLECRDeployment(
         this,
-        "OSMLModelECRDeployment",
+        "MRContainerECRDeployment",
         {
-          sourceUri: this.mrAppContainerConfig.MR_APP_CONTAINER,
-          repositoryName: this.mrAppContainerConfig.MR_APP_REPOSITORY,
+          sourceUri: this.mrAppContainerConfig.MR_DEFAULT_CONTAINER,
+          repositoryName: this.mrAppContainerConfig.MR_CONTAINER_REPOSITORY,
           removalPolicy: this.removalPolicy,
           vpc: props.osmlVpc.vpc,
           vpcSubnets: props.osmlVpc.selectedSubnets

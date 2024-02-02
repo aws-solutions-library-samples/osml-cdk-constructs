@@ -82,9 +82,9 @@ export class MRDataplaneConfig {
     public MR_TASK_CPU: number = 8192,
     public MR_CONTAINER_MEMORY: number = 15360,
     public MR_CONTAINER_CPU: number = 7168,
-    public MR_LOGGING_MEMORY: number = 512,
-    public MR_LOGGING_CPU: number = 512,
-    public MR_WORKERS_PER_CPU: number = 1,
+    public MR_LOGGING_MEMORY: number = 1024,
+    public MR_LOGGING_CPU: number = 1024,
+    public MR_WORKERS_PER_CPU: number = 2,
     public MR_REGION_SIZE: string = "(8192, 8192)",
     public MR_ENABLE_IMAGE_STATUS: boolean = true,
     public MR_ENABLE_REGION_STATUS: boolean = false
@@ -130,12 +130,6 @@ export interface MRDataplaneProps {
    * @type {MRDataplaneConfig | undefined}
    */
   dataplaneConfig?: MRDataplaneConfig;
-
-  /**
-   * An array of target subnets for the Dataplane.
-   * @type {string[] | undefined}
-   */
-  targetSubnets?: string[];
 
   /**
    * The container image to be used for the model runner ecs tasks.
@@ -196,7 +190,7 @@ export class MRDataplane extends Construct {
       : RemovalPolicy.DESTROY;
 
     // Check if a custom configuration was provided
-    if (props.dataplaneConfig != undefined) {
+    if (props.dataplaneConfig) {
       // Import existing passed-in MR configuration
       this.mrDataplaneConfig = props.dataplaneConfig;
     } else {
@@ -285,7 +279,7 @@ export class MRDataplane extends Construct {
       });
 
       // Create an SQS queue for region status processing updates
-      this.regionStatusQueue = new OSMLQueue(this, "OSMLRegionStatusQueue", {
+      this.regionStatusQueue = new OSMLQueue(this, "MRRegionStatusQueue", {
         queueName: this.mrDataplaneConfig.SQS_REGION_STATUS_QUEUE
       });
 
@@ -302,7 +296,7 @@ export class MRDataplane extends Construct {
       });
 
       // Create an SQS queue for image processing status updates
-      this.imageStatusQueue = new OSMLQueue(this, "OSMLImageStatusQueue", {
+      this.imageStatusQueue = new OSMLQueue(this, "MRImageStatusQueue", {
         queueName: this.mrDataplaneConfig.SQS_IMAGE_STATUS_QUEUE
       });
 
@@ -337,7 +331,6 @@ export class MRDataplane extends Construct {
 
     // Define our ECS task
     this.taskDefinition = new TaskDefinition(this, "MRTaskDefinition", {
-      // Guessing what specs are needed
       memoryMiB: this.mrDataplaneConfig.MR_TASK_MEMORY.toString(),
       cpu: this.mrDataplaneConfig.MR_TASK_CPU.toString(),
       compatibility: Compatibility.FARGATE,
@@ -346,7 +339,7 @@ export class MRDataplane extends Construct {
 
     // Calculate the workers to assign per task instance
     this.workers = Math.ceil(
-      (this.mrDataplaneConfig.MR_TASK_CPU / 1024) *
+      (this.mrDataplaneConfig.MR_CONTAINER_CPU / 1024) *
         this.mrDataplaneConfig.MR_WORKERS_PER_CPU
     ).toString();
 

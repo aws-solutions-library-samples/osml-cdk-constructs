@@ -10,19 +10,22 @@ import { OSMLAccount } from "../osml_account";
 import { OSMLECRDeployment } from "../osml_ecr_deployment";
 import { OSMLVpc } from "../osml_vpc";
 
-export class OSMLEndpointContainerConfig {
+export class MEContainerConfig {
   constructor(
-    public OSML_MODEL_CONTAINER = "awsosml/osml-models:main",
-    public OSML_MODEL_BUILD_PATH = "lib/osml-models",
-    public OSML_MODEL_BUILD_TARGET = "osml_model",
-    public OSML_MODEL_REPOSITORY = "model-container"
+    public ME_DEFAULT_CONTAINER = "awsosml/osml-models:main",
+    public ME_CONTAINER_BUILD_PATH = "lib/osml-models",
+    public ME_CONTAINER_BUILD_TARGET = "osml_model",
+    public ME_CONTAINER_REPOSITORY = "model-container"
   ) {}
 }
 
 /**
- * Represents the properties for an OSMLEndpointContainer construct.
+ * Represents the properties required to configure an OSML (OversightML)
+ * model endpoint container..
+ *
+ * @interface MEContainerProps
  */
-export interface OSMLEndpointContainerProps {
+export interface MEContainerProps {
   /**
    * The OSML (OversightML) account associated with the model endpoints.
    */
@@ -34,23 +37,23 @@ export interface OSMLEndpointContainerProps {
   osmlVpc: OSMLVpc;
 
   /**
-   * (Optional) Custom configuration for the OSMLEndpointContainer Construct
+   * (Optional) Custom configuration for the MEContainer Construct
    */
-  mrModelContainerConfig?: OSMLEndpointContainerConfig;
+  config?: MEContainerConfig;
 }
 
 /**
  * Represents a construct responsible for deploying an ECR container image
  * for the model to be used with the model runner.
  */
-export class OSMLEndpointContainer extends Construct {
+export class MEContainer extends Construct {
   /**
-   * Configuration for the OSMLEndpointContainer.
+   * Configuration for the Construct.
    */
-  public mrModelContainerConfig: OSMLEndpointContainerConfig;
+  public config: MEContainerConfig;
 
   /**
-   * The container image used for this OSMLEndpointContainer.
+   * The container image used for Construct.
    */
   public containerImage: ContainerImage;
 
@@ -60,7 +63,7 @@ export class OSMLEndpointContainer extends Construct {
   public containerUri: string;
 
   /**
-   * The removal policy for the OSMLEndpointContainer.
+   * The removal policy for the Construct resources.
    */
   public removalPolicy: RemovalPolicy;
 
@@ -68,10 +71,10 @@ export class OSMLEndpointContainer extends Construct {
    * Creates an instance of OMSLEndpointContainer.
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
-   * @param {OSMLEndpointContainerProps} props - The properties of this construct.
-   * @returns OSMLEndpointContainer - The OMSLEndpointContainer instance.
+   * @param {MEContainerProps} props - The properties of this construct.
+   * @returns MEContainer - The OMSLEndpointContainer instance.
    */
-  constructor(scope: Construct, id: string, props: OSMLEndpointContainerProps) {
+  constructor(scope: Construct, id: string, props: MEContainerProps) {
     super(scope, id);
 
     // Set the removal policy based on the account type
@@ -80,35 +83,39 @@ export class OSMLEndpointContainer extends Construct {
       : RemovalPolicy.DESTROY;
 
     // Check if a custom configuration was provided for the MR model container
-    if (props.mrModelContainerConfig != undefined) {
+    if (props.config != undefined) {
       // Import the existing MR configuration
-      this.mrModelContainerConfig = props.mrModelContainerConfig;
+      this.config = props.config;
     } else {
       // Create a new default configuration
-      this.mrModelContainerConfig = new OSMLEndpointContainerConfig();
+      this.config = new MEContainerConfig();
     }
 
     // Create the container image and URI based on the account type
     if (props.account.buildModelContainer == true) {
       // Dev account: Create a Docker image asset
-      const dockerImageAsset = new DockerImageAsset(this, id, {
-        directory: this.mrModelContainerConfig.OSML_MODEL_BUILD_PATH,
-        file: "Dockerfile",
-        followSymlinks: SymlinkFollowMode.ALWAYS,
-        target: this.mrModelContainerConfig.OSML_MODEL_BUILD_TARGET
-      });
+      const dockerImageAsset: DockerImageAsset = new DockerImageAsset(
+        this,
+        id,
+        {
+          directory: this.config.ME_CONTAINER_BUILD_PATH,
+          file: "Dockerfile",
+          followSymlinks: SymlinkFollowMode.ALWAYS,
+          target: this.config.ME_CONTAINER_BUILD_TARGET
+        }
+      );
 
       this.containerImage =
         ContainerImage.fromDockerImageAsset(dockerImageAsset);
       this.containerUri = dockerImageAsset.imageUri;
     } else {
       // Non-dev account: Deploy to ECR using OSMLECRDeployment
-      const ecrDeployment = new OSMLECRDeployment(
+      const ecrDeployment: OSMLECRDeployment = new OSMLECRDeployment(
         this,
-        "OSMLModelECRDeployment",
+        "MEContainerECRDeployment",
         {
-          sourceUri: this.mrModelContainerConfig.OSML_MODEL_CONTAINER,
-          repositoryName: this.mrModelContainerConfig.OSML_MODEL_REPOSITORY,
+          sourceUri: this.config.ME_DEFAULT_CONTAINER,
+          repositoryName: this.config.ME_CONTAINER_REPOSITORY,
           removalPolicy: this.removalPolicy,
           vpc: props.osmlVpc.vpc,
           vpcSubnets: props.osmlVpc.selectedSubnets
