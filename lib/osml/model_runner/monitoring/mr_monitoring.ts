@@ -1,10 +1,13 @@
 /*
  * Copyright 2023 Amazon.com, Inc. or its affiliates.
  */
-import { Duration } from "aws-cdk-lib";
 import {
   Dashboard,
-  Metric,
+  GraphWidget,
+  GraphWidgetView,
+  LogQueryVisualizationType,
+  LogQueryWidget,
+  MathExpression,
   SingleValueWidget
 } from "aws-cdk-lib/aws-cloudwatch";
 import { FargateService } from "aws-cdk-lib/aws-ecs";
@@ -89,255 +92,146 @@ export class MRMonitoring extends Construct {
    * @returns {MRMonitoring} - The MRMonitoring construct.
    */
   public modelStatsWidget: SingleValueWidget;
-  public dashboard: Dashboard;
+  public mrDashboard: Dashboard;
   public requestsWidget: SingleValueWidget;
   constructor(scope: Construct, id: string, props: MRMonitoringProps) {
     super(scope, id);
 
     // Create a dashboard for monitoring
-    this.dashboard = new Dashboard(this, "OSMLDashboard", {
-      dashboardName: "OSML"
+    this.mrDashboard = new Dashboard(this, "OSMLMRDashboard", {
+      dashboardName: "OSML-ModelRunner"
     });
 
-    // Create a widget for monitoring pending requests
-    this.requestsWidget = new SingleValueWidget({
-      title: "Pending Requests",
-      region: props.account.region,
-      width: 24,
-      height: 3,
-      sparkline: true,
-      metrics: [
-        // Metrics for pending region requests and oldest pending region request
-        props.regionRequestQueue.metricApproximateNumberOfMessagesVisible({
-          label: "Pending Region Requests",
-          statistic: "sum",
-          period: Duration.seconds(30)
-        }),
-        props.regionRequestQueue.metricApproximateAgeOfOldestMessage({
-          label: "Oldest Pending Region Request",
-          statistic: "max"
-        }),
-        // Metrics for failed region requests, pending image requests, and oldest pending image request
-        props.regionRequestDlQueue.metricApproximateNumberOfMessagesVisible({
-          label: "Failed Region Requests",
-          statistic: "sum"
-        }),
-        props.imageRequestQueue.metricApproximateNumberOfMessagesVisible({
-          label: "Pending Image Requests",
-          statistic: "sum"
-        }),
-        props.imageRequestQueue.metricApproximateAgeOfOldestMessage({
-          label: "Oldest Pending Region Request",
-          statistic: "sum"
-        }),
-        props.imageRequestDlQueue.metricApproximateNumberOfMessagesVisible({
-          label: "Failed Image Requests",
-          statistic: "sum"
-        })
-      ]
-    });
-
-    // Create a widget for monitoring model statistics if a model is provided
-    if (props.model != undefined) {
-      // Metrics for model inference latency, invocations, model errors, throttling exceptions, and image latency
-      this.modelStatsWidget = new SingleValueWidget({
-        title: "Model Statistics",
-        width: 14,
-        height: 3,
-        sparkline: true,
+    const topRowWidgets = [
+      new SingleValueWidget({
+        region: props.account.region,
+        title: "Counts",
+        width: 3,
+        height: 5,
         metrics: [
-          new Metric({
-            namespace: props.mrDataplaneConfig.METRICS_NAMESPACE,
-            metricName: "EndpointLatency",
-            dimensionsMap: {
-              ModelName: props.model
-            },
-            label: "Avg Inference Latency (Max: ${MAX} Min: ${MIN})"
+          new MathExpression({
+            label: "Images",
+            expression:
+              "SUM(SEARCH('{OSML/ModelRunner, InputFormat, ModelName, Operation} ImageProcessing Invocations', 'Sum'))"
           }),
-          new Metric({
-            namespace: props.mrDataplaneConfig.METRICS_NAMESPACE,
-            metricName: "ModelInvocation",
-            dimensionsMap: {
-              ModelName: props.model
-            },
-            label: "Invocations (Total: ${SUM})",
-            statistic: "sum"
+          new MathExpression({
+            label: "Tiles",
+            expression:
+              "SUM(SEARCH('{OSML/ModelRunner, ModelName, Operation} TileProcessing Invocations', 'Sum'))"
+          })
+        ],
+        sparkline: false
+      }),
+      new GraphWidget({
+        region: props.account.region,
+        title: "Average Image Processing Time (Seconds)",
+        view: GraphWidgetView.BAR,
+        height: 5,
+        width: 5,
+        left: [
+          new MathExpression({
+            label: "",
+            expression:
+              "SEARCH('{OSML/ModelRunner, InputFormat, ModelName, Operation} ImageProcessing Duration', 'Average')"
+          })
+        ],
+        statistic: "Average",
+        leftAnnotations: [
+          { color: "#2ca02c", label: "5m", value: 300 },
+          { color: "#d62728", label: "15m", value: 900 }
+        ]
+      }),
+      new GraphWidget({
+        region: props.account.region,
+        title: "Request Volume",
+        height: 5,
+        width: 11,
+        view: GraphWidgetView.TIME_SERIES,
+        stacked: false,
+        statistic: "Sum",
+        left: [
+          props.imageRequestQueue.metricNumberOfMessagesReceived({
+            label: "Image Requests Received",
+            statistic: "Sum"
           }),
-          new Metric({
-            namespace: props.mrDataplaneConfig.METRICS_NAMESPACE,
-            metricName: "ModelError",
-            dimensionsMap: {
-              ModelName: props.model
-            },
-            statistic: "Sum",
-            label: "Model Errors (Total: ${SUM})"
-          }),
-          new Metric({
-            namespace: props.mrDataplaneConfig.METRICS_NAMESPACE,
-            metricName: "ThrottlingException",
-            dimensionsMap: {
-              ModelName: props.model
-            },
-            statistic: "Sum",
-            label: "Throttling Exceptions (Total: ${SUM})"
-          }),
-          // This is the complete end to end processing latency for an image
-          // Includes reading metadata, generating regions, processing all regions
-          // (tile and inference), aggregating features, and publishing results
-          new Metric({
-            namespace: props.mrDataplaneConfig.METRICS_NAMESPACE,
-            metricName: "ImageLatency",
-            dimensionsMap: {
-              ModelName: props.model
-            },
-            label: "Avg Image Latency (Max: ${MAX} Min: ${MIN})"
+          props.imageRequestQueue.metricApproximateNumberOfMessagesVisible({
+            label: "Image Requests Waiting",
+            statistic: "Sum"
           })
         ]
-      });
-    }
+      }),
+      new GraphWidget({
+        region: props.account.region,
+        title: "Input Formats",
+        height: 5,
+        width: 5,
+        view: GraphWidgetView.PIE,
+        statistic: "Average",
+        left: [
+          new MathExpression({
+            expression:
+              "SEARCH('{OSML/ModelRunner, InputFormat, Operation}  TileGeneration Invocations', 'Sum')",
+            label: ""
+          })
+        ]
+      })
+    ];
 
-    const ecsClusterUtilizationWidget = new SingleValueWidget({
-      title: "MR Cluster Utilization",
-      region: props.account.region,
-      width: 12,
-      height: 3,
-      sparkline: true,
-      metrics: [
-        props.service.metricCpuUtilization({
-          label: "CPU Utilization"
-        }),
-        props.service.metricMemoryUtilization({
-          label: "Memory Utilization"
-        })
-      ]
-    });
+    this.mrDashboard.addWidgets(...topRowWidgets);
 
-    const featureMetricsWidget = new SingleValueWidget({
-      title: "Feature Metrics",
-      region: props.account.region,
-      width: 12,
-      height: 3,
-      sparkline: true,
-      metrics: [
-        new Metric({
-          namespace: props.mrDataplaneConfig.METRICS_NAMESPACE,
-          metricName: "FeatureStoreLatency",
-          label: "Feature Store Avg Latency (Max: ${MAX} Min: ${MIN})"
-        }),
-        new Metric({
-          namespace: props.mrDataplaneConfig.METRICS_NAMESPACE,
-          metricName: "FeatureAggLatency",
-          label: "Feature Aggregation Latency (Max: ${MAX} Min: ${MIN})"
-        })
-      ]
-    });
-
-    this.dashboard.addWidgets(this.requestsWidget);
-
-    // This comes from image_utils.py in the ModelRunner code. We include
-    // image format as a dimension not image type.
-    ["TIFF", "NITF"].forEach((imageFormat) => {
-      this.dashboard.addWidgets(
-        this.generateProcessingWidget(
-          imageFormat,
-          props.account.region,
-          props.mrDataplaneConfig.METRICS_NAMESPACE
-        )
-      );
-    });
-
-    if (this.modelStatsWidget != undefined) {
-      this.dashboard.addWidgets(this.modelStatsWidget);
-    }
-
-    this.dashboard.addWidgets(
-      featureMetricsWidget,
-      ecsClusterUtilizationWidget
+    this.mrDashboard.addWidgets(
+      new GraphWidget({
+        region: props.account.region,
+        title: "Model Utilization",
+        width: 24,
+        height: 6,
+        view: GraphWidgetView.TIME_SERIES,
+        stacked: false,
+        statistic: "Average",
+        left: [
+          new MathExpression({
+            expression:
+              "SEARCH('{OSML/ModelRunner, ModelName, Operation} ModelInvocation Duration', 'Average', 60)",
+            label: ""
+          })
+        ],
+        right: [
+          new MathExpression({
+            expression:
+              "SEARCH('{OSML/ModelRunner, ModelName, Operation} ModelInvocation Invocations', 'Sum', 60)",
+            label: ""
+          }),
+          new MathExpression({
+            expression:
+              "SEARCH('{OSML/ModelRunner, ModelName, Operation} ModelInvocation Errors', 'Sum', 60)",
+            label: ""
+          }),
+          new MathExpression({
+            expression:
+              "SEARCH('{OSML/ModelRunner, ModelName, Operation} ModelInvocation Retries', 'Sum', 60)",
+            label: ""
+          })
+        ]
+      })
     );
-  }
 
-  /**
-   * Builds a metric widget in Cloudwatch Dashboard
-   * @param metricName
-   * @param label
-   * @param imageFormat
-   * @param metricsNamespace metricsNamespace the name to apply to the metric namespace
-   * @param statistic
-   * @returns: cloudwatch metric
-   */
-  buildProcessingMetric(
-    metricName: string,
-    label: string,
-    imageFormat: string,
-    metricsNamespace: string,
-    statistic?: string
-  ): Metric {
-    return new Metric({
-      namespace: metricsNamespace,
-      metricName,
-      dimensionsMap: {
-        ImageFormat: imageFormat
-      },
-      statistic,
-      label
-    });
-  }
-
-  /**
-   * Generates a widget that contains metrics for processing images, regions, and tiles
-   * @returns: cloudwatch Widget
-   * @param imageFormat
-   * @param region
-   * @param metricsNameSpace
-   */
-  generateProcessingWidget(
-    imageFormat: string,
-    region: string,
-    metricsNameSpace: string
-  ): SingleValueWidget {
-    return new SingleValueWidget({
-      title: `Processing Stats - ${imageFormat}`,
-      region,
-      width: 24,
-      height: 3,
-      sparkline: true,
-      metrics: [
-        this.buildProcessingMetric(
-          "RegionsProcessed",
-          "Regions Processed (Total: ${SUM})",
-          imageFormat,
-          metricsNameSpace,
-          "sum"
-        ),
-        this.buildProcessingMetric(
-          "TilingLatency",
-          "Tiling Latency",
-          imageFormat,
-          metricsNameSpace,
-          "avg"
-        ),
-        this.buildProcessingMetric(
-          "RegionLatency",
-          "Regions Latency",
-          imageFormat,
-          metricsNameSpace,
-          "avg"
-        ),
-        this.buildProcessingMetric(
-          "TilesProcessed",
-          "Tiles Processed (Total: ${SUM})",
-          imageFormat,
-          metricsNameSpace,
-          "sum"
-        ),
-        this.buildProcessingMetric(
-          "ImageProcessingError",
-          "Processing Failures (Total: ${SUM})",
-          imageFormat,
-          metricsNameSpace,
-          "sum"
-        )
-      ]
-    });
+    this.mrDashboard.addWidgets(
+      new LogQueryWidget({
+        title: "Image Status",
+        width: 24,
+        height: 11,
+        region: props.account.region,
+        logGroupNames: ["/aws/OSML/MRService"],
+        view: LogQueryVisualizationType.TABLE,
+        queryLines: [
+          "fields job_id as Job, request.image_url as Image, request.model_name as Model, status as Status, ",
+          '  concat(request.region_success, "/", request.region_count) as Regions, request.region_error as Failures,',
+          "  fromMillis(request.start_time) as Start, fromMillis(request.end_time) as End",
+          'filter message = "StatusMonitorUpdate" and status in ["SUCCESS", "FAILED"]',
+          "sort @timestamp desc",
+          "limit 20"
+        ]
+      })
+    );
   }
 }
