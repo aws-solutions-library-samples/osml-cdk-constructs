@@ -51,6 +51,11 @@ export interface MRAppContainerProps {
   taskRole?: IRole;
 
   /**
+   * Optional flag to instruct building model runner container from source.
+   */
+  buildFromSource?: boolean;
+
+  /**
    * Optional configuration settings specific to the MRAppContainer.
    */
   mrAppContainerConfig?: MRContainerConfig;
@@ -88,7 +93,7 @@ export class MRContainer extends Construct {
       this.mrAppContainerConfig = new MRContainerConfig();
     }
 
-    if (props.account.buildAppContainer == true) {
+    if (props.buildFromSource == true) {
       // Create a container image from a Docker image asset for development environment.
       this.containerImage = ContainerImage.fromDockerImageAsset(
         new DockerImageAsset(this, id, {

@@ -37,6 +37,11 @@ export interface MEContainerProps {
   osmlVpc: OSMLVpc;
 
   /**
+   * Optional flag to instruct building model container from source.
+   */
+  buildFromSource?: boolean;
+
+  /**
    * (Optional) Custom configuration for the MEContainer Construct
    */
   config?: MEContainerConfig;
@@ -47,11 +52,6 @@ export interface MEContainerProps {
  * for the model to be used with the model runner.
  */
 export class MEContainer extends Construct {
-  /**
-   * Configuration for the Construct.
-   */
-  public config: MEContainerConfig;
-
   /**
    * The container image used for Construct.
    */
@@ -66,6 +66,11 @@ export class MEContainer extends Construct {
    * The removal policy for the Construct resources.
    */
   public removalPolicy: RemovalPolicy;
+
+  /**
+   * Configuration for the Construct.
+   */
+  public config?: MEContainerConfig;
 
   /**
    * Creates an instance of OMSLEndpointContainer.
@@ -92,7 +97,7 @@ export class MEContainer extends Construct {
     }
 
     // Create the container image and URI based on the account type
-    if (props.account.buildModelContainer == true) {
+    if (props.buildFromSource == true) {
       // Dev account: Create a Docker image asset
       const dockerImageAsset: DockerImageAsset = new DockerImageAsset(
         this,

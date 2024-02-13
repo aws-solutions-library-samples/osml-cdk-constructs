@@ -41,28 +41,20 @@ export interface OSMLAccount {
   prodLike: boolean;
 
   /**
-   * Optional: Indicates whether monitoring is enabled for the OSML account.
+   * Indicates whether to deploy the model runner application
    *
-   * @type {boolean|undefined}
+   * @type {boolean}
    * @memberof OSMLAccount
    */
-  enableMonitoring?: boolean;
+  deployModelRunner: boolean;
 
   /**
-   * Optional: Indicates whether autoscaling is enabled for the OSML account.
+   * Indicates whether to deploy the tile server application
    *
-   * @type {boolean|undefined}
+   * @type {boolean}
    * @memberof OSMLAccount
    */
-  enableAutoscaling?: boolean;
-
-  /**
-   * Optional: Indicates whether testing features are enabled for the OSML account.
-   *
-   * @type {boolean|undefined}
-   * @memberof OSMLAccount
-   */
-  enableTesting?: boolean;
+  deployTileServer: boolean;
 
   /**
    * Optional: Indicates whether the account is configured as an ADC (Application Development Cloud).
@@ -73,42 +65,10 @@ export interface OSMLAccount {
   isAdc?: boolean;
 
   /**
-   * Optional: Indicates whether to build the model runner container from source.
-   *
-   * @type {boolean|undefined}
-   * @memberof OSMLAccount
-   */
-  buildAppContainer?: boolean;
-
-  /**
-   * Optional: Indicates whether to build the model container from source.
-   *
-   * @type {boolean|undefined}
-   * @memberof OSMLAccount
-   */
-  buildModelContainer?: boolean;
-
-  /**
-   * Optional: Indicates whether to build the tile server container from source.
-   *
-   * @type {boolean|undefined}
-   * @memberof OSMLAccount
-   */
-  buildTileServerContainer?: boolean;
-
-  /**
    * Optional: The unique identifier of the Virtual Private Cloud (VPC) associated with the account.
    *
    * @type {string|undefined}
    * @memberof OSMLAccount
    */
   vpcId?: string;
-
-  /**
-   * Optional: The URI of the terrain configuration for Magnum Load Manager (MR).
-   *
-   * @type {string|undefined}
-   * @memberof OSMLAccount
-   */
-  mrTerrainUri?: string;
 }
