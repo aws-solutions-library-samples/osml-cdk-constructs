@@ -51,6 +51,11 @@ export interface TSContainerProps {
   taskRole?: IRole;
 
   /**
+   * Optional flag to instruct building tile server container from source.
+   */
+  buildFromSource?: boolean;
+
+  /**
    * Optional configuration settings specific to the TSContainer.
    */
   config?: TSContainerConfig;
@@ -88,7 +93,7 @@ export class TSContainer extends Construct {
       this.config = new TSContainerConfig();
     }
 
-    if (props.account.buildTileServerContainer == true) {
+    if (props.buildFromSource == true) {
       // Create a container image from a Docker image asset for development environment.
       this.containerImage = ContainerImage.fromDockerImageAsset(
         new DockerImageAsset(this, id, {
