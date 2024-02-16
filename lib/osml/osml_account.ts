@@ -57,6 +57,14 @@ export interface OSMLAccount {
   deployTileServer: boolean;
 
   /**
+   * Indicates whether to deploy local container(s) changes or use live container(s)
+   *
+   * @type {boolean}
+   * @memberof OSMLAccount
+   */
+  buildFromSource: boolean;
+
+  /**
    * Optional: Indicates whether the account is configured as an ADC (Application Development Cloud).
    *
    * @type {boolean|undefined}
