@@ -20,3 +20,4 @@ export * from "./osml/osml_vpc";
 export * from "./osml/tile_server/ts_container";
 export * from "./osml/tile_server/ts_dataplane";
 export * from "./osml/tile_server/roles/ts_task_role";
+export * from "./osml/tile_server/testing/ts_test_container";
