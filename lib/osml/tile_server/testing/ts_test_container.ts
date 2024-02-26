@@ -32,7 +32,7 @@ export class TSTestContainerConfig {
 }
 
 /**
- * Interface representing the properties for the TSContainer construct.
+ * Interface representing the properties for the TSTestContainer construct.
  */
 export interface TSTestContainerProps {
   /**
@@ -46,7 +46,7 @@ export interface TSTestContainerProps {
   osmlVpc: OSMLVpc;
 
   /**
-   * Optional task role to be used by the TSContainer.
+   * Optional task role to be used by the TSTestContainer.
    */
   taskRole?: IRole;
 
