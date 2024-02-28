@@ -2,10 +2,9 @@
  * Copyright 2024 Amazon.com, Inc. or its affiliates.
  */
 
-import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
-import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
-import { ContainerImage } from "aws-cdk-lib/aws-ecs";
+import { Duration, RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
 import { IRole } from "aws-cdk-lib/aws-iam";
+import { DockerImageCode, DockerImageFunction } from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
@@ -15,7 +14,7 @@ import { OSMLVpc } from "../../osml_vpc";
 /**
  * Represents the configuration for the TSTestContainer Construct.
  */
-export class TSTestContainerConfig {
+export class TSTestRunnerConfig {
   /**
    * Creates an instance of TSContainerConfig.
    * @param {string} [TS_TEST_CONTAINER="awsosml/osml-tile-server-test:main"] - The container image to use for the TileServer test.
@@ -32,9 +31,9 @@ export class TSTestContainerConfig {
 }
 
 /**
- * Interface representing the properties for the TSTestContainer construct.
+ * Interface representing the properties for the TSTestRunner construct.
  */
-export interface TSTestContainerProps {
+export interface TSTestRunnerProps {
   /**
    * The OSML deployment account.
    */
@@ -44,6 +43,10 @@ export interface TSTestContainerProps {
    * The OSML vpc to deploy into
    */
   osmlVpc: OSMLVpc;
+
+  tsEndpoint: string;
+  tsTestImageBucket: string;
+  tsTestImageKey: string;
 
   /**
    * Optional task role to be used by the TSTestContainer.
@@ -58,26 +61,25 @@ export interface TSTestContainerProps {
   /**
    * Optional configuration for the TSTestContainer Construct
    */
-  config?: TSTestContainerConfig;
+  config?: TSTestRunnerConfig;
 }
 
 /**
  * Represents a construct responsible for deploying an ECR container image
  * for the tile server test.
  */
-export class TSTestContainer extends Construct {
+export class TSTestRunner extends Construct {
   public removalPolicy: RemovalPolicy;
-  public config: TSTestContainerConfig;
-  public containerImage: ContainerImage;
-  public containerUri: string;
+  public config: TSTestRunnerConfig;
+  public lambdaIntegRunner: DockerImageFunction;
   /**
-   * Creates an instance of TSTestContainer.
+   * Creates an instance of TSTestRunner.
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
-   * @param {TSTestContainerProps} props - The properties of this construct.
-   * @returns TSTestContainer - The TSTestContainer instance.
+   * @param {TSTestRunnerProps} props - The properties of this construct.
+   * @returns TSTestRunner - The TSTestContainer instance.
    */
-  constructor(scope: Construct, id: string, props: TSTestContainerProps) {
+  constructor(scope: Construct, id: string, props: TSTestRunnerProps) {
     super(scope, id);
 
     // Set the removal policy based on the provided properties
@@ -91,20 +93,35 @@ export class TSTestContainer extends Construct {
       this.config = props.config;
     } else {
       // Create a new default configuration
-      this.config = new TSTestContainerConfig();
+      this.config = new TSTestRunnerConfig();
     }
+
+    let dockerImageCodeInteg: DockerImageCode | undefined = undefined;
+    const integTestEntrypoint: string[] = [
+      "python",
+      "src/aws/osml/run_test.py",
+      "--endpoint",
+      props.tsEndpoint,
+      "--test_type",
+      "integ",
+      "--source_image_bucket",
+      props.tsTestImageBucket,
+      "--source_image_key",
+      props.tsTestImageKey,
+      "-v"
+    ];
 
     if (props.buildFromSource == true) {
       // Create a container image from a Docker image asset for development environment.
-      const dockerImageAsset = new DockerImageAsset(this, id, {
-        directory: this.config.TS_TEST_BUILD_PATH,
-        file: "Dockerfile",
-        followSymlinks: SymlinkFollowMode.ALWAYS,
-        target: this.config.TS_TEST_BUILD_TARGET
-      });
-      this.containerImage =
-        ContainerImage.fromDockerImageAsset(dockerImageAsset);
-      this.containerUri = dockerImageAsset.imageUri;
+      dockerImageCodeInteg = DockerImageCode.fromImageAsset(
+        this.config.TS_TEST_BUILD_PATH,
+        {
+          file: "Dockerfile",
+          followSymlinks: SymlinkFollowMode.ALWAYS,
+          target: this.config.TS_TEST_BUILD_TARGET,
+          entrypoint: integTestEntrypoint
+        }
+      );
     } else {
       // Create an ECR deployment for production environment.
       const ecrDeployment: OSMLECRDeployment = new OSMLECRDeployment(
@@ -118,8 +135,18 @@ export class TSTestContainer extends Construct {
           vpcSubnets: props.osmlVpc.selectedSubnets
         }
       );
-      this.containerImage = ecrDeployment.containerImage;
-      this.containerUri = ecrDeployment.ecrContainerUri;
+      dockerImageCodeInteg = DockerImageCode.fromEcr(
+        ecrDeployment.ecrRepository,
+        {
+          entrypoint: integTestEntrypoint
+        }
+      );
     }
+    this.lambdaIntegRunner = new DockerImageFunction(this, "TSTestRunner", {
+      code: dockerImageCodeInteg,
+      vpc: props.osmlVpc.vpc,
+      role: props.taskRole,
+      timeout: Duration.minutes(10)
+    });
   }
 }

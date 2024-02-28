@@ -16,30 +16,30 @@ import { OSMLAccount } from "../../osml_account";
 import { OSMLBucket } from "../../osml_bucket";
 
 /**
- * Configuration class for MRImagery Construct.
+ * Configuration class for TSImagery Construct.
  */
-export class MRImageryConfig {
+export class TSImageryConfig {
   /**
-   * Creates an instance of MRImageryConfig.
+   * Creates an instance of TSImageryConfig.
    * @param {string} S3_IMAGE_BUCKET - The name of the S3 bucket where images will be stored.
    * @param {string} S3_TEST_IMAGES_PATH - The local path to the test imager to deploy.
    */
   constructor(
-    public S3_IMAGE_BUCKET: string = "test-images",
-    public S3_TEST_IMAGES_PATH: string = "assets/images/model-runner"
+    public S3_IMAGE_BUCKET: string = "tile-server-test-images",
+    public S3_TEST_IMAGES_PATH: string = "assets/images/tile-server"
   ) {}
 }
 
 /**
- * Represents the properties for configuring the MRImagery Construct.
+ * Represents the properties for configuring the TSImagery Construct.
  *
- * @interface MRImageryProps
+ * @interface TSImageryProps
  * @property {OSMLAccount} account - The OSML account to use.
  * @property {IVpc} vpc - The Model Runner VPC configuration.
- * @property {MRImageryConfig|undefined} [mrImageryConfig] - Optional configuration for MR Imagery.
+ * @property {TSImageryConfig|undefined} [tsImageryConfig] - Optional configuration for TS Imagery.
  * @property {string|undefined} [securityGroupId] - Optional security group ID to apply to the VPC config for SM endpoints.
  */
-export interface MRImageryProps {
+export interface TSImageryProps {
   /**
    * The OSML account to use.
    *
@@ -55,11 +55,11 @@ export interface MRImageryProps {
   vpc: IVpc;
 
   /**
-   * Optional custom configuration for MRImagery.
+   * Optional custom configuration for TSImagery.
    *
-   * @type {MRImageryConfig|undefined}
+   * @type {TSImageryConfig|undefined}
    */
-  mrImageryConfig?: MRImageryConfig;
+  tsImageryConfig?: TSImageryConfig;
 
   /**
    * Optional security group ID to apply to the VPC config for SM endpoints.
@@ -70,41 +70,41 @@ export interface MRImageryProps {
 }
 
 /**
- * Represents an MRImagery construct for managing MR (Machine Recognition) imagery resources.
+ * Represents an TSImagery construct for managing imagery resources.
  */
-export class MRImagery extends Construct {
+export class TSImagery extends Construct {
   /**
-   * The image bucket where MR imagery data is stored.
+   * The image bucket where TS imagery data is stored.
    */
   public imageBucket: OSMLBucket;
 
   /**
-   * The removal policy for this MRImagery resource.
+   * The removal policy for this TSImagery resource.
    * @default RemovalPolicy.DESTROY
    */
   public removalPolicy: RemovalPolicy;
 
   /**
-   * Configuration options for MRImagery.
+   * Configuration options for TSImagery.
    */
-  public mrImageryConfig: MRImageryConfig;
+  public tsImageryConfig: TSImageryConfig;
 
   /**
-   * Creates an MRImagery cdk construct.
+   * Creates an TSImagery cdk construct.
    * @param scope The scope/stack in which to define this construct.
    * @param id The id of this construct within the current scope.
    * @param props The properties of this construct.
    */
-  constructor(scope: Construct, id: string, props: MRImageryProps) {
+  constructor(scope: Construct, id: string, props: TSImageryProps) {
     super(scope, id);
 
     // Check if a custom configuration was provided
-    if (props.mrImageryConfig != undefined) {
-      // Import existing MR configuration
-      this.mrImageryConfig = props.mrImageryConfig;
+    if (props.tsImageryConfig != undefined) {
+      // Import existing TS configuration
+      this.tsImageryConfig = props.tsImageryConfig;
     } else {
       // Create a new default configuration
-      this.mrImageryConfig = new MRImageryConfig();
+      this.tsImageryConfig = new TSImageryConfig();
     }
 
     // Setup a removal policy based on the 'prodLike' property
@@ -112,16 +112,16 @@ export class MRImagery extends Construct {
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
-    // Create an image bucket to store MR imagery data
-    this.imageBucket = new OSMLBucket(this, `OSMLTestImageBucket`, {
-      bucketName: `${this.mrImageryConfig.S3_IMAGE_BUCKET}-${props.account.id}`,
+    // Create an image bucket to store TS imagery data
+    this.imageBucket = new OSMLBucket(this, `TSTestImageBucket`, {
+      bucketName: `${this.tsImageryConfig.S3_IMAGE_BUCKET}-${props.account.id}`,
       prodLike: props.account.prodLike,
       removalPolicy: this.removalPolicy
     });
 
     // Deploy test images into the bucket
-    new BucketDeployment(this, "OSMLTestImageDeployment", {
-      sources: [Source.asset(this.mrImageryConfig.S3_TEST_IMAGES_PATH)],
+    new BucketDeployment(this, "TSTestImageDeployment", {
+      sources: [Source.asset(this.tsImageryConfig.S3_TEST_IMAGES_PATH)],
       destinationBucket: this.imageBucket.bucket,
       accessControl: BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
       memoryLimit: 10240,
