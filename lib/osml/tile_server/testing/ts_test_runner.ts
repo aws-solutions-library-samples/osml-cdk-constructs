@@ -44,9 +44,15 @@ export interface TSTestRunnerProps {
    */
   osmlVpc: OSMLVpc;
 
+  /**
+   * The DNS name of the Tile Server load balancer endpoint
+   */
   tsEndpoint: string;
+
+  /**
+   * The S3 bucket name that contains test images for Tile Server
+   */
   tsTestImageBucket: string;
-  tsTestImageKey: string;
 
   /**
    * Optional task role to be used by the TSTestContainer.
@@ -96,30 +102,26 @@ export class TSTestRunner extends Construct {
       this.config = new TSTestRunnerConfig();
     }
 
-    let dockerImageCodeInteg: DockerImageCode | undefined = undefined;
-    const integTestEntrypoint: string[] = [
+    let dockerImageCode: DockerImageCode | undefined = undefined;
+    const testEntrypoint: string[] = [
       "python",
       "src/aws/osml/run_test.py",
       "--endpoint",
       props.tsEndpoint,
-      "--test_type",
-      "integ",
       "--source_image_bucket",
       props.tsTestImageBucket,
-      "--source_image_key",
-      props.tsTestImageKey,
       "-v"
     ];
 
     if (props.buildFromSource == true) {
       // Create a container image from a Docker image asset for development environment.
-      dockerImageCodeInteg = DockerImageCode.fromImageAsset(
+      dockerImageCode = DockerImageCode.fromImageAsset(
         this.config.TS_TEST_BUILD_PATH,
         {
           file: "Dockerfile",
           followSymlinks: SymlinkFollowMode.ALWAYS,
           target: this.config.TS_TEST_BUILD_TARGET,
-          entrypoint: integTestEntrypoint
+          entrypoint: testEntrypoint
         }
       );
     } else {
@@ -135,18 +137,17 @@ export class TSTestRunner extends Construct {
           vpcSubnets: props.osmlVpc.selectedSubnets
         }
       );
-      dockerImageCodeInteg = DockerImageCode.fromEcr(
-        ecrDeployment.ecrRepository,
-        {
-          entrypoint: integTestEntrypoint
-        }
-      );
+      dockerImageCode = DockerImageCode.fromEcr(ecrDeployment.ecrRepository, {
+        entrypoint: testEntrypoint
+      });
     }
     this.lambdaIntegRunner = new DockerImageFunction(this, "TSTestRunner", {
-      code: dockerImageCodeInteg,
+      code: dockerImageCode,
       vpc: props.osmlVpc.vpc,
       role: props.taskRole,
-      timeout: Duration.minutes(10)
+      timeout: Duration.minutes(10),
+      memorySize: 1024,
+      functionName: "TSTestRunner"
     });
   }
 }
