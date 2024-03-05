@@ -18,9 +18,9 @@ import { OSMLVpc } from "../osml_vpc";
 export class TSContainerConfig {
   /**
    * Creates an instance of TSContainerConfig.
-   * @param {string} [TS_CONTAINER="awsosml/osml-model-runner:main"] - The container image to use for the TileServer.
+   * @param {string} [TS_CONTAINER="awsosml/osml-tile-server:main"] - The container image to use for the TileServer.
    * @param {string} [TS_BUILD_PATH="lib/osml-tile-server"] - The build path for the TileServer.
-   * @param {string} [TS_BUILD_TARGET="tile_sever"] - The build target for the TileServer.
+   * @param {string} [TS_BUILD_TARGET="osml_tile_sever"] - The build target for the TileServer.
    * @param {string} [TS_REPOSITORY="tile-server-container"] - The repository name for the TileServer.
    */
   constructor(
@@ -63,7 +63,7 @@ export interface TSContainerProps {
 
 /**
  * Represents a construct responsible for deploying the ECR container image
- * for the model runner service.
+ * for the tile server service.
  */
 export class TSContainer extends Construct {
   public removalPolicy: RemovalPolicy;
@@ -74,7 +74,7 @@ export class TSContainer extends Construct {
    * @param {Construct} scope The scope/stack in which to define this construct.
    * @param {string} id The id of this construct within the current scope.
    * @param {TSContainerProps} props The properties of this construct.
-   * @returns TSContainer The TSContainer construct.
+   * @returns TSContainer - The TSContainer construct.
    */
   constructor(scope: Construct, id: string, props: TSContainerProps) {
     super(scope, id);
@@ -105,7 +105,7 @@ export class TSContainer extends Construct {
       );
     } else {
       // Create an ECR deployment for production environment.
-      const ecrDeployment = new OSMLECRDeployment(
+      const ecrDeployment: OSMLECRDeployment = new OSMLECRDeployment(
         this,
         "TSContainerECRDeployment",
         {
