@@ -28,3 +28,31 @@ repos:
         stages: [ manual ]
         # uncomment the line below if using "finch" on MacOS
         # args: [ "-f" ]
+
+  - repo: https://github.com/sbrunner/pre-commit-copyright
+    rev: 0.7.0
+    hooks:
+      - id: copyright
+        name: update copyright
+        exclude: |
+          (?x)^(
+            ^\..+|
+            .+\.md|
+            jest.config.js|
+            LICENSE|
+            package.json|
+            package-lock.json
+            tsconfig.json|
+          )$
+      - id: copyright-required
+        name: require copyright
+        exclude: |
+          (?x)^(
+            ^\..+|
+            .+\.md|
+            jest.config.js|
+            LICENSE|
+            package.json|
+            package-lock.json|
+            tsconfig.json|
+          )$

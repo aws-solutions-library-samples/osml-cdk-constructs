@@ -1,6 +1,7 @@
 /*
- * Copyright 2023 Amazon.com, Inc. or its affiliates.
+ * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
+
 import { RemovalPolicy } from "aws-cdk-lib";
 import { ContainerImage } from "aws-cdk-lib/aws-ecs";
 import { IRole } from "aws-cdk-lib/aws-iam";
