@@ -1,3 +1,7 @@
+/*
+ * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
+ */
+
 export * from "./osml/model_runner/autoscaling/mr_autoscaling";
 export * from "./osml/model_runner/mr_dataplane";
 export * from "./osml/model_runner/mr_container";

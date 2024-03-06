@@ -1,6 +1,7 @@
 /*
- * Copyright 2023 Amazon.com, Inc. or its affiliates.
+ * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
+
 import { ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
