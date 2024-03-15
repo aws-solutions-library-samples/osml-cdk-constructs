@@ -192,13 +192,13 @@ export class OSMLVpc extends Construct {
     }
 
     // enable vpc flow logs
-    if(props.account.prodLike) {
+    if (props.account.prodLike) {
       const flowLogGroup = new LogGroup(this, "OSMLVpcFlowLogsLogGroup", {
         logGroupName: `FlowLogs-${id}`,
         retention: RetentionDays.TEN_YEARS,
         removalPolicy: this.removalPolicy
       });
-  
+
       this.flowLog = new FlowLog(this, "OSMLVpcFlowLogs", {
         resourceType: FlowLogResourceType.fromVpc(this.vpc),
         destination: FlowLogDestination.toCloudWatchLogs(flowLogGroup)

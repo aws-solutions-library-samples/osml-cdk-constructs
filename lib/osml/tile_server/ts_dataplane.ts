@@ -3,6 +3,12 @@
  */
 
 import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
+import {
+  BackupPlan,
+  BackupPlanRule,
+  BackupResource,
+  BackupVault
+} from "aws-cdk-lib/aws-backup";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
 import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import {
@@ -35,12 +41,6 @@ import { OSMLTable } from "../osml_table";
 import { OSMLVpc } from "../osml_vpc";
 import { TSLambdaRole } from "./roles/ts_lambda_role";
 import { TSTaskRole } from "./roles/ts_task_role";
-import {
-  BackupVault,
-  BackupPlan,
-  BackupPlanRule,
-  BackupResource
-} from "aws-cdk-lib/aws-backup";
 
 /**
  * Configuration class for TSDataplane Construct.

@@ -13,9 +13,9 @@ import {
 import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { Construct } from "constructs";
 
+import { MRDataplaneConfig } from "../../model_runner/mr_dataplane";
 import { OSMLAccount } from "../../osml_account";
 import { MEContainerConfig } from "../me_container";
-import { MRDataplaneConfig } from "../../model_runner/mr_dataplane";
 
 /**
  * Represents the properties required to define a model runner ECS task role.
@@ -93,9 +93,9 @@ export class MEExecutionRole extends Construct {
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: [
-            "ecr:BatchCheckLayerAvailability",
-            "ecr:GetDownloadUrlForLayer",
-            "ecr:BatchGetImage"
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
         ],
         resources: [
           `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${this.meContainerConfig.ME_CONTAINER_REPOSITORY}`
@@ -116,7 +116,7 @@ export class MEExecutionRole extends Construct {
           "logs:CreateLogGroup"
         ],
         resources: [
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens:*`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens:*`
         ]
       })
     );

@@ -3,6 +3,12 @@
  */
 
 import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
+import {
+  BackupPlan,
+  BackupPlanRule,
+  BackupResource,
+  BackupVault
+} from "aws-cdk-lib/aws-backup";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
 import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import {
@@ -31,12 +37,6 @@ import { OSMLTopic } from "../osml_topic";
 import { OSMLVpc } from "../osml_vpc";
 import { MRExecutionRole } from "./roles/mr_execution_role";
 import { MRTaskRole } from "./roles/mr_task_role";
-import {
-  BackupPlan,
-  BackupPlanRule,
-  BackupResource,
-  BackupVault
-} from "aws-cdk-lib/aws-backup";
 
 /**
  * Configuration class for MRDataplane Construct.

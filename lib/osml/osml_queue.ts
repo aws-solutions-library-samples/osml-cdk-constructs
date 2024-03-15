@@ -5,6 +5,7 @@
 import { Duration } from "aws-cdk-lib";
 import { Effect, PolicyDocument, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { CfnQueuePolicy, Queue, QueueEncryption } from "aws-cdk-lib/aws-sqs";
+import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { iam, sqs } from "cdk-nag/lib/rules";
 import { Construct } from "constructs";
 
@@ -90,15 +91,29 @@ export class OSMLQueue extends Construct {
     });
 
     // Require Queue(s) to use SSL
-    // new CfnQueuePolicy(this, `${id}SQSPolicy`, {
-    //   queues: [this.queue.queueUrl, this.dlQueue.queueUrl],
-    //   policyDocument: new PolicyDocument({
-    //     statements: [new PolicyStatement({
-    //       effect: Effect.DENY,
-    //       actions: ["sqs:*"],
-    //       resources: [this.queue.queueArn, this.dlQueue.queueArn],
-    //       conditions: { Bool: { "aws:SecureTransport": false } } })]
-    //   })
-    // });
+    new CfnQueuePolicy(this, `${id}SQSPolicy`, {
+      queues: [this.queue.queueUrl, this.dlQueue.queueUrl],
+      policyDocument: new PolicyDocument({
+        statements: [
+          new PolicyStatement({
+            effect: Effect.DENY,
+            actions: ["sqs:*"],
+            resources: [this.queue.queueArn, this.dlQueue.queueArn],
+            conditions: { Bool: { 'aws:SecureTransport': false } }
+          })
+        ]
+      })
+    });
+
+    NagSuppressions.addResourceSuppressions(
+      this,
+      [
+          {
+              id: 'CdkNagValidationFailure',
+              reason: 'Rule checked by unit tests for queue creation enforcing TLS communication'
+          }
+      ],
+      true
+  );
   }
 }
