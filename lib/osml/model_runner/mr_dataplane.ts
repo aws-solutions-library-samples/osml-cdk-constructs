@@ -21,6 +21,7 @@ import {
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
+import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
@@ -28,7 +29,14 @@ import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
 import { OSMLTopic } from "../osml_topic";
 import { OSMLVpc } from "../osml_vpc";
+import { MRExecutionRole } from "./roles/mr_execution_role";
 import { MRTaskRole } from "./roles/mr_task_role";
+import {
+  BackupPlan,
+  BackupPlanRule,
+  BackupResource,
+  BackupVault
+} from "aws-cdk-lib/aws-backup";
 
 /**
  * Configuration class for MRDataplane Construct.
@@ -76,7 +84,8 @@ export class MRDataplaneConfig {
     public DDB_TTL_ATTRIBUTE: string = "expire_time",
     public METRICS_NAMESPACE: string = "OSML",
     public MR_CLUSTER_NAME: string = "OSMLCluster",
-    public MR_TASK_ROLE_NAME: string = "OSMLTaskExecutionRole",
+    public MR_TASK_ROLE_NAME: string = "OSMLTaskRole",
+    public MR_TASK_EXECUTION_ROLE_NAME: string = "OSMLTaskExecutionRole",
     public MR_CONTAINER_NAME: string = "OSMLModelRunnerContainer",
     public MR_TASK_MEMORY: number = 16384,
     public MR_TASK_CPU: number = 8192,
@@ -126,6 +135,12 @@ export interface MRDataplaneProps {
   taskRole?: IRole;
 
   /**
+   * The IAM (Identity and Access Management) role to be used for MR execution (optional).
+   * @type {IRole | undefined}
+   */
+  executionRole?: IRole;
+
+  /**
    * Custom configuration for the MRDataplane Construct (optional).
    * @type {MRDataplaneConfig | undefined}
    */
@@ -150,7 +165,8 @@ export interface MRDataplaneProps {
  */
 export class MRDataplane extends Construct {
   // Public properties
-  public mrRole: IRole;
+  public taskRole: IRole;
+  public executionRole: IRole;
   public mrDataplaneConfig: MRDataplaneConfig;
   public removalPolicy: RemovalPolicy;
   public regionalS3Endpoint: string;
@@ -201,12 +217,24 @@ export class MRDataplane extends Construct {
     // Check if a role was provided
     if (props.taskRole != undefined) {
       // Import passed-in MR task role
-      this.mrRole = props.taskRole;
+      this.taskRole = props.taskRole;
     } else {
       // Create a new role
-      this.mrRole = new MRTaskRole(this, "MRRole", {
+      this.taskRole = new MRTaskRole(this, "MRRole", {
         account: props.account,
         roleName: this.mrDataplaneConfig.MR_TASK_ROLE_NAME
+      }).role;
+    }
+
+    // check if a execution role was provided
+    if (props.executionRole != undefined) {
+      // Import passed-in MR execution role
+      this.executionRole = props.executionRole;
+    } else {
+      // Create a new role for the ECS task
+      this.executionRole = new MRExecutionRole(this, "MRExecutionRole", {
+        account: props.account,
+        roleName: this.mrDataplaneConfig.MR_TASK_EXECUTION_ROLE_NAME
       }).role;
     }
 
@@ -272,6 +300,24 @@ export class MRDataplane extends Construct {
       ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
     });
 
+    // AWS Backup solution is not currently available in ADC regions
+    if (props.account.prodLike && !props.account.isAdc) {
+      const backupVault = new BackupVault(this, `MRBackupVault`, {
+        backupVaultName: `MRBackupVault`
+      });
+      const plan = new BackupPlan(this, `MRBackupPlan`);
+      plan.addRule(BackupPlanRule.weekly(backupVault));
+      plan.addRule(BackupPlanRule.monthly5Year(backupVault));
+      plan.addSelection(`MRBackupSelection`, {
+        resources: [
+          BackupResource.fromDynamoDbTable(this.featureTable.table),
+          BackupResource.fromDynamoDbTable(this.regionRequestTable.table),
+          BackupResource.fromDynamoDbTable(this.endpointStatisticsTable.table),
+          BackupResource.fromDynamoDbTable(this.jobStatusTable.table)
+        ]
+      });
+    }
+
     if (this.mrDataplaneConfig.MR_ENABLE_REGION_STATUS) {
       // Create a topic for region request status notifications
       this.regionStatusTopic = new OSMLTopic(this, "MRRegionStatusTopic", {
@@ -326,7 +372,8 @@ export class MRDataplane extends Construct {
     // Build cluster to house our containers when they spin up
     this.cluster = new Cluster(this, "MRCluster", {
       clusterName: this.mrDataplaneConfig.MR_CLUSTER_NAME,
-      vpc: props.osmlVpc.vpc
+      vpc: props.osmlVpc.vpc,
+      containerInsights: true
     });
 
     // Define our ECS task
@@ -334,7 +381,8 @@ export class MRDataplane extends Construct {
       memoryMiB: this.mrDataplaneConfig.MR_TASK_MEMORY.toString(),
       cpu: this.mrDataplaneConfig.MR_TASK_CPU.toString(),
       compatibility: Compatibility.FARGATE,
-      taskRole: this.mrRole
+      taskRole: this.taskRole,
+      executionRole: this.executionRole
     });
 
     // Calculate the workers to assign per task instance
@@ -429,6 +477,18 @@ export class MRDataplane extends Construct {
         retries: 3
       }
     });
+
+    NagSuppressions.addResourceSuppressions(
+      this,
+      [
+        {
+          id: "NIST.800.53.R5-CloudWatchLogGroupEncrypted",
+          reason:
+            "By default log group is using Server-side encrpytion managed by the CloudWatch Logs service. Can change to use KMS CMK when needed."
+        }
+      ],
+      true
+    );
   }
 
   buildContainerEnv(props: MRDataplaneProps) {

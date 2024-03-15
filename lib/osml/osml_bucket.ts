@@ -11,6 +11,8 @@ import {
   IBucket,
   ObjectOwnership
 } from "aws-cdk-lib/aws-s3";
+import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
+import { S3BucketReplicationEnabled } from "cdk-nag/lib/rules/s3";
 import { Construct } from "constructs";
 
 /**
@@ -78,7 +80,7 @@ export class OSMLBucket extends Construct {
     const bucketProps = {
       autoDeleteObjects: !props.prodLike,
       enforceSSL: true,
-      encryption: BucketEncryption.S3_MANAGED,
+      encryption: BucketEncryption.KMS_MANAGED,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       removalPolicy: props.removalPolicy,
       objectOwnership: ObjectOwnership.OBJECT_WRITER
@@ -92,7 +94,8 @@ export class OSMLBucket extends Construct {
         `${id}AccessLogs`,
         Object.assign(bucketProps, {
           bucketName: `${props.bucketName}-access-logs`,
-          accessControl: BucketAccessControl.LOG_DELIVERY_WRITE
+          accessControl: BucketAccessControl.LOG_DELIVERY_WRITE,
+          versioned: props.prodLike
         })
       );
     } else if (props.prodLike) {
@@ -110,6 +113,18 @@ export class OSMLBucket extends Construct {
         accessControl: BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
         serverAccessLogsBucket: this.accessLogsBucket
       })
+    );
+
+    NagSuppressions.addResourceSuppressions(
+      this,
+      [
+        {
+          id: "NIST.800.53.R5-S3BucketReplicationEnabled",
+          reason:
+            "This rule is to Manage capacity, bandwidth, or other redundancy to limit the effects of information flooding denial-of-service attacks. This is not a requirement in ADC Regions."
+        }
+      ],
+      true
     );
   }
 }

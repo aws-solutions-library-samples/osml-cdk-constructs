@@ -4,12 +4,21 @@
 
 import { RemovalPolicy } from "aws-cdk-lib";
 import {
+  BackupPlan,
+  BackupPlanRule,
+  BackupResource,
+  BackupVault
+} from "aws-cdk-lib/aws-backup";
+import {
   Attribute,
   BillingMode,
   Table,
   TableEncryption
 } from "aws-cdk-lib/aws-dynamodb";
+import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { Construct } from "constructs";
+
+import { OSMLAccount } from "./osml_account";
 
 /**
  * Represents the properties required to define the OSMLTable Construct.

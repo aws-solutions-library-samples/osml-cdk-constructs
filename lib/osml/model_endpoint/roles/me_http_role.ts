@@ -5,13 +5,19 @@
 import { region_info } from "aws-cdk-lib";
 import {
   CompositePrincipal,
+  Effect,
   ManagedPolicy,
+  PolicyStatement,
   Role,
   ServicePrincipal
 } from "aws-cdk-lib/aws-iam";
+import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { Construct } from "constructs";
 
+import { MRDataplaneConfig } from "../../model_runner/mr_dataplane";
+import { MRModelEndpointsConfig } from "../../model_runner/testing/mr_endpoints";
 import { OSMLAccount } from "../../osml_account";
+import { MEContainerConfig } from "../me_container";
 
 /**
  * Represents the properties required for a HTTP model task role.
@@ -46,6 +52,10 @@ export class MEHTTPRole extends Construct {
    */
   public partition: string;
 
+  public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
+  public mrModelEndpointsConfig: MRModelEndpointsConfig =
+    new MRModelEndpointsConfig();
+  public meContainerConfig: MEContainerConfig = new MEContainerConfig();
   /**
    * Creates an OSMLHTTPEndpointRole construct.
    *
@@ -74,15 +84,72 @@ export class MEHTTPRole extends Construct {
         new ServicePrincipal("ecs-tasks.amazonaws.com"),
         new ServicePrincipal("lambda.amazonaws.com")
       ),
-      managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName(
-          "AmazonElasticContainerRegistryPublicFullAccess"
-        ),
-        ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess")
-      ],
       description:
         "Allows the OversightML HTTP model endpoint to access necessary resources."
     });
+
+    // Add permissions for cloudwatch permissions
+    this.role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "logs:PutLogEvents",
+          "logs:GetLogEvents",
+          "logs:DescribeLogStreams",
+          "logs:DescribeLogGroups",
+          "logs:CreateLogStream",
+          "logs:CreateLogGroup"
+        ],
+        resources: [
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/${this.mrModelEndpointsConfig.SM_AIRCRAFT_MODEL}`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/${this.mrModelEndpointsConfig.SM_FLOOD_MODEL}`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/${this.mrModelEndpointsConfig.SM_CENTER_POINT_MODEL}`
+        ]
+      })
+    );
+
+    // Add permissions for ECR permissions
+    this.role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ["ecr:GetAuthorizationToken"],
+        resources: ["*"]
+      })
+    );
+    this.role.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:DescribeImages",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:PutImage",
+          "ecr:DescribeRepositories"
+        ],
+        resources: [
+          `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${this.meContainerConfig.ME_CONTAINER_REPOSITORY}`
+        ]
+      })
+    );
+
+    NagSuppressions.addResourceSuppressions(
+      this.role,
+      [
+        {
+          id: "AwsSolutions-IAM5",
+          reason:
+            "Only suppress AwsSolutions-IAM5 ECR GetAuthorizationToken finding on * Wildcard.",
+          appliesTo: [`Resource::*`]
+        }
+      ],
+      true
+    );
   }
 }

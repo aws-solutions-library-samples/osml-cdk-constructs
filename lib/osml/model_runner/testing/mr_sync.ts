@@ -3,7 +3,7 @@
  */
 
 import { RemovalPolicy } from "aws-cdk-lib";
-import { Stream, StreamMode } from "aws-cdk-lib/aws-kinesis";
+import { Stream, StreamEncryption, StreamMode } from "aws-cdk-lib/aws-kinesis";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
@@ -121,7 +121,8 @@ export class MRSync extends Construct {
       this.resultStream = new Stream(this, "OSMLTestResultsStream", {
         streamName: `${this.mrSyncConfig.KINESIS_RESULTS_STREAM}-${props.account.id}`,
         streamMode: StreamMode.PROVISIONED,
-        shardCount: 1
+        shardCount: 1,
+        encryption: StreamEncryption.MANAGED
       });
     }
   }

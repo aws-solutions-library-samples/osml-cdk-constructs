@@ -35,6 +35,12 @@ import { OSMLTable } from "../osml_table";
 import { OSMLVpc } from "../osml_vpc";
 import { TSLambdaRole } from "./roles/ts_lambda_role";
 import { TSTaskRole } from "./roles/ts_task_role";
+import {
+  BackupVault,
+  BackupPlan,
+  BackupPlanRule,
+  BackupResource
+} from "aws-cdk-lib/aws-backup";
 
 /**
  * Configuration class for TSDataplane Construct.
@@ -112,6 +118,12 @@ export interface TSDataplaneProps {
   lambdaRole?: IRole;
 
   /**
+   * The IAM (Identity and Access Management) role to be used for ECS execution (optional).
+   * @type {IRole | undefined}
+   */
+  executionRole?: IRole;
+
+  /**
    * Custom configuration for the TSDataplane Construct (optional).
    * @type {TSDataplaneConfig | undefined}
    */
@@ -143,6 +155,7 @@ export interface TSDataplaneProps {
 export class TSDataplane extends Construct {
   // Public properties
   public taskRole: IRole;
+  public executionRole: IRole;
   public lambdaRole: IRole;
   public config: TSDataplaneConfig;
   public removalPolicy: RemovalPolicy;
@@ -192,6 +205,19 @@ export class TSDataplane extends Construct {
       removalPolicy: this.removalPolicy,
       ttlAttribute: this.config.DDB_TTL_ATTRIBUTE
     });
+
+    // AWS Backup solution is not currently available in ADC regions
+    if (props.account.prodLike && !props.account.isAdc) {
+      const backupVault = new BackupVault(this, `TSBackupVault`, {
+        backupVaultName: `TSBackupVault`
+      });
+      const plan = new BackupPlan(this, `TSBackupPlan`);
+      plan.addRule(BackupPlanRule.weekly(backupVault));
+      plan.addRule(BackupPlanRule.monthly5Year(backupVault));
+      plan.addSelection(`TSBackupSelection`, {
+        resources: [BackupResource.fromDynamoDbTable(this.jobTable.table)]
+      });
+    }
 
     // Create an SQS queue for image processing status updates
     this.jobQueue = new OSMLQueue(this, "TSJobQueue", {
@@ -295,7 +321,8 @@ export class TSDataplane extends Construct {
     // Build cluster to house our containers when they spin up
     this.cluster = new Cluster(this, "TSCluster", {
       clusterName: this.config.ECS_CLUSTER_NAME,
-      vpc: props.osmlVpc.vpc
+      vpc: props.osmlVpc.vpc,
+      containerInsights: true
     });
 
     // Define our ECS task
@@ -304,6 +331,7 @@ export class TSDataplane extends Construct {
       cpu: this.config.ECS_TASK_CPU.toString(),
       compatibility: Compatibility.FARGATE,
       taskRole: this.taskRole,
+      executionRole: this.executionRole,
       ephemeralStorageGiB: 21,
       volumes: [
         {
@@ -428,6 +456,18 @@ export class TSDataplane extends Construct {
         roleName: this.config.ECS_TASK_ROLE_NAME
       }).role;
     }
+
+    // check if a execution role was provided
+    // if (props.executionRole != undefined) {
+    //   // Import passed-in MR execution role
+    //   this.executionRole = props.executionRole;
+    // } else {
+    //   // Create a new role for the HTTP endpoint
+    //   this.executionRole = new TSExecutionRole(this, "TSExecutionRole", {
+    //     account: props.account,
+    //     roleName: "TSExecutionRole"
+    //   });
+    // }
 
     // Set up a regional S3 endpoint for GDAL to use
     this.regionalS3Endpoint = region_info.Fact.find(

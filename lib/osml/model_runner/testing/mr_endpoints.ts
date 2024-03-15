@@ -9,6 +9,7 @@ import { Construct } from "constructs";
 
 import { MEHTTPEndpoint } from "../../model_endpoint/me_http_endpoint";
 import { MESMEndpoint } from "../../model_endpoint/me_sm_endpoint";
+import { MEExecutionRole } from "../../model_endpoint/roles/me_execution_role";
 import { MEHTTPRole } from "../../model_endpoint/roles/me_http_role";
 import { MESMRole } from "../../model_endpoint/roles/me_sm_role";
 import { OSMLAccount } from "../../osml_account";
@@ -117,6 +118,13 @@ export interface MRModelEndpointsProps {
   smRole?: IRole;
 
   /**
+   * (Optional) The IAM role to assume when deploying the model.
+   *
+   * @type {IRole}
+   */
+  executionRole?: IRole;
+
+  /**
    * (Optional) The security group ID associated with the model's security settings.
    *
    * @type {string}
@@ -170,6 +178,11 @@ export class MREndpoints extends Construct {
    * Optional SageMaker role for MR operations.
    */
   public smRole?: IRole;
+
+  /**
+   * Optional SageMaker role for MR operations.
+   */
+  public executionRole?: IRole;
 
   /**
    * Optional HTTP Endpoint role for MR operations.
@@ -231,7 +244,19 @@ export class MREndpoints extends Construct {
       this.smRole = props.smRole;
     } else {
       // Create a new role
-      this.smRole = new MESMRole(this, "MRSMRole", {
+      this.smRole = new MESMRole(this, "MESMRole", {
+        account: props.account,
+        roleName: this.mrModelEndpointsConfig.SM_ROLE_NAME
+      }).role;
+    }
+
+    // Check if a execution role was provided
+    if (props.executionRole != undefined) {
+      // Import custom execution role
+      this.executionRole = props.executionRole;
+    } else {
+      // Create a new execution role
+      this.executionRole = new MEExecutionRole(this, "MEExecutionRole", {
         account: props.account,
         roleName: this.mrModelEndpointsConfig.SM_ROLE_NAME
       }).role;
@@ -273,6 +298,7 @@ export class MREndpoints extends Construct {
           image: props.modelContainerImage,
           clusterName: this.mrModelEndpointsConfig.HTTP_ENDPOINT_NAME,
           role: this.httpEndpointRole,
+          executionRole: this.executionRole,
           memory: this.mrModelEndpointsConfig.HTTP_ENDPOINT_MEMORY,
           cpu: this.mrModelEndpointsConfig.HTTP_ENDPOINT_CPU,
           hostPort: this.mrModelEndpointsConfig.HTTP_ENDPOINT_HOST_PORT,

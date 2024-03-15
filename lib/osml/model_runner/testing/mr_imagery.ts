@@ -10,6 +10,7 @@ import {
   ServerSideEncryption,
   Source
 } from "aws-cdk-lib/aws-s3-deployment";
+import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
@@ -130,5 +131,23 @@ export class MRImagery extends Construct {
       retainOnDelete: props.account.prodLike,
       serverSideEncryption: ServerSideEncryption.AES_256
     });
+
+    NagSuppressions.addResourceSuppressions(
+      this,
+      [
+        {
+          id: "AwsSolutions-L1",
+          reason:
+            "Bucket deployment writes arbitrary data to S3 (ie key not known until deploy time)"
+        },
+
+        {
+          id: "AwsSolutions-IAM5",
+          reason:
+            "Bucket deployment writes arbitrary data to S3 (ie key not known until deploy time)"
+        }
+      ],
+      true
+    );
   }
 }

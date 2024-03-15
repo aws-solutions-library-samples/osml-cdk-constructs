@@ -15,6 +15,7 @@ import {
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
@@ -66,6 +67,14 @@ export interface MEHTTPEndpointProps {
    * @readonly
    */
   readonly role: IRole;
+
+  /**
+   * The IAM (Identity and Access Management) role used by the endpoint's execution role'.
+   *
+   * @type {IRole}
+   * @readonly
+   */
+  readonly executionRole: IRole;
 
   /**
    * The amount of memory to allocate to the container in megabytes (MB).
@@ -167,7 +176,8 @@ export class MEHTTPEndpoint extends Construct {
     // Create an ECS Cluster for the HTTP Model Endpoint
     const httpEndpointCluster = new Cluster(this, props.clusterName, {
       clusterName: props.clusterName,
-      vpc: props.osmlVpc.vpc
+      vpc: props.osmlVpc.vpc,
+      containerInsights: true
     });
 
     // Determine the removal policy based on the environment
@@ -191,7 +201,8 @@ export class MEHTTPEndpoint extends Construct {
         cpu: props.cpu.toString(),
         compatibility: Compatibility.FARGATE,
         taskRole: props.role,
-        ephemeralStorageGiB: 100
+        ephemeralStorageGiB: 100,
+        executionRole: props.executionRole
       }
     );
 
@@ -243,5 +254,17 @@ export class MEHTTPEndpoint extends Construct {
       path: props.healthcheckPath,
       port: props.hostPort.toString()
     });
+
+    NagSuppressions.addResourceSuppressions(
+      this,
+      [
+        {
+          id: "NIST.800.53.R5-CloudWatchLogGroupEncrypted",
+          reason:
+            "By default log group is using Server-side encryption managed by the CloudWatch Logs service. Can change to use KMS CMK when needed."
+        }
+      ],
+      true
+    );
   }
 }
