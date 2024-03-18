@@ -10,6 +10,7 @@ import {
   GatewayVpcEndpointAwsService,
   InterfaceVpcEndpointAwsService,
   InterfaceVpcEndpointService,
+  IpAddresses,
   IVpc,
   SelectedSubnets,
   SubnetFilter,
@@ -102,6 +103,7 @@ export class OSMLVpc extends Construct {
       : RemovalPolicy.DESTROY;
 
     // if an osmlVpc ID is not explicitly given, use the default osmlVpc
+    const cidr_block_base: string = "10.1.0.0";
     if (props.vpcId) {
       this.vpc = Vpc.fromLookup(this, "OSMLImportVPC", {
         vpcId: props.vpcId,
@@ -110,15 +112,19 @@ export class OSMLVpc extends Construct {
     } else {
       // Create a new VPC
       const vpc = new Vpc(this, "OSMLVPC", {
+        ipAddresses: IpAddresses.cidr(`${cidr_block_base}/22`),
         vpcName: props.vpcName,
+        // maxAzs: 2, // ADC regions only support 2 AZ deployment
+        // natGateways: 2, // One Nat per AZ
         subnetConfiguration: [
           {
-            cidrMask: 23,
+            cidrMask: 26,
             name: "OSML-Public",
-            subnetType: SubnetType.PUBLIC
+            subnetType: SubnetType.PUBLIC,
+            mapPublicIpOnLaunch: false
           },
           {
-            cidrMask: 23,
+            cidrMask: 24,
             name: "OSML-Private",
             subnetType: SubnetType.PRIVATE_WITH_EGRESS
           }

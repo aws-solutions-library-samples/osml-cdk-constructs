@@ -53,7 +53,7 @@ export class TSDataplaneConfig {
    * @param {string} DDB_TTL_ATTRIBUTE - The attribute name for expiration time in DynamoDB.
    * @param {string} ECS_METRICS_NAMESPACE - The namespace for metrics.
    * @param {string} ECS_CLUSTER_NAME - The name of the TS cluster.
-   * @param {string} ECS_TASK_ROLE_NAME - The name of the TS task execution role.
+   * @param {string} ECS_TASK_ROLE_NAME - The name of the TS task role.
    * @param {string} ECS_CONTAINER_NAME - The name of the TS container.
    * @param {number} ECS_TASK_MEMORY - The memory configuration for TS tasks.
    * @param {number} ECS_TASK_CPU - The CPU configuration for TS tasks.
@@ -118,12 +118,6 @@ export interface TSDataplaneProps {
   lambdaRole?: IRole;
 
   /**
-   * The IAM (Identity and Access Management) role to be used for ECS execution (optional).
-   * @type {IRole | undefined}
-   */
-  executionRole?: IRole;
-
-  /**
    * Custom configuration for the TSDataplane Construct (optional).
    * @type {TSDataplaneConfig | undefined}
    */
@@ -155,7 +149,6 @@ export interface TSDataplaneProps {
 export class TSDataplane extends Construct {
   // Public properties
   public taskRole: IRole;
-  public executionRole: IRole;
   public lambdaRole: IRole;
   public config: TSDataplaneConfig;
   public removalPolicy: RemovalPolicy;
@@ -331,7 +324,6 @@ export class TSDataplane extends Construct {
       cpu: this.config.ECS_TASK_CPU.toString(),
       compatibility: Compatibility.FARGATE,
       taskRole: this.taskRole,
-      executionRole: this.executionRole,
       ephemeralStorageGiB: 21,
       volumes: [
         {
@@ -456,18 +448,6 @@ export class TSDataplane extends Construct {
         roleName: this.config.ECS_TASK_ROLE_NAME
       }).role;
     }
-
-    // check if a execution role was provided
-    // if (props.executionRole != undefined) {
-    //   // Import passed-in MR execution role
-    //   this.executionRole = props.executionRole;
-    // } else {
-    //   // Create a new role for the HTTP endpoint
-    //   this.executionRole = new TSExecutionRole(this, "TSExecutionRole", {
-    //     account: props.account,
-    //     roleName: "TSExecutionRole"
-    //   });
-    // }
 
     // Set up a regional S3 endpoint for GDAL to use
     this.regionalS3Endpoint = region_info.Fact.find(

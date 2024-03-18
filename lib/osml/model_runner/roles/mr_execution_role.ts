@@ -39,27 +39,35 @@ export interface MRExecutionRoleProps {
 }
 
 /**
- * Represents an MRTaskRole construct.
+ * Represents an MRExecutionRole construct.
  */
 export class MRExecutionRole extends Construct {
   /**
-   * The AWS IAM role associated with this MRTaskRole.
+   * The AWS IAM role associated with this MRExecutionRole.
    */
   public role: IRole;
 
   /**
-   * The AWS partition to be used for this MRTaskRole.
+   * The AWS partition to be used for this MRExecutionRole.
    */
   public partition: string;
+
+  /**
+   * The Model Runner Dataplane Configuration values to be used for this MRExecutionRole
+   */
   public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
+
+  /**
+   * The Model Runner Container Configuration values to be used for this MRExecutionRole
+   */
   public mrContainerConfig: MRContainerConfig = new MRContainerConfig();
 
   /**
-   * Creates an MRTaskRole construct.
+   * Creates an MRExecutionRole construct.
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
    * @param {MRExecutionRoleProps} props - The properties of this construct.
-   * @returns MRTaskRole - The MRTaskRole construct.
+   * @returns MRExecutionRole - The MRExecutionRole construct.
    */
   constructor(scope: Construct, id: string, props: MRExecutionRoleProps) {
     super(scope, id);
@@ -70,7 +78,7 @@ export class MRExecutionRole extends Construct {
       region_info.FactName.PARTITION
     )!;
 
-    // Create an AWS IAM role for the Model Runner Fargate ECS task
+    // Create an AWS IAM role for the Model Runner Fargate ECS execution
     const mrExecutionRole = new Role(this, "MRExecutionRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(
@@ -95,7 +103,8 @@ export class MRExecutionRole extends Construct {
         actions: [
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage"
+          "ecr:BatchGetImage",
+          "ecr:DescribeRepositories"
         ],
         resources: [
           `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${this.mrContainerConfig.MR_CONTAINER_REPOSITORY}`
@@ -121,7 +130,7 @@ export class MRExecutionRole extends Construct {
       })
     );
 
-    // Set the MRTaskRole property to the created role
+    // Set the MRExecutionRole property to the created role
     this.role = mrExecutionRole;
 
     NagSuppressions.addResourceSuppressions(

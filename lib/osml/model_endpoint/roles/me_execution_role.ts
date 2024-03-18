@@ -18,7 +18,7 @@ import { OSMLAccount } from "../../osml_account";
 import { MEContainerConfig } from "../me_container";
 
 /**
- * Represents the properties required to define a model runner ECS task role.
+ * Represents the properties required to define a model endpoint ECS execution role.
  *
  * @interface MEExecutionRoleProps
  */
@@ -39,27 +39,35 @@ export interface MEExecutionRoleProps {
 }
 
 /**
- * Represents an MRTaskRole construct.
+ * Represents an MEExecutionRole construct.
  */
 export class MEExecutionRole extends Construct {
   /**
-   * The AWS IAM role associated with this MRTaskRole.
+   * The AWS IAM role associated with this MEExecutionRole.
    */
   public role: IRole;
 
   /**
-   * The AWS partition to be used for this MRTaskRole.
+   * The AWS partition to be used for this MEExecutionRole.
    */
   public partition: string;
+
+  /**
+   * The Model Runner Dataplane Configuration values to be used for this MEExecutionRole
+   */
   public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
+
+  /**
+   * The Model Endpoint Container Configuration values to be used for this MEExecutionRole
+   */
   public meContainerConfig: MEContainerConfig = new MEContainerConfig();
 
   /**
-   * Creates an MRTaskRole construct.
+   * Creates an MEExecutionRole construct.
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
    * @param {MEExecutionRoleProps} props - The properties of this construct.
-   * @returns MRTaskRole - The MRTaskRole construct.
+   * @returns MEExecutionRole - The MEExecutionRole construct.
    */
   constructor(scope: Construct, id: string, props: MEExecutionRoleProps) {
     super(scope, id);
@@ -70,7 +78,7 @@ export class MEExecutionRole extends Construct {
       region_info.FactName.PARTITION
     )!;
 
-    // Create an AWS IAM role for the Model Runner Fargate ECS task
+    // Create an AWS IAM role for the Model Endpoint HTTP execution role
     const meExecutionRole = new Role(this, "MEExecutionRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(
@@ -95,7 +103,8 @@ export class MEExecutionRole extends Construct {
         actions: [
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage"
+          "ecr:BatchGetImage",
+          "ecr:DescribeRepositories"
         ],
         resources: [
           `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${this.meContainerConfig.ME_CONTAINER_REPOSITORY}`

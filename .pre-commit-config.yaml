@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
@@ -15,14 +15,14 @@ repos:
         args: ["--fix"]
 
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v2.5.1
+    rev: v3.1.0
     hooks:
       - id: prettier
         files: \.[jt]sx?$  # *.js, *.jsx, *.ts and *.tsx
         types: [ file ]
 
   - repo: https://github.com/aws-samples/automated-security-helper
-    rev: '1.0.9-e-16May2023' # update with the latest-tagged version in the repository
+    rev: '1.2.0-e-06Mar2024' # update with the latest-tagged version in the repository
     hooks:
       - id: ash
         stages: [ manual ]
@@ -30,7 +30,7 @@ repos:
         # args: [ "-f" ]
 
   - repo: https://github.com/sbrunner/pre-commit-copyright
-    rev: 0.7.0
+    rev: 1.0.0
     hooks:
       - id: copyright
         name: update copyright

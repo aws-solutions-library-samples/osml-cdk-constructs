@@ -12,7 +12,6 @@ import {
   ObjectOwnership
 } from "aws-cdk-lib/aws-s3";
 import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
-import { S3BucketReplicationEnabled } from "cdk-nag/lib/rules/s3";
 import { Construct } from "constructs";
 
 /**

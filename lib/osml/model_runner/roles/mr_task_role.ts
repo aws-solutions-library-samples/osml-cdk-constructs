@@ -14,7 +14,7 @@ import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
-import { MRContainer, MRContainerConfig } from "../mr_container";
+import { MRContainerConfig } from "../mr_container";
 import { MRDataplaneConfig } from "../mr_dataplane";
 import { MRModelEndpointsConfig } from "../testing/mr_endpoints";
 import { MRSyncConfig } from "../testing/mr_sync";
@@ -53,10 +53,26 @@ export class MRTaskRole extends Construct {
    * The AWS partition to be used for this MRTaskRole.
    */
   public partition: string;
+
+  /**
+   * The Model Runner Dataplane Configuration values to be used for this MRTaskRole
+   */
   public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
+
+  /**
+   * The Model Runner Sync Configuration values to be used for this MRTaskRole
+   */
   public mrSyncConfig: MRSyncConfig = new MRSyncConfig();
+
+  /**
+   * The Model Runner Model Endpoints Configuration values to be used for this MRTaskRole
+   */
   public mrModelEndpointsConfig: MRModelEndpointsConfig =
     new MRModelEndpointsConfig();
+
+  /**
+   * The Model Runner Container Configuration values to be used for this MRTaskRole
+   */
   public mrContainerConfig: MRContainerConfig = new MRContainerConfig();
 
   /**
@@ -125,7 +141,7 @@ export class MRTaskRole extends Construct {
     mrTaskRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
-        actions: ["ec2:DescribeInstanceTypes"],
+        actions: ["ec2:DescribeInstanceTypes", "ec2:DescribeSubnets"],
         resources: ["*"]
       })
     );
@@ -165,7 +181,8 @@ export class MRTaskRole extends Construct {
           "s3:GetBucketLocation",
           "s3:GetObject",
           "s3:GetObjectAcl",
-          "s3:PutObject"
+          "s3:PutObject",
+          "s3:DeleteObject"
         ],
         resources: [`arn:${this.partition}:s3:::*`]
       })

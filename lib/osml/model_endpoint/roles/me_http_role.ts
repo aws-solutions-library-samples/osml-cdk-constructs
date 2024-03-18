@@ -6,7 +6,6 @@ import { region_info } from "aws-cdk-lib";
 import {
   CompositePrincipal,
   Effect,
-  ManagedPolicy,
   PolicyStatement,
   Role,
   ServicePrincipal
@@ -52,9 +51,20 @@ export class MEHTTPRole extends Construct {
    */
   public partition: string;
 
+  /**
+   * The Model Runner Dataplane Configuration values to be used for this MRTaskRole
+   */
   public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
+
+  /**
+   * The Model Runner Model Endpoints Configuration values to be used for this MRTaskRole
+   */
   public mrModelEndpointsConfig: MRModelEndpointsConfig =
     new MRModelEndpointsConfig();
+
+  /**
+   * The Model Endpoint Container Configuration values to be used for this MRTaskRole
+   */
   public meContainerConfig: MEContainerConfig = new MEContainerConfig();
   /**
    * Creates an OSMLHTTPEndpointRole construct.

@@ -5,7 +5,6 @@
 import { region_info } from "aws-cdk-lib";
 import {
   Effect,
-  ManagedPolicy,
   PolicyStatement,
   Role,
   ServicePrincipal
@@ -45,11 +44,31 @@ export interface MESMRoleProps {
 export class MESMRole extends Construct {
   public role: Role;
   public partition: string;
+
+  /**
+   * The Model Runner Dataplane Configuration values to be used for this MRTaskRole
+   */
   public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
+
+  /**
+   * The Model Runner Sync Configuration values to be used for this MRTaskRole
+   */
   public mrSyncConfig: MRSyncConfig = new MRSyncConfig();
+
+  /**
+   * The Model Runner Model Endpoints Configuration values to be used for this MRTaskRole
+   */
   public mrModelEndpointsConfig: MRModelEndpointsConfig =
     new MRModelEndpointsConfig();
+
+  /**
+   * The Model Runner Container Configuration values to be used for this MRTaskRole
+   */
   public mrContainerConfig: MRContainerConfig = new MRContainerConfig();
+
+  /**
+   * The Model Endpoint Container Configuration values to be used for this MRTaskRole
+   */
   public meContainerConfig: MEContainerConfig = new MEContainerConfig();
   /**
    * Creates a SageMaker execution role for hosting CV models at a SageMaker endpoint.
@@ -82,26 +101,20 @@ export class MESMRole extends Construct {
     this.role.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
-        actions: ["ec2:DescribeInstanceTypes"],
-        resources: ["*"]
-      })
-    );
-
-    this.role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
         actions: [
-          "ec2:CreateNetworkInterfacePermission",
-          "ec2:CreateNetworkInterface",
+          "ec2:DescribeInstanceTypes",
+          "ec2:DescribeVpcEndpoints",
+          "ec2:DescribeDhcpOptions",
           "ec2:DescribeVpcs",
           "ec2:DescribeSubnets",
           "ec2:DescribeSecurityGroups",
-          "ec2:DescribeDhcpOptions"
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DeleteNetworkInterfacePermission",
+          "ec2:DeleteNetworkInterface",
+          "ec2:CreateNetworkInterfacePermission",
+          "ec2:CreateNetworkInterface"
         ],
-        resources: [
-          `arn:${this.partition}:ec2:${props.account.region}:${props.account.id}:network-interface/*`,
-          `arn:${this.partition}:ec2:${props.account.region}:${props.account.id}:security-group/*`
-        ]
+        resources: ["*"]
       })
     );
 
@@ -147,12 +160,12 @@ export class MESMRole extends Construct {
           "logs:CreateLogGroup"
         ],
         resources: [
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService`,
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens`,
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint`,
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/${this.mrModelEndpointsConfig.SM_AIRCRAFT_MODEL}`,
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/${this.mrModelEndpointsConfig.SM_FLOOD_MODEL}`,
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/${this.mrModelEndpointsConfig.SM_CENTER_POINT_MODEL}`
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/${this.mrDataplaneConfig.METRICS_ORG_NAME}/${this.mrDataplaneConfig.METRICS_NAMESPACE}/${this.mrDataplaneConfig.MR_SERVICE_LOG_GROUP_NAME}`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/${this.mrDataplaneConfig.METRICS_ORG_NAME}/${this.mrDataplaneConfig.METRICS_NAMESPACE}/${this.mrDataplaneConfig.MR_FIRELEN_LOG_GROUP_NAME}`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/${this.mrDataplaneConfig.METRICS_ORG_NAME}/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/${this.mrDataplaneConfig.METRICS_ORG_NAME}/sagemaker/Endpoints/${this.mrModelEndpointsConfig.SM_AIRCRAFT_MODEL}`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/${this.mrDataplaneConfig.METRICS_ORG_NAME}/sagemaker/Endpoints/${this.mrModelEndpointsConfig.SM_FLOOD_MODEL}`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/${this.mrDataplaneConfig.METRICS_ORG_NAME}/sagemaker/Endpoints/${this.mrModelEndpointsConfig.SM_CENTER_POINT_MODEL}`
         ]
       })
     );
@@ -164,12 +177,7 @@ export class MESMRole extends Construct {
           id: "AwsSolutions-IAM5",
           reason:
             "Only suppress AwsSolutions-IAM5 ECR and EC2 finding on * Wildcard. However, it is restricted to a specific account id / region.",
-          appliesTo: [
-            `Resource::*`,
-            `Resource::arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:*`,
-            `Resource::arn:${this.partition}:ec2:${props.account.region}:${props.account.id}:network-interface/*`,
-            `Resource::arn:${this.partition}:ec2:${props.account.region}:${props.account.id}:security-group/*`
-          ]
+          appliesTo: [`Resource::*`]
         }
       ],
       true

@@ -56,6 +56,7 @@ export class MRDataplaneConfig {
    * @param {string} DDB_REGION_REQUEST_TABLE - The name of the DynamoDB table for region request status.
    * @param {string} DDB_TTL_ATTRIBUTE - The attribute name for expiration time in DynamoDB.
    * @param {string} METRICS_NAMESPACE - The namespace for metrics.
+   * @param {string} METRICS_ORG_NAME - The org name for metrics.
    * @param {string} MR_CLUSTER_NAME - The name of the MR cluster.
    * @param {string} MR_TASK_ROLE_NAME - The name of the MR task execution role.
    * @param {string} MR_CONTAINER_NAME - The name of the MR container.
@@ -69,6 +70,8 @@ export class MRDataplaneConfig {
    * @param {string} MR_REGION_SIZE - The size of MR regions in the format "(width, height)".
    * @param {boolean} MR_ENABLE_IMAGE_STATUS - Whether to deploy image status messages.
    * @param {boolean} MR_ENABLE_REGION_STATUS - Whether to deploy region status messages.
+   * @param {boolean} MR_FIRELEN_LOG_GROUP_NAME - The name for LogGroup stream for FireLens.
+   * @param {boolean} MR_SERVICE_LOG_GROUP_NAME - The name for LogGroup stream for MRService.
    */
   constructor(
     public SNS_IMAGE_STATUS_TOPIC: string = "ImageStatusTopic",
@@ -83,6 +86,7 @@ export class MRDataplaneConfig {
     public DDB_REGION_REQUEST_TABLE: string = "RegionProcessingJobStatus",
     public DDB_TTL_ATTRIBUTE: string = "expire_time",
     public METRICS_NAMESPACE: string = "OSML",
+    public METRICS_ORG_NAME: string = "aws",
     public MR_CLUSTER_NAME: string = "OSMLCluster",
     public MR_TASK_ROLE_NAME: string = "OSMLTaskRole",
     public MR_TASK_EXECUTION_ROLE_NAME: string = "OSMLTaskExecutionRole",
@@ -96,7 +100,9 @@ export class MRDataplaneConfig {
     public MR_WORKERS_PER_CPU: number = 2,
     public MR_REGION_SIZE: string = "(8192, 8192)",
     public MR_ENABLE_IMAGE_STATUS: boolean = true,
-    public MR_ENABLE_REGION_STATUS: boolean = false
+    public MR_ENABLE_REGION_STATUS: boolean = false,
+    public MR_FIRELEN_LOG_GROUP_NAME: string = "MRFireLens",
+    public MR_SERVICE_LOG_GROUP_NAME: string = "MRService"
   ) {}
 }
 
@@ -364,7 +370,7 @@ export class MRDataplane extends Construct {
 
     // Log group for MR container
     this.logGroup = new LogGroup(this, "MRServiceLogGroup", {
-      logGroupName: "/aws/OSML/MRService",
+      logGroupName: `/${this.mrDataplaneConfig.METRICS_ORG_NAME}/${this.mrDataplaneConfig.METRICS_NAMESPACE}/${this.mrDataplaneConfig.MR_SERVICE_LOG_GROUP_NAME}`,
       retention: RetentionDays.TEN_YEARS,
       removalPolicy: this.removalPolicy
     });
@@ -462,7 +468,7 @@ export class MRDataplane extends Construct {
       environment: { LOG_REGION: props.account.region },
       logging: LogDriver.awsLogs({
         logGroup: new LogGroup(this, "MRFireLens", {
-          logGroupName: "/aws/OSML/MRFireLens",
+          logGroupName: `/${this.mrDataplaneConfig.METRICS_ORG_NAME}/${this.mrDataplaneConfig.METRICS_NAMESPACE}/${this.mrDataplaneConfig.MR_FIRELEN_LOG_GROUP_NAME}`,
           retention: RetentionDays.TEN_YEARS,
           removalPolicy: this.removalPolicy
         }),
@@ -484,7 +490,7 @@ export class MRDataplane extends Construct {
         {
           id: "NIST.800.53.R5-CloudWatchLogGroupEncrypted",
           reason:
-            "By default log group is using Server-side encrpytion managed by the CloudWatch Logs service. Can change to use KMS CMK when needed."
+            "By default log group is using Server-side encryption managed by the CloudWatch Logs service. Can change to use KMS CMK when needed."
         }
       ],
       true
