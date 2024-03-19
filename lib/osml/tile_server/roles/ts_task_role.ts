@@ -68,6 +68,10 @@ export class TSTaskRole extends Construct {
   constructor(scope: Construct, id: string, props: TSTaskRoleProps) {
     super(scope, id);
 
+    // Defining constants for better readability
+    const DDB_JOB_TABLE_NAME = this.tsDataplaneConfig.DDB_JOB_TABLE;
+    const SQS_JOB_QUEUE_NAME = this.tsDataplaneConfig.SQS_JOB_QUEUE;
+
     // Determine the AWS partition based on the provided AWS region
     this.partition = region_info.Fact.find(
       props.account.region,
@@ -75,147 +79,110 @@ export class TSTaskRole extends Construct {
     )!;
 
     // Create an AWS IAM role for the Model Runner Fargate ECS task
-    const role = new Role(this, "TSTaskRole", {
+    const tsTaskRole = new Role(this, "TSTaskRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(
         new ServicePrincipal("ecs-tasks.amazonaws.com"),
         new ServicePrincipal("lambda.amazonaws.com")
       ),
-      managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName("SecretsManagerReadWrite")
-      ],
       description:
         "Allows the OversightML Tile Server to access necessary AWS services (S3, SQS, DynamoDB, ...)"
     });
 
-    role.assumeRolePolicy?.addStatements(
+    const tsPolicy = new ManagedPolicy(this, "TSTaskPolicy", {
+      managedPolicyName: "TSTaskPolicy"
+    });
+
+    // dynamodb permissions
+    const ddbPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:*GetItem",
+        "dynamodb:*PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DescribeTable"
+      ],
+      resources: [
+        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_JOB_TABLE_NAME}`
+      ]
+    });
+
+    // sqs permissions
+    const sqsPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "sqs:GetQueueUrl",
+        "sqs:SendMessage",
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:ListQueues"
+      ],
+      resources: [
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_JOB_QUEUE_NAME}`,
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_JOB_QUEUE_NAME}DLQ`
+      ]
+    });
+
+    // s3 permissions
+    const s3PolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "s3:GetBucketAcl",
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:GetObject",
+        "s3:GetObjectAcl",
+        "s3:PutObject"
+      ],
+      resources: [`arn:${this.partition}:s3:::*`]
+    });
+
+    // Add permissions to assume roles
+    tsTaskRole.assumeRolePolicy?.addStatements(
       new PolicyStatement({
         actions: ["sts:AssumeRole"],
         principals: [new AccountPrincipal(props.account.id)]
       })
     );
 
-    // ecr permissions
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage",
-          "ecr:DescribeImages",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetAuthorizationToken",
-          "ecr:InitiateLayerUpload",
-          "ecr:UploadLayerPart",
-          "ecr:CompleteLayerUpload",
-          "ecr:PutImage",
-          "ecr:DescribeRepositories"
-        ],
-        resources: ["*"]
-      })
-    );
-
-    // dynamodb permissions
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          "dynamodb:Query",
-          "dynamodb:Scan",
-          "dynamodb:*GetItem",
-          "dynamodb:*PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DescribeTable"
-        ],
-        resources: [
-          `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${this.tsDataplaneConfig.DDB_JOB_TABLE}`
-        ]
-      })
-    );
-
-    // sqs permissions
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          "sqs:GetQueueUrl",
-          "sqs:SendMessage",
-          "sqs:ReceiveMessage",
-          "sqs:DeleteMessage",
-          "sqs:ListQueues"
-        ],
-        resources: [
-          `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${this.tsDataplaneConfig.SQS_JOB_QUEUE}*`
-        ]
-      })
-    );
-
-    // s3 permissions
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          "s3:GetBucketAcl",
-          "s3:ListBucket",
-          "s3:GetBucketLocation",
-          "s3:GetObject",
-          "s3:GetObjectAcl",
-          "s3:PutObject"
-        ],
-        resources: [`arn:${this.partition}:s3:::*`]
-      })
-    );
-
-    // cloudwatch permissions
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          "logs:PutLogEvents",
-          "logs:GetLogEvents",
-          "logs:DescribeLogStreams",
-          "logs:DescribeLogGroups",
-          "logs:CreateLogStream",
-          "logs:CreateLogGroup"
-        ],
-        resources: [
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.tsDataplaneConfig.ECS_METRICS_NAMESPACE}/${this.tsDataplaneConfig.CW_LOGGROUP_NAME}*`
-        ]
-      })
-    );
-
-    // Add permissions to assume roles
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: ["sts:AssumeRole"],
-        resources: ["*"]
-      })
-    );
+    const stsPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["sts:AssumeRole"],
+      resources: ["*"]
+    });
 
     // Add permissions for AWS Key Management Service (KMS)
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: ["kms:Decrypt", "kms:GenerateDataKey", "kms:Encrypt"],
-        resources: [
-          `arn:${this.partition}:kms:${props.account.region}:${props.account.id}:key/*`
-        ]
-      })
-    );
+    const kmsPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["kms:Decrypt", "kms:GenerateDataKey", "kms:Encrypt"],
+      resources: [
+        `arn:${this.partition}:kms:${props.account.region}:${props.account.id}:key/*`
+      ]
+    });
 
     // Add permissions for AWS Events
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: ["events:PutRule", "events:PutTargets", "events:DescribeRule"],
-        resources: [
-          `arn:${this.partition}:events:${props.account.region}:${props.account.id}:*`
-        ]
-      })
+    const eventsPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["events:PutRule", "events:PutTargets", "events:DescribeRule"],
+      resources: [
+        `arn:${this.partition}:events:${props.account.region}:${props.account.id}:*`
+      ]
+    });
+
+    tsPolicy.addStatements(
+      s3PolicyStatement,
+      kmsPolicyStatement,
+      eventsPolicyStatement,
+      sqsPolicyStatement,
+      ddbPolicyStatement,
+      stsPolicyStatement
     );
 
+    tsTaskRole.addManagedPolicy(tsPolicy);
+
     // Set the TSTaskRole property to the created role
-    this.role = role;
+    this.role = tsTaskRole;
   }
 }

@@ -33,6 +33,7 @@ import { OSMLAccount } from "../osml_account";
 import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
 import { OSMLVpc } from "../osml_vpc";
+import { TSExecutionRole } from "./roles/ts_execution_role";
 import { TSLambdaRole } from "./roles/ts_lambda_role";
 import { TSTaskRole } from "./roles/ts_task_role";
 
@@ -56,6 +57,7 @@ export class TSDataplaneConfig {
    * @param {number} ECS_CONTAINER_PORT - The port to use for the TS service.
    * @param {string} EFS_MOUNT_NAME - The name of the EFS volume to give tasks.
    * @param {string} LAMBDA_ROLE_NAME - The name of the TS Lambda execution role.
+   * @param {string} EXECUTION_ROLE_NAME - The name of the TS ECS execution role.
    * @param {string} CW_LOGGROUP_NAME - The name of the TS Log Group name.
    */
   constructor(
@@ -73,6 +75,7 @@ export class TSDataplaneConfig {
     public ECS_CONTAINER_PORT: number = 8080,
     public EFS_MOUNT_NAME: string = "ts-efs-volume",
     public LAMBDA_ROLE_NAME: string = "TSLambdaRole",
+    public EXECUTION_ROLE_NAME: string = "TSExecutionRole",
     public CW_LOGGROUP_NAME: string = "TSService"
   ) {}
 }
@@ -112,6 +115,12 @@ export interface TSDataplaneProps {
   lambdaRole?: IRole;
 
   /**
+   * The IAM (Identity and Access Management) role to be used for ECS execution role (optional).
+   * @type {IRole | undefined}
+   */
+  executionRole?: IRole;
+
+  /**
    * Custom configuration for the TSDataplane Construct (optional).
    * @type {TSDataplaneConfig | undefined}
    */
@@ -144,6 +153,7 @@ export class TSDataplane extends Construct {
   // Public properties
   public taskRole: IRole;
   public lambdaRole: IRole;
+  public executionRole: IRole;
   public config: TSDataplaneConfig;
   public removalPolicy: RemovalPolicy;
   public regionalS3Endpoint: string;
@@ -197,18 +207,6 @@ export class TSDataplane extends Construct {
     this.jobQueue = new OSMLQueue(this, "TSJobQueue", {
       queueName: this.config.SQS_JOB_QUEUE
     });
-
-    // Check if a lambda role was provided
-    if (props.lambdaRole != undefined) {
-      // Import passed-in TS lambda role
-      this.lambdaRole = props.lambdaRole;
-    } else {
-      // Create a new role
-      this.lambdaRole = new TSLambdaRole(this, "TSLambdaRole", {
-        account: props.account,
-        roleName: this.config.LAMBDA_ROLE_NAME
-      }).role;
-    }
 
     // Create a Lambda function to clean up the TS DLQ
     this.lambdaSweeperFunction = new Function(this, "TSLambdaSweeperDLQ", {
@@ -304,6 +302,7 @@ export class TSDataplane extends Construct {
       cpu: this.config.ECS_TASK_CPU.toString(),
       compatibility: Compatibility.FARGATE,
       taskRole: this.taskRole,
+      executionRole: this.executionRole,
       ephemeralStorageGiB: 21,
       volumes: [
         {
@@ -417,7 +416,7 @@ export class TSDataplane extends Construct {
       );
     }
 
-    // Check if a role was provided
+    // Check if a task role was provided
     if (props.taskRole != undefined) {
       // Import passed-in MR task role
       this.taskRole = props.taskRole;
@@ -426,6 +425,30 @@ export class TSDataplane extends Construct {
       this.taskRole = new TSTaskRole(this, "TSTaskRole", {
         account: props.account,
         roleName: this.config.ECS_TASK_ROLE_NAME
+      }).role;
+    }
+
+    // Check if a lambda role was provided
+    if (props.lambdaRole != undefined) {
+      // Import passed-in TS lambda role
+      this.lambdaRole = props.lambdaRole;
+    } else {
+      // Create a new role
+      this.lambdaRole = new TSLambdaRole(this, "TSLambdaRole", {
+        account: props.account,
+        roleName: this.config.LAMBDA_ROLE_NAME
+      }).role;
+    }
+
+    // Check if a lambda role was provided
+    if (props.executionRole != undefined) {
+      // Import passed-in TS lambda role
+      this.executionRole = props.executionRole;
+    } else {
+      // Create a new role
+      this.executionRole = new TSExecutionRole(this, "TSExecutionRole", {
+        account: props.account,
+        roleName: this.config.EXECUTION_ROLE_NAME
       }).role;
     }
 
