@@ -78,6 +78,28 @@ export class MRTaskRole extends Construct {
       region_info.FactName.PARTITION
     )!;
 
+    // Defining constants for better readability
+    const SQS_IMAGE_REQUEST_QUEUE_NAME =
+      this.mrDataplaneConfig.SQS_IMAGE_REQUEST_QUEUE;
+    const SQS_REGION_REQUEST_QUEUE_NAME =
+      this.mrDataplaneConfig.SQS_REGION_REQUEST_QUEUE;
+    const SQS_IMAGE_STATUS_QUEUE_NAME =
+      this.mrDataplaneConfig.SQS_IMAGE_STATUS_QUEUE;
+    const SQS_REGION_STATUS_QUEUE_NAME =
+      this.mrDataplaneConfig.SQS_REGION_STATUS_QUEUE;
+    const SNS_TOPIC_IMAGE_NAME = this.mrDataplaneConfig.SNS_IMAGE_STATUS_TOPIC;
+    const SNS_TOPIC_REGION_NAME =
+      this.mrDataplaneConfig.SNS_REGION_STATUS_TOPIC;
+    const ECS_CLUSTER_NAME = this.mrDataplaneConfig.MR_CLUSTER_NAME;
+    const KINESIS_NAME = `${this.mrSyncConfig.KINESIS_RESULTS_STREAM}-${props.account.id}`;
+    const DDB_JOB_STATUS_TABLE_NAME =
+      this.mrDataplaneConfig.DDB_JOB_STATUS_TABLE;
+    const DDB_FEATURES_TABLE_NAME = this.mrDataplaneConfig.DDB_FEATURES_TABLE;
+    const DDB_ENDPOINT_PROCESSING_TABLE_NAME =
+      this.mrDataplaneConfig.DDB_ENDPOINT_PROCESSING_TABLE;
+    const DDB_REGION_REQUEST_TABLE_NAME =
+      this.mrDataplaneConfig.DDB_REGION_REQUEST_TABLE;
+
     // Create an AWS IAM role for the Model Runner Fargate ECS task
     const mrTaskRole = new Role(this, "MRTaskRole", {
       roleName: props.roleName,
@@ -118,7 +140,7 @@ export class MRTaskRole extends Construct {
         "kinesis:DescribeStream"
       ],
       resources: [
-        `arn:${this.partition}:kinesis:${props.account.region}:${props.account.id}:stream/${this.mrSyncConfig.KINESIS_RESULTS_STREAM}-${props.account.id}`
+        `arn:${this.partition}:kinesis:${props.account.region}:${props.account.id}:stream/${KINESIS_NAME}`
       ]
     });
 
@@ -141,14 +163,14 @@ export class MRTaskRole extends Construct {
         "sqs:GetQueueAttributes"
       ],
       resources: [
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${this.mrDataplaneConfig.SQS_IMAGE_REQUEST_QUEUE}`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${this.mrDataplaneConfig.SQS_REGION_REQUEST_QUEUE}`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${this.mrDataplaneConfig.SQS_IMAGE_STATUS_QUEUE}`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${this.mrDataplaneConfig.SQS_REGION_STATUS_QUEUE}`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${this.mrDataplaneConfig.SQS_IMAGE_REQUEST_QUEUE}DLQ`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${this.mrDataplaneConfig.SQS_REGION_REQUEST_QUEUE}DLQ`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${this.mrDataplaneConfig.SQS_IMAGE_STATUS_QUEUE}DLQ`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${this.mrDataplaneConfig.SQS_REGION_STATUS_QUEUE}DLQ`
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_IMAGE_REQUEST_QUEUE_NAME}`,
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_REGION_REQUEST_QUEUE_NAME}`,
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_IMAGE_STATUS_QUEUE_NAME}`,
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_REGION_STATUS_QUEUE_NAME}`,
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_IMAGE_REQUEST_QUEUE_NAME}DLQ`,
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_REGION_REQUEST_QUEUE_NAME}DLQ`,
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_IMAGE_STATUS_QUEUE_NAME}DLQ`,
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_REGION_STATUS_QUEUE_NAME}DLQ`
       ]
     });
 
@@ -172,8 +194,8 @@ export class MRTaskRole extends Construct {
       effect: Effect.ALLOW,
       actions: ["sns:Publish"],
       resources: [
-        `arn:${this.partition}:sns:${props.account.region}:${props.account.id}:${this.mrDataplaneConfig.SNS_IMAGE_STATUS_TOPIC}`,
-        `arn:${this.partition}:sns:${props.account.region}:${props.account.id}:${this.mrDataplaneConfig.SNS_REGION_STATUS_TOPIC}`
+        `arn:${this.partition}:sns:${props.account.region}:${props.account.id}:${SNS_TOPIC_IMAGE_NAME}`,
+        `arn:${this.partition}:sns:${props.account.region}:${props.account.id}:${SNS_TOPIC_REGION_NAME}`
       ]
     });
 
@@ -193,10 +215,10 @@ export class MRTaskRole extends Construct {
         "dynamodb:UpdateTable"
       ],
       resources: [
-        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${this.mrDataplaneConfig.DDB_JOB_STATUS_TABLE}`,
-        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${this.mrDataplaneConfig.DDB_FEATURES_TABLE}`,
-        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${this.mrDataplaneConfig.DDB_ENDPOINT_PROCESSING_TABLE}`,
-        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${this.mrDataplaneConfig.DDB_REGION_REQUEST_TABLE}`
+        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_JOB_STATUS_TABLE_NAME}`,
+        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_FEATURES_TABLE_NAME}`,
+        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_ENDPOINT_PROCESSING_TABLE_NAME}`,
+        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_REGION_REQUEST_TABLE_NAME}`
       ]
     });
 
@@ -205,8 +227,8 @@ export class MRTaskRole extends Construct {
       effect: Effect.ALLOW,
       actions: ["ecs:DescribeServices", "ecs:UpdateService"],
       resources: [
-        `arn:${this.partition}:ecs:${props.account.region}:${props.account.id}:cluster/${this.mrDataplaneConfig.MR_CLUSTER_NAME}`,
-        `arn:${this.partition}:ecs:${props.account.region}:${props.account.id}:service/${this.mrDataplaneConfig.MR_CLUSTER_NAME}/*`
+        `arn:${this.partition}:ecs:${props.account.region}:${props.account.id}:cluster/${ECS_CLUSTER_NAME}`,
+        `arn:${this.partition}:ecs:${props.account.region}:${props.account.id}:service/${ECS_CLUSTER_NAME}/*`
       ]
     });
 
@@ -216,26 +238,6 @@ export class MRTaskRole extends Construct {
       actions: ["cloudwatch:DescribeAlarms"],
       resources: [`*`]
     });
-
-    // // Add permissions for cloudwatch permissions
-    // const PolicyStatement =
-    //   new PolicyStatement({
-    //     effect: Effect.ALLOW,
-    //     actions: [
-    //       "logs:PutLogEvents",
-    //       "logs:GetLogEvents",
-    //       "logs:DescribeLogStreams",
-    //       "logs:DescribeLogGroups",
-    //       "logs:CreateLogStream",
-    //       "logs:CreateLogGroup"
-    //     ],
-    //     resources: [
-    //       `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService`,
-    //       `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens`,
-    //       `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint`,
-    //       `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/*`        ]
-    //   })
-    // );
 
     // Add permissions for SageMaker permissions
     const sagemakerPolicyStatement = new PolicyStatement({

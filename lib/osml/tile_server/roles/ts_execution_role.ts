@@ -72,6 +72,9 @@ export class TSExecutionRole extends Construct {
       region_info.FactName.PARTITION
     )!;
 
+    // Defining constants for better readability
+    const TS_LOG_GROUP_NAME = `/aws/${this.tsDataplaneConfig.ECS_METRICS_NAMESPACE}/${this.tsDataplaneConfig.CW_LOGGROUP_NAME}`;
+
     // Create an AWS IAM role for the Tile Server Fargate ECS execution role
     const tsExecutionRole = new Role(this, "TSExecutionRole", {
       roleName: props.roleName,
@@ -119,7 +122,7 @@ export class TSExecutionRole extends Construct {
         "logs:CreateLogGroup"
       ],
       resources: [
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.tsDataplaneConfig.ECS_METRICS_NAMESPACE}/${this.tsDataplaneConfig.CW_LOGGROUP_NAME}*`
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${TS_LOG_GROUP_NAME}*`
       ]
     });
 

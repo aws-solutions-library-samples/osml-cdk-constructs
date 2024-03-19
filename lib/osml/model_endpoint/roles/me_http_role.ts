@@ -11,7 +11,6 @@ import {
   Role,
   ServicePrincipal
 } from "aws-cdk-lib/aws-iam";
-import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { Construct } from "constructs";
 
 import { MRDataplaneConfig } from "../../model_runner/mr_dataplane";
@@ -88,6 +87,13 @@ export class MEHTTPRole extends Construct {
       region_info.FactName.PARTITION
     )!;
 
+    // Defining constants for better readability
+    const ME_CONTAINER_REPOSITORY_NAME =
+      this.meContainerConfig.ME_CONTAINER_REPOSITORY;
+    const MR_FIRELENS_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens`;
+    const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService`;
+    const MR_HTTPENDPOINT_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint`;
+
     // Create the IAM role for the OSML HTTP endpoint.
     const meHttpRole = new Role(this, "MEHTTPEndpointRole", {
       roleName: props.roleName,
@@ -115,9 +121,9 @@ export class MEHTTPRole extends Construct {
         "logs:CreateLogGroup"
       ],
       resources: [
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService:*`,
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens:*`,
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_FIRELENS_LOG_GROUP_NAME}:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_SERVICE_LOG_GROUP_NAME}:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_HTTPENDPOINT_LOG_GROUP_NAME}:*`,
         `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/*`
       ]
     });
@@ -143,7 +149,7 @@ export class MEHTTPRole extends Construct {
         "ecr:DescribeRepositories"
       ],
       resources: [
-        `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${this.meContainerConfig.ME_CONTAINER_REPOSITORY}`
+        `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${ME_CONTAINER_REPOSITORY_NAME}`
       ]
     });
 

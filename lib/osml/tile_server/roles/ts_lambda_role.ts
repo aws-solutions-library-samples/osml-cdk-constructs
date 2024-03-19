@@ -67,6 +67,9 @@ export class TSLambdaRole extends Construct {
   constructor(scope: Construct, id: string, props: TSLambdaRoleProps) {
     super(scope, id);
 
+    // Defining constants for better readability
+    const DDB_JOB_TABLE_NAME = this.tsDataplaneConfig.DDB_JOB_TABLE;
+
     // Determine the AWS partition based on the provided AWS region
     this.partition = region_info.Fact.find(
       props.account.region,
@@ -92,7 +95,7 @@ export class TSLambdaRole extends Construct {
       effect: Effect.ALLOW,
       actions: ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"],
       resources: [
-        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${this.tsDataplaneConfig.DDB_JOB_TABLE}`
+        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_JOB_TABLE_NAME}`
       ]
     });
 
