@@ -12,7 +12,11 @@ jobs:
     needs: [Build_NPM]
     uses: ./.github/workflows/npm-publish.yml
     secrets: inherit
-  Notify_Guidance_Repo:
+  Publish_Documentation:
     needs: [Build_NPM]
+    uses: ./.github/workflows/documentation-publish.yml
+    secrets: inherit
+  Notify_Guidance_Repo:
+    needs: [Build_NPM, Publish_Documentation]
     uses: ./.github/workflows/notify-guidance-repo.yml
     secrets: inherit
