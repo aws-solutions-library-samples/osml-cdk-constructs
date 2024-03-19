@@ -8,3 +8,7 @@ jobs:
   Build_NPM:
     uses: ./.github/workflows/npm-build.yml
     secrets: inherit
+  Publish_Documentation:
+    needs: [Build_NPM]
+    uses: ./.github/workflows/documentation-publish.yml
+    secrets: inherit

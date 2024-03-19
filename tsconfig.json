@@ -25,6 +25,22 @@
       "./node_modules/@types"
     ]
   },
+  "typedocOptions": {
+      "entryPoints": ["lib/index.ts"],
+      "out": "docs",
+      "entryPointStrategy": "Expand",
+      "plugin": ["typedoc-theme-hierarchy", "typedoc-material-theme"],
+      "theme": "hierarchy",
+      "name": "OSML CDK Constructs",
+      "themeColor": "#1D2128",
+      "includeVersion": true,
+      "navigation": {
+        "includeCategories": true,
+        "includeGroups": false,
+        "includeFolders": true
+    },
+    "categorizeByGroup": true
+  },
   "exclude": [
     "node_modules",
     "cdk.out",
