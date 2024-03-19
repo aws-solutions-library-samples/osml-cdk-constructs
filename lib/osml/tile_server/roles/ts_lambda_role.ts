@@ -7,6 +7,7 @@ import {
   CompositePrincipal,
   Effect,
   IRole,
+  ManagedPolicy,
   PolicyStatement,
   Role,
   ServicePrincipal
@@ -73,7 +74,7 @@ export class TSLambdaRole extends Construct {
     )!;
 
     // Create an AWS IAM role for the Tile Server Lambda Sweeper Function
-    const role = new Role(this, "TSLambdaRole", {
+    const tsLambdaRole = new Role(this, "TSLambdaRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(
         new ServicePrincipal("lambda.amazonaws.com")
@@ -82,64 +83,65 @@ export class TSLambdaRole extends Construct {
         "Allows the OversightML Tile Server Lambda Sweeper to access necessary AWS services (CW, SQS, DynamoDB, ...)"
     });
 
+    const tsPolicy = new ManagedPolicy(this, "TSLambdaPolicy", {
+      managedPolicyName: "TSLambdaPolicy"
+    });
+
     // Add permissions for AWS DynamoDb Service (DDB)
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem"
-        ],
-        resources: [
-          `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${this.tsDataplaneConfig.DDB_JOB_TABLE}`
-        ]
-      })
-    );
+    const ddbPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"],
+      resources: [
+        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${this.tsDataplaneConfig.DDB_JOB_TABLE}`
+      ]
+    });
 
     // Add permissions for the Lambda to have access to EC2 VPCs / Subnets / ELB
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: ["lambda:GetFunctionConfiguration"],
-        resources: [
-          `arn:${this.partition}:lambda:${props.account.region}:${props.account.id}:function:*`
-        ]
-      })
-    );
+    const lambdaPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["lambda:GetFunctionConfiguration"],
+      resources: [
+        `arn:${this.partition}:lambda:${props.account.region}:${props.account.id}:function:*`
+      ]
+    });
 
     // Add permissions for the Lambda to have access to EC2 VPCs / Subnets / ELB
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "ec2:CreateNetworkInterface",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface",
-          "ec2:DescribeInstances",
-          "ec2:AttachNetworkInterface"
-        ],
-        resources: ["*"]
-      })
-    );
+    const ec2NetworkPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "ec2:CreateNetworkInterface",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DeleteNetworkInterface",
+        "ec2:DescribeInstances",
+        "ec2:AttachNetworkInterface"
+      ],
+      resources: ["*"]
+    });
 
     // Add permissions for AWS Cloudwatch Event (DDB)
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ],
-        resources: [
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:*`
-        ]
-      })
+    const cwPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      resources: [
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:*`
+      ]
+    });
+
+    tsPolicy.addStatements(
+      ddbPolicyStatement,
+      lambdaPolicyStatement,
+      ec2NetworkPolicyStatement,
+      cwPolicyStatement
     );
 
+    tsLambdaRole.addManagedPolicy(tsPolicy);
+
     // Set the TSLambdaRole property to the created role
-    this.role = role;
+    this.role = tsLambdaRole;
   }
 }

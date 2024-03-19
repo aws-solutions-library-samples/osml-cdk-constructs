@@ -28,6 +28,7 @@ import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
 import { OSMLTopic } from "../osml_topic";
 import { OSMLVpc } from "../osml_vpc";
+import { MRExecutionRole } from "./roles/mr_execution_role";
 import { MRTaskRole } from "./roles/mr_task_role";
 
 /**
@@ -49,7 +50,8 @@ export class MRDataplaneConfig {
    * @param {string} DDB_TTL_ATTRIBUTE - The attribute name for expiration time in DynamoDB.
    * @param {string} METRICS_NAMESPACE - The namespace for metrics.
    * @param {string} MR_CLUSTER_NAME - The name of the MR cluster.
-   * @param {string} MR_TASK_ROLE_NAME - The name of the MR task execution role.
+   * @param {string} MR_TASK_ROLE_NAME - The name of the MR task role.
+   * @param {string} MR_EXECUTION_ROLE_NAME - The name of the MR execution role.
    * @param {string} MR_CONTAINER_NAME - The name of the MR container.
    * @param {number} MR_TASK_MEMORY - The memory configuration for MR tasks.
    * @param {number} MR_TASK_CPU - The CPU configuration for MR tasks.
@@ -76,7 +78,8 @@ export class MRDataplaneConfig {
     public DDB_TTL_ATTRIBUTE: string = "expire_time",
     public METRICS_NAMESPACE: string = "OSML",
     public MR_CLUSTER_NAME: string = "OSMLCluster",
-    public MR_TASK_ROLE_NAME: string = "OSMLTaskExecutionRole",
+    public MR_TASK_ROLE_NAME: string = "OSMLTaskRole",
+    public MR_EXECUTION_ROLE_NAME: string = "OSMLExecutionRole",
     public MR_CONTAINER_NAME: string = "OSMLModelRunnerContainer",
     public MR_TASK_MEMORY: number = 16384,
     public MR_TASK_CPU: number = 8192,
@@ -126,6 +129,12 @@ export interface MRDataplaneProps {
   taskRole?: IRole;
 
   /**
+   * The IAM (Identity and Access Management) role to be used for ECS execution (optional).
+   * @type {IRole | undefined}
+   */
+  executionRole?: IRole;
+
+  /**
    * Custom configuration for the MRDataplane Construct (optional).
    * @type {MRDataplaneConfig | undefined}
    */
@@ -150,7 +159,8 @@ export interface MRDataplaneProps {
  */
 export class MRDataplane extends Construct {
   // Public properties
-  public mrRole: IRole;
+  public taskRole: IRole;
+  public executionRole: IRole;
   public mrDataplaneConfig: MRDataplaneConfig;
   public removalPolicy: RemovalPolicy;
   public regionalS3Endpoint: string;
@@ -189,6 +199,12 @@ export class MRDataplane extends Construct {
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
+    // Set up a regional S3 endpoint for GDAL to use
+    this.regionalS3Endpoint = region_info.Fact.find(
+      props.account.region,
+      region_info.FactName.servicePrincipal("s3.amazonaws.com")
+    )!;
+
     // Check if a custom configuration was provided
     if (props.dataplaneConfig) {
       // Import existing passed-in MR configuration
@@ -201,20 +217,26 @@ export class MRDataplane extends Construct {
     // Check if a role was provided
     if (props.taskRole != undefined) {
       // Import passed-in MR task role
-      this.mrRole = props.taskRole;
+      this.taskRole = props.taskRole;
     } else {
       // Create a new role
-      this.mrRole = new MRTaskRole(this, "MRRole", {
+      this.taskRole = new MRTaskRole(this, "MRTaskRole", {
         account: props.account,
         roleName: this.mrDataplaneConfig.MR_TASK_ROLE_NAME
       }).role;
     }
 
-    // Set up a regional S3 endpoint for GDAL to use
-    this.regionalS3Endpoint = region_info.Fact.find(
-      props.account.region,
-      region_info.FactName.servicePrincipal("s3.amazonaws.com")
-    )!;
+    // Check if an execution role was provided
+    if (props.executionRole != undefined) {
+      // Import passed-in MR task role
+      this.executionRole = props.executionRole;
+    } else {
+      // Create a new role
+      this.executionRole = new MRExecutionRole(this, "MRExecutionRole", {
+        account: props.account,
+        roleName: this.mrDataplaneConfig.MR_EXECUTION_ROLE_NAME
+      }).role;
+    }
 
     // Job status table to store worker status info
     this.jobStatusTable = new OSMLTable(this, "MRJobStatusTable", {
@@ -334,7 +356,8 @@ export class MRDataplane extends Construct {
       memoryMiB: this.mrDataplaneConfig.MR_TASK_MEMORY.toString(),
       cpu: this.mrDataplaneConfig.MR_TASK_CPU.toString(),
       compatibility: Compatibility.FARGATE,
-      taskRole: this.mrRole
+      taskRole: this.taskRole,
+      executionRole: this.executionRole
     });
 
     // Calculate the workers to assign per task instance

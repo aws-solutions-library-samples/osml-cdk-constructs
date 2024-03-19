@@ -2,10 +2,23 @@
  * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
 
-import { ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { region_info } from "aws-cdk-lib";
+import {
+  Effect,
+  ManagedPolicy,
+  PolicyStatement,
+  Role,
+  ServicePrincipal
+} from "aws-cdk-lib/aws-iam";
+import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { Construct } from "constructs";
 
+import { MRContainerConfig } from "../../model_runner/mr_container";
+import { MRDataplaneConfig } from "../../model_runner/mr_dataplane";
+import { MRModelEndpointsConfig } from "../../model_runner/testing/mr_endpoints";
+import { MRSyncConfig } from "../../model_runner/testing/mr_sync";
 import { OSMLAccount } from "../../osml_account";
+import { MEContainerConfig } from "../me_container";
 
 /**
  * Represents the properties required to create a new SageMaker role.
@@ -31,6 +44,33 @@ export interface MESMRoleProps {
  */
 export class MESMRole extends Construct {
   public role: Role;
+  public partition: string;
+
+  /**
+   * The Model Runner Dataplane Configuration values to be used for this MRTaskRole
+   */
+  public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
+
+  /**
+   * The Model Runner Sync Configuration values to be used for this MRTaskRole
+   */
+  public mrSyncConfig: MRSyncConfig = new MRSyncConfig();
+
+  /**
+   * The Model Runner Model Endpoints Configuration values to be used for this MRTaskRole
+   */
+  public mrModelEndpointsConfig: MRModelEndpointsConfig =
+    new MRModelEndpointsConfig();
+
+  /**
+   * The Model Runner Container Configuration values to be used for this MRTaskRole
+   */
+  public mrContainerConfig: MRContainerConfig = new MRContainerConfig();
+
+  /**
+   * The Model Endpoint Container Configuration values to be used for this MRTaskRole
+   */
+  public meContainerConfig: MEContainerConfig = new MEContainerConfig();
   /**
    * Creates a SageMaker execution role for hosting CV models at a SageMaker endpoint.
    * @constructor
@@ -41,26 +81,108 @@ export class MESMRole extends Construct {
   constructor(scope: Construct, id: string, props: MESMRoleProps) {
     super(scope, id);
 
+    // Determine the AWS partition based on the provided AWS region
+    this.partition = region_info.Fact.find(
+      props.account.region,
+      region_info.FactName.PARTITION
+    )!;
+
     /**
      * The IAM Role associated with the SageMaker execution role.
      * @member {Role}
      */
-    this.role = new Role(this, "MESageMakerExecutionRole", {
-      roleName: props.roleName,
-      assumedBy: new ServicePrincipal("sagemaker.amazonaws.com"),
-      managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName("AmazonSQSFullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName("AmazonS3FullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName("AmazonDynamoDBFullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName("AmazonSageMakerFullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName("SecretsManagerReadWrite"),
-        ManagedPolicy.fromAwsManagedPolicyName(
-          "AmazonElasticContainerRegistryPublicFullAccess"
-        )
+    const meSagemakerExecutionRole = new Role(
+      this,
+      "MESageMakerExecutionRole",
+      {
+        roleName: props.roleName,
+        assumedBy: new ServicePrincipal("sagemaker.amazonaws.com"),
+        description:
+          "Allows SageMaker to access necessary AWS services (S3, SQS, DynamoDB, ...)"
+      }
+    );
+
+    const meSageMakerExecutionPolicy = new ManagedPolicy(
+      this,
+      "MESageMakerExecutionPolicy",
+      {
+        managedPolicyName: "MESageMakerExecutionPolicy"
+      }
+    );
+
+    // Add permissions to describe EC2 instance types
+    const ec2NetworkPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "ec2:DescribeInstanceTypes",
+        "ec2:DescribeVpcEndpoints",
+        "ec2:DescribeDhcpOptions",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DeleteNetworkInterfacePermission",
+        "ec2:DeleteNetworkInterface",
+        "ec2:CreateNetworkInterfacePermission",
+        "ec2:CreateNetworkInterface"
       ],
-      description:
-        "Allows SageMaker to access necessary AWS services (S3, SQS, DynamoDB, ...)"
+      resources: ["*"]
     });
+
+    // Add permissions for ECR permissions
+    const ecrAuthPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["ecr:GetAuthorizationToken"],
+      resources: ["*"]
+    });
+
+    const ecrPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:DescribeImages",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:DescribeRepositories"
+      ],
+      resources: [
+        `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${this.mrContainerConfig.MR_CONTAINER_REPOSITORY}`,
+        `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${this.meContainerConfig.ME_CONTAINER_REPOSITORY}`
+      ]
+    });
+
+    // Add permissions for cloudwatch permissions
+    const cwLogsPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "logs:PutLogEvents",
+        "logs:GetLogEvents",
+        "logs:DescribeLogStreams",
+        "logs:DescribeLogGroups",
+        "logs:CreateLogStream",
+        "logs:CreateLogGroup"
+      ],
+      resources: [
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/*`
+      ]
+    });
+
+    meSageMakerExecutionPolicy.addStatements(
+      cwLogsPolicyStatement,
+      ecrAuthPolicyStatement,
+      ecrPolicyStatement,
+      ec2NetworkPolicyStatement
+    );
+
+    meSagemakerExecutionRole.addManagedPolicy(meSageMakerExecutionPolicy);
+
+    this.role = meSagemakerExecutionRole;
   }
 }

@@ -5,13 +5,19 @@
 import { region_info } from "aws-cdk-lib";
 import {
   CompositePrincipal,
+  Effect,
   ManagedPolicy,
+  PolicyStatement,
   Role,
   ServicePrincipal
 } from "aws-cdk-lib/aws-iam";
+import { NagSuppressions } from "cdk-nag/lib/nag-suppressions";
 import { Construct } from "constructs";
 
+import { MRDataplaneConfig } from "../../model_runner/mr_dataplane";
+import { MRModelEndpointsConfig } from "../../model_runner/testing/mr_endpoints";
 import { OSMLAccount } from "../../osml_account";
+import { MEContainerConfig } from "../me_container";
 
 /**
  * Represents the properties required for a HTTP model task role.
@@ -47,6 +53,21 @@ export class MEHTTPRole extends Construct {
   public partition: string;
 
   /**
+   * The Model Runner Dataplane Configuration values to be used for this MRTaskRole
+   */
+  public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
+
+  /**
+   * The Model Runner Model Endpoints Configuration values to be used for this MRTaskRole
+   */
+  public mrModelEndpointsConfig: MRModelEndpointsConfig =
+    new MRModelEndpointsConfig();
+
+  /**
+   * The Model Endpoint Container Configuration values to be used for this MRTaskRole
+   */
+  public meContainerConfig: MEContainerConfig = new MEContainerConfig();
+  /**
    * Creates an OSMLHTTPEndpointRole construct.
    *
    * @param {Construct} scope - The scope/stack in which to define this construct.
@@ -68,21 +89,72 @@ export class MEHTTPRole extends Construct {
     )!;
 
     // Create the IAM role for the OSML HTTP endpoint.
-    this.role = new Role(this, "MEHTTPEndpointRole", {
+    const meHttpRole = new Role(this, "MEHTTPEndpointRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(
         new ServicePrincipal("ecs-tasks.amazonaws.com"),
         new ServicePrincipal("lambda.amazonaws.com")
       ),
-      managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess"),
-        ManagedPolicy.fromAwsManagedPolicyName(
-          "AmazonElasticContainerRegistryPublicFullAccess"
-        ),
-        ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess")
-      ],
       description:
         "Allows the OversightML HTTP model endpoint to access necessary resources."
     });
+
+    const meHttpPolicy = new ManagedPolicy(this, "MEHttpPolicy", {
+      managedPolicyName: "MEHttpPolicy"
+    });
+
+    // Add permissions for cloudwatch permissions
+    const cwPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "logs:PutLogEvents",
+        "logs:GetLogEvents",
+        "logs:DescribeLogStreams",
+        "logs:DescribeLogGroups",
+        "logs:CreateLogStream",
+        "logs:CreateLogGroup"
+      ],
+      resources: [
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/*`
+      ]
+    });
+
+    // Add permissions for ECR permissions
+    const ecrAuthPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["ecr:GetAuthorizationToken"],
+      resources: ["*"]
+    });
+
+    const ecrPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:DescribeImages",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:DescribeRepositories"
+      ],
+      resources: [
+        `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${this.meContainerConfig.ME_CONTAINER_REPOSITORY}`
+      ]
+    });
+
+    meHttpPolicy.addStatements(
+      cwPolicyStatement,
+      ecrAuthPolicyStatement,
+      ecrPolicyStatement
+    );
+
+    meHttpRole.addManagedPolicy(meHttpPolicy);
+
+    this.role = meHttpRole;
   }
 }

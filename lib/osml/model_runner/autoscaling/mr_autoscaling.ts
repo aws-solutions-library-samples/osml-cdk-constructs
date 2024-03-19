@@ -128,7 +128,7 @@ export class MRAutoScaling extends Construct {
         this,
         "MRServiceAutoscaling",
         {
-          role: props.mrDataplane.mrRole,
+          role: props.mrDataplane.taskRole,
           ecsCluster: props.mrDataplane.cluster,
           ecsService: props.mrDataplane.fargateService,
           minimumTaskCount:
