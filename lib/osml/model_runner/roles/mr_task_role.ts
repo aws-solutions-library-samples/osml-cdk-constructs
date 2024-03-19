@@ -91,7 +91,6 @@ export class MRTaskRole extends Construct {
     const SNS_TOPIC_REGION_NAME =
       this.mrDataplaneConfig.SNS_REGION_STATUS_TOPIC;
     const ECS_CLUSTER_NAME = this.mrDataplaneConfig.MR_CLUSTER_NAME;
-    const KINESIS_NAME = `${this.mrSyncConfig.KINESIS_RESULTS_STREAM}-${props.account.id}`;
     const DDB_JOB_STATUS_TABLE_NAME =
       this.mrDataplaneConfig.DDB_JOB_STATUS_TABLE;
     const DDB_FEATURES_TABLE_NAME = this.mrDataplaneConfig.DDB_FEATURES_TABLE;
@@ -140,7 +139,7 @@ export class MRTaskRole extends Construct {
         "kinesis:DescribeStream"
       ],
       resources: [
-        `arn:${this.partition}:kinesis:${props.account.region}:${props.account.id}:stream/${KINESIS_NAME}`
+        `arn:${this.partition}:kinesis:${props.account.region}:${props.account.id}:stream/*`
       ]
     });
 
