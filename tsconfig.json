@@ -36,10 +36,9 @@
       "includeVersion": true,
       "navigation": {
         "includeCategories": true,
-        "includeGroups": false,
+        "includeGroups": true,
         "includeFolders": true
-    },
-    "categorizeByGroup": true
+      },
   },
   "exclude": [
     "node_modules",

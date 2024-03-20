@@ -3,6 +3,12 @@
  */
 
 import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
+import {
+  BackupPlan,
+  BackupPlanRule,
+  BackupResource,
+  BackupVault
+} from "aws-cdk-lib/aws-backup";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
 import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import {
@@ -294,6 +300,24 @@ export class MRDataplane extends Construct {
       ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
     });
 
+    // AWS Backup solution is available in most regions
+    if (props.account.prodLike && !props.account.isAdc) {
+      const backupVault = new BackupVault(this, `MRBackupVault`, {
+        backupVaultName: `MRBackupVault`
+      });
+      const plan = new BackupPlan(this, `MRBackupPlan`);
+      plan.addRule(BackupPlanRule.weekly(backupVault));
+      plan.addRule(BackupPlanRule.monthly5Year(backupVault));
+      plan.addSelection(`MRBackupSelection`, {
+        resources: [
+          BackupResource.fromDynamoDbTable(this.featureTable.table),
+          BackupResource.fromDynamoDbTable(this.regionRequestTable.table),
+          BackupResource.fromDynamoDbTable(this.endpointStatisticsTable.table),
+          BackupResource.fromDynamoDbTable(this.jobStatusTable.table)
+        ]
+      });
+    }
+
     if (this.mrDataplaneConfig.MR_ENABLE_REGION_STATUS) {
       // Create a topic for region request status notifications
       this.regionStatusTopic = new OSMLTopic(this, "MRRegionStatusTopic", {
@@ -348,7 +372,8 @@ export class MRDataplane extends Construct {
     // Build cluster to house our containers when they spin up
     this.cluster = new Cluster(this, "MRCluster", {
       clusterName: this.mrDataplaneConfig.MR_CLUSTER_NAME,
-      vpc: props.osmlVpc.vpc
+      vpc: props.osmlVpc.vpc,
+      containerInsights: props.account.prodLike
     });
 
     // Define our ECS task

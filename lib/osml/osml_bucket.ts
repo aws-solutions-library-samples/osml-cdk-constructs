@@ -78,7 +78,7 @@ export class OSMLBucket extends Construct {
     const bucketProps = {
       autoDeleteObjects: !props.prodLike,
       enforceSSL: true,
-      encryption: BucketEncryption.S3_MANAGED,
+      encryption: BucketEncryption.KMS_MANAGED,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       removalPolicy: props.removalPolicy,
       objectOwnership: ObjectOwnership.OBJECT_WRITER
@@ -92,7 +92,8 @@ export class OSMLBucket extends Construct {
         `${id}AccessLogs`,
         Object.assign(bucketProps, {
           bucketName: `${props.bucketName}-access-logs`,
-          accessControl: BucketAccessControl.LOG_DELIVERY_WRITE
+          accessControl: BucketAccessControl.LOG_DELIVERY_WRITE,
+          versioned: props.prodLike
         })
       );
     } else if (props.prodLike) {
