@@ -3,6 +3,12 @@
  */
 
 import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
+import {
+  BackupPlan,
+  BackupPlanRule,
+  BackupResource,
+  BackupVault
+} from "aws-cdk-lib/aws-backup";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
 import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import {
@@ -203,6 +209,19 @@ export class TSDataplane extends Construct {
       ttlAttribute: this.config.DDB_TTL_ATTRIBUTE
     });
 
+    // AWS Backup solution is available in most regions
+    if (props.account.prodLike && !props.account.isAdc) {
+      const backupVault = new BackupVault(this, `TSBackupVault`, {
+        backupVaultName: `TSBackupVault`
+      });
+      const plan = new BackupPlan(this, `TSBackupPlan`);
+      plan.addRule(BackupPlanRule.weekly(backupVault));
+      plan.addRule(BackupPlanRule.monthly5Year(backupVault));
+      plan.addSelection(`TSBackupSelection`, {
+        resources: [BackupResource.fromDynamoDbTable(this.jobTable.table)]
+      });
+    }
+
     // Create an SQS queue for image processing status updates
     this.jobQueue = new OSMLQueue(this, "TSJobQueue", {
       queueName: this.config.SQS_JOB_QUEUE
@@ -293,7 +312,8 @@ export class TSDataplane extends Construct {
     // Build cluster to house our containers when they spin up
     this.cluster = new Cluster(this, "TSCluster", {
       clusterName: this.config.ECS_CLUSTER_NAME,
-      vpc: props.osmlVpc.vpc
+      vpc: props.osmlVpc.vpc,
+      containerInsights: props.account.prodLike
     });
 
     // Define our ECS task

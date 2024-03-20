@@ -53,10 +53,6 @@ If you are interested in contributing to OversightML Model Runner, see the [CONT
 
 See [CONTRIBUTING](https://github.com/aws-solutions-library-samples/osml-cdk-constructs/tree/main/CONTRIBUTING.md#security-issue-notifications) for more information.
 
-### Compliant Code: Meeting AWS Solutions and NIST 800-53 rev 5 Standards
-
-This CDK construct is carefully crafted to meet the rigorous standards of [AWS Solutions](https://github.com/cdklabs/cdk-nag/blob/main/RULES.md#awssolutions) and [NIST 800-53 rev 5](https://github.com/cdklabs/cdk-nag/blob/main/RULES.md#nist-800-53-rev-5), ensuring that the code is fully compliant with the latest security best practices. To further validate the code practices, we utilize [CDK-Nag](https://github.com/cdklabs/cdk-nag), an open-source package that performs automated checks and alerts for potential security risks. By incorporating [CDK-Nag](https://github.com/cdklabs/cdk-nag) into our development process, we can confidently guarantee that our code adheres to the highest security standards, and we can quickly identify and address any potential issues before they become problems.
-
 ## License
 
 MIT No Attribution Licensed. See [LICENSE](https://github.com/aws-solutions-library-samples/osml-cdk-constructs/tree/main/LICENSE).

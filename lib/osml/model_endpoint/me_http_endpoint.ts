@@ -167,7 +167,8 @@ export class MEHTTPEndpoint extends Construct {
     // Create an ECS Cluster for the HTTP Model Endpoint
     const httpEndpointCluster = new Cluster(this, props.clusterName, {
       clusterName: props.clusterName,
-      vpc: props.osmlVpc.vpc
+      vpc: props.osmlVpc.vpc,
+      containerInsights: props.account.prodLike
     });
 
     // Determine the removal policy based on the environment

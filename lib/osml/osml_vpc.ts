@@ -2,7 +2,11 @@
  * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
 
+import { RemovalPolicy } from "aws-cdk-lib";
 import {
+  FlowLog,
+  FlowLogDestination,
+  FlowLogResourceType,
   GatewayVpcEndpointAwsService,
   InterfaceVpcEndpointAwsService,
   InterfaceVpcEndpointService,
@@ -12,6 +16,7 @@ import {
   SubnetType,
   Vpc
 } from "aws-cdk-lib/aws-ec2";
+import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "./osml_account";
@@ -71,6 +76,16 @@ export class OSMLVpc extends Construct {
   public readonly selectedSubnets: SelectedSubnets;
 
   /**
+   * The VPC flow log resource which captures network flow information for a VPC
+   */
+  public readonly flowLog: FlowLog;
+
+  /**
+   * The removal policy for the Construct resources.
+   */
+  public removalPolicy: RemovalPolicy;
+
+  /**
    * Creates or imports a VPC for OSML to operate in.
    * @param scope - The scope/stack in which to define this construct.
    * @param id - The ID of this construct within the current scope.
@@ -79,6 +94,11 @@ export class OSMLVpc extends Construct {
    */
   constructor(scope: Construct, id: string, props: OSMLVpcProps) {
     super(scope, id);
+
+    // Set the removal policy based on the account type
+    this.removalPolicy = props.account.prodLike
+      ? RemovalPolicy.RETAIN
+      : RemovalPolicy.DESTROY;
 
     // if an osmlVpc ID is not explicitly given, use the default osmlVpc
     if (props.vpcId) {
@@ -167,6 +187,20 @@ export class OSMLVpc extends Construct {
       // Otherwise, select all private subnets
       this.selectedSubnets = this.vpc.selectSubnets({
         subnetType: SubnetType.PRIVATE_WITH_EGRESS
+      });
+    }
+
+    if (props.account.prodLike) {
+      // enable vpc flow logs
+      const flowLogGroup = new LogGroup(this, "OSMLVpcFlowLogsLogGroup", {
+        logGroupName: `OSML-VPC-FlowLogs-${id}`,
+        retention: RetentionDays.TEN_YEARS,
+        removalPolicy: this.removalPolicy
+      });
+
+      this.flowLog = new FlowLog(this, "OSMLVpcFlowLogs", {
+        resourceType: FlowLogResourceType.fromVpc(this.vpc),
+        destination: FlowLogDestination.toCloudWatchLogs(flowLogGroup)
       });
     }
   }
