@@ -9,8 +9,8 @@ import { ContainerImage, EcrImage } from "aws-cdk-lib/aws-ecs";
 import { DockerImageName, ECRDeployment } from "cdk-ecr-deployment";
 import { Construct } from "constructs";
 
-import { OSMLRepository } from "./osml_repository";
 import { OSMLAccount } from "./osml_account";
+import { OSMLRepository } from "./osml_repository";
 
 /**
  * Interface representing the properties for the OSMLECRDeployment Construct.
@@ -66,6 +66,11 @@ export interface OSMLECRDeploymentProps {
    * @type {string | undefined}
    */
   tag?: string;
+
+  /**
+   *
+   */
+  isEcrProvided?: boolean;
 }
 
 /**
@@ -97,8 +102,7 @@ export class OSMLECRDeployment extends Construct {
     // Build an ECR repository for the model runner container.
     this.ecrRepository = new OSMLRepository(this, `ECRRepository${id}`, {
       repositoryName: props.repositoryName,
-      removalPolicy: props.removalPolicy,
-      isAdc: props.account.isAdc
+      removalPolicy: props.removalPolicy
     }).repository;
 
     // Get the latest image associated with the repository.

@@ -17,7 +17,6 @@ import {
   ContainerDefinition,
   ContainerImage,
   FargateService,
-  FireLensLogDriver,
   FireLensLogDriverProps,
   FirelensLogRouterType,
   LogDriver,
@@ -449,15 +448,31 @@ export class MRDataplane extends Construct {
       desiredCount: this.mrDataplaneConfig.MR_DEFAULT_DESIRE_COUNT
     });
 
+    interface LoggingOptions {
+      Name: string;
+      region: string;
+      log_group_name: string;
+      log_format: string;
+      log_key: string;
+      log_stream_prefix: string;
+      endpoint: string;
+    }
+
     // Set up Logging Options
-    const loggingOptions: { [key: string]: any } = {
+    const loggingOptions: {
+      [key: string]: LoggingOptions;
+    } = {
       options: {
         Name: "cloudwatch",
         region: props.account.region,
         log_group_name: this.logGroup.logGroupName,
         log_format: "json/emf",
         log_key: "log",
-        log_stream_prefix: "${TASK_ID}/"
+        log_stream_prefix: "${TASK_ID}/",
+        endpoint: region_info.Fact.find(
+          props.account.region,
+          region_info.FactName.servicePrincipal("logs.amazonaws.com")
+        )!
       }
     };
 
@@ -473,14 +488,10 @@ export class MRDataplane extends Construct {
         fluentBitImage = ContainerImage.fromRegistry(
           `${props.account.id}.dkr.ecr.us-iso-east-1.c2s.ic.gov/aws-for-fluent-bit:latest`
         );
-        loggingOptions.options.endpoint =
-          "https://logs.us-iso-east-1.c2s.ic.gov";
       } else if (props.account.region === "us-isob-east-1") {
         fluentBitImage = ContainerImage.fromRegistry(
           `${props.account.id}.dkr.ecr.us-isob-east-1.sc2s.sgov.gov/aws-for-fluent-bit:latest`
         );
-        loggingOptions.options.endpoint =
-          "https://logs.us-isob-east-1.sc2s.sgov.gov";
       } else {
         fluentBitImage = obtainDefaultFluentBitECRImage(
           this.taskDefinition,

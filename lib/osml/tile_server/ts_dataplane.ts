@@ -472,6 +472,24 @@ export class TSDataplane extends Construct {
       }).role;
     }
 
+    // Set up an few regional S3 endpoint for GDAL to use
+    class S3FactISO implements region_info.IFact {
+      public readonly region = "us-iso-east-1";
+      public readonly name =
+        region_info.FactName.servicePrincipal("s3.amazonaws.com");
+      public readonly value = "s3.us-iso-east-1.c2s.ic.gov";
+    }
+
+    class S3FactISOB implements region_info.IFact {
+      public readonly region = "us-isob-east-1";
+      public readonly name =
+        region_info.FactName.servicePrincipal("s3.amazonaws.com");
+      public readonly value = "s3.us-isob-east-1.sc2s.sgov.gov";
+    }
+
+    region_info.Fact.register(new S3FactISO(), true);
+    region_info.Fact.register(new S3FactISOB(), true);
+
     // Set up a regional S3 endpoint for GDAL to use
     this.regionalS3Endpoint = region_info.Fact.find(
       props.account.region,
