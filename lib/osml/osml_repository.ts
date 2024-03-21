@@ -22,6 +22,12 @@ export interface OSMLRepositoryProps {
    * @type {RemovalPolicy}
    */
   removalPolicy: RemovalPolicy;
+
+  /**
+   * Check to see if its region is ADC
+   * @type {RemovalPolicy}
+   */
+  isAdc?: boolean;
 }
 
 /**

@@ -76,7 +76,7 @@ export class TSDataplaneConfig {
     public ECS_CONTAINER_NAME: string = "TSContainer",
     public ECS_TASK_MEMORY: number = 16384,
     public ECS_TASK_CPU: number = 8192,
-    public ECS_CONTAINER_MEMORY: number = 15360,
+    public ECS_CONTAINER_MEMORY: number = 10240,
     public ECS_CONTAINER_CPU: number = 7168,
     public ECS_CONTAINER_PORT: number = 8080,
     public EFS_MOUNT_NAME: string = "ts-efs-volume",

@@ -130,6 +130,7 @@ export class TSTestRunner extends Construct {
         this,
         "TSTestContainerECRDeployment",
         {
+          account: props.account,
           sourceUri: this.config.TS_TEST_CONTAINER,
           repositoryName: this.config.TS_TEST_REPOSITORY,
           removalPolicy: this.removalPolicy,

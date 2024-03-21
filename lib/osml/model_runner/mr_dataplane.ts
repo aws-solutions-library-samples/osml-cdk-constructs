@@ -18,13 +18,15 @@ import {
   ContainerImage,
   FargateService,
   FireLensLogDriver,
+  FireLensLogDriverProps,
   FirelensLogRouterType,
   LogDriver,
+  LogDrivers,
   obtainDefaultFluentBitECRImage,
   Protocol,
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
-import { IRole } from "aws-cdk-lib/aws-iam";
+import { Effect, IRole, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
@@ -89,11 +91,12 @@ export class MRDataplaneConfig {
     public MR_CONTAINER_NAME: string = "OSMLModelRunnerContainer",
     public MR_TASK_MEMORY: number = 16384,
     public MR_TASK_CPU: number = 8192,
-    public MR_CONTAINER_MEMORY: number = 15360,
+    public MR_CONTAINER_MEMORY: number = 10240,
     public MR_CONTAINER_CPU: number = 7168,
     public MR_LOGGING_MEMORY: number = 1024,
     public MR_LOGGING_CPU: number = 1024,
     public MR_WORKERS_PER_CPU: number = 2,
+    public MR_DEFAULT_DESIRE_COUNT: number = 1,
     public MR_REGION_SIZE: string = "(8192, 8192)",
     public MR_ENABLE_IMAGE_STATUS: boolean = true,
     public MR_ENABLE_REGION_STATUS: boolean = false
@@ -231,6 +234,30 @@ export class MRDataplane extends Construct {
         roleName: this.mrDataplaneConfig.MR_TASK_ROLE_NAME
       }).role;
     }
+
+    // Set up an few regional S3 endpoint for GDAL to use
+    class S3FactISO implements region_info.IFact {
+      public readonly region = "us-iso-east-1";
+      public readonly name =
+        region_info.FactName.servicePrincipal("s3.amazonaws.com");
+      public readonly value = "s3.us-iso-east-1.c2s.ic.gov";
+    }
+
+    class S3FactISOB implements region_info.IFact {
+      public readonly region = "us-isob-east-1";
+      public readonly name =
+        region_info.FactName.servicePrincipal("s3.amazonaws.com");
+      public readonly value = "s3.us-isob-east-1.sc2s.sgov.gov";
+    }
+
+    region_info.Fact.register(new S3FactISO(), true);
+    region_info.Fact.register(new S3FactISOB(), true);
+
+    // Set up a regional S3 endpoint for GDAL to use
+    this.regionalS3Endpoint = region_info.Fact.find(
+      props.account.region,
+      region_info.FactName.servicePrincipal("s3.amazonaws.com")
+    )!;
 
     // Check if an execution role was provided
     if (props.executionRole != undefined) {
@@ -394,32 +421,6 @@ export class MRDataplane extends Construct {
     // Build our container to run our service
     const containerEnv = this.buildContainerEnv(props);
 
-    // Build a container definition to run our service
-    this.containerDefinition = this.taskDefinition.addContainer(
-      "MRContainerDefinition",
-      {
-        containerName: this.mrDataplaneConfig.MR_CONTAINER_NAME,
-        image: props.mrContainerImage,
-        memoryLimitMiB: this.mrDataplaneConfig.MR_CONTAINER_MEMORY,
-        cpu: this.mrDataplaneConfig.MR_CONTAINER_CPU,
-        environment: containerEnv,
-        startTimeout: Duration.minutes(1),
-        stopTimeout: Duration.minutes(1),
-        // Create a log group for console output (STDOUT)
-        logging: new FireLensLogDriver({
-          options: {
-            Name: "cloudwatch",
-            region: props.account.region,
-            log_key: "log",
-            log_format: "json/emf",
-            log_group_name: this.logGroup.logGroupName,
-            log_stream_prefix: "${TASK_ID}/"
-          }
-        }),
-        disableNetworking: false
-      }
-    );
-
     // Add port mapping to container
     this.taskDefinition.defaultContainer?.addPortMappings({
       containerPort: 80,
@@ -444,15 +445,58 @@ export class MRDataplane extends Construct {
       cluster: this.cluster,
       minHealthyPercent: 100,
       securityGroups: this.securityGroups,
-      vpcSubnets: props.osmlVpc.selectedSubnets
+      vpcSubnets: props.osmlVpc.selectedSubnets,
+      desiredCount: this.mrDataplaneConfig.MR_DEFAULT_DESIRE_COUNT
     });
+
+    // Set up Logging Options
+    const loggingOptions: { [key: string]: any } = {
+      options: {
+        Name: "cloudwatch",
+        region: props.account.region,
+        log_group_name: this.logGroup.logGroupName,
+        log_format: "json/emf",
+        log_key: "log",
+        log_stream_prefix: "${TASK_ID}/"
+      }
+    };
+
+    const logging = LogDrivers.firelens(
+      loggingOptions as FireLensLogDriverProps
+    );
+
+    // Build a fluent bit log router for the MR container
+    let fluentBitImage;
+    if (props.account.isAdc) {
+      // Get Fluent Bit Container from ECR repo
+      if (props.account.region === "us-iso-east-1") {
+        fluentBitImage = ContainerImage.fromRegistry(
+          `${props.account.id}.dkr.ecr.us-iso-east-1.c2s.ic.gov/aws-for-fluent-bit:latest`
+        );
+        loggingOptions.options.endpoint =
+          "https://logs.us-iso-east-1.c2s.ic.gov";
+      } else if (props.account.region === "us-isob-east-1") {
+        fluentBitImage = ContainerImage.fromRegistry(
+          `${props.account.id}.dkr.ecr.us-isob-east-1.sc2s.sgov.gov/aws-for-fluent-bit:latest`
+        );
+        loggingOptions.options.endpoint =
+          "https://logs.us-isob-east-1.sc2s.sgov.gov";
+      } else {
+        fluentBitImage = obtainDefaultFluentBitECRImage(
+          this.taskDefinition,
+          this.taskDefinition.defaultContainer?.logDriverConfig
+        );
+      }
+    } else {
+      fluentBitImage = obtainDefaultFluentBitECRImage(
+        this.taskDefinition,
+        this.taskDefinition.defaultContainer?.logDriverConfig
+      );
+    }
 
     // Build a fluent bit log router for the MR container
     this.taskDefinition.addFirelensLogRouter("MRFireLensContainer", {
-      image: obtainDefaultFluentBitECRImage(
-        this.taskDefinition,
-        this.taskDefinition.defaultContainer?.logDriverConfig
-      ),
+      image: fluentBitImage,
       essential: true,
       firelensConfig: {
         type: FirelensLogRouterType.FLUENTBIT
@@ -477,6 +521,46 @@ export class MRDataplane extends Construct {
         retries: 3
       }
     });
+
+    // Build a container definition to run our service
+    this.containerDefinition = this.taskDefinition.addContainer(
+      "MRContainerDefinition",
+      {
+        containerName: this.mrDataplaneConfig.MR_CONTAINER_NAME,
+        image: props.mrContainerImage,
+        memoryLimitMiB: this.mrDataplaneConfig.MR_CONTAINER_MEMORY,
+        cpu: this.mrDataplaneConfig.MR_CONTAINER_CPU,
+        environment: containerEnv,
+        startTimeout: Duration.minutes(1),
+        stopTimeout: Duration.minutes(1),
+        // Create a log group for console output (STDOUT)
+        logging: logging,
+        disableNetworking: false
+      }
+    );
+
+    if (props.account.isAdc) {
+      const partition: string = region_info.Fact.find(
+        props.account.region,
+        region_info.FactName.PARTITION
+      )!;
+
+      // need to add permission to access fluent bit container
+      // within the account
+      this.taskDefinition.addToExecutionRolePolicy(
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          actions: [
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:GetDownloadUrlForLayer",
+            "ecr:BatchGetImage"
+          ],
+          resources: [
+            `arn:${partition}:ecr:${props.account.region}:${props.account.id}:repository/aws-for-fluent-bit`
+          ]
+        })
+      );
+    }
   }
 
   buildContainerEnv(props: MRDataplaneProps) {

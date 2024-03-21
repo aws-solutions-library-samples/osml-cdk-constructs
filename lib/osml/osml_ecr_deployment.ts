@@ -10,6 +10,7 @@ import { DockerImageName, ECRDeployment } from "cdk-ecr-deployment";
 import { Construct } from "constructs";
 
 import { OSMLRepository } from "./osml_repository";
+import { OSMLAccount } from "./osml_account";
 
 /**
  * Interface representing the properties for the OSMLECRDeployment Construct.
@@ -17,6 +18,13 @@ import { OSMLRepository } from "./osml_repository";
  * @interface OSMLECRDeploymentProps
  */
 export interface OSMLECRDeploymentProps {
+  /**
+   * The OSML account associated with this VPC.
+   *
+   * @type {OSMLAccount}
+   */
+  account: OSMLAccount;
+
   /**
    * The URI of the source for the container image.
    *
@@ -89,7 +97,8 @@ export class OSMLECRDeployment extends Construct {
     // Build an ECR repository for the model runner container.
     this.ecrRepository = new OSMLRepository(this, `ECRRepository${id}`, {
       repositoryName: props.repositoryName,
-      removalPolicy: props.removalPolicy
+      removalPolicy: props.removalPolicy,
+      isAdc: props.account.isAdc
     }).repository;
 
     // Get the latest image associated with the repository.
