@@ -66,11 +66,6 @@ export interface OSMLECRDeploymentProps {
    * @type {string | undefined}
    */
   tag?: string;
-
-  /**
-   *
-   */
-  isEcrProvided?: boolean;
 }
 
 /**
