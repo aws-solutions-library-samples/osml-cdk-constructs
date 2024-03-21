@@ -458,6 +458,11 @@ export class MRDataplane extends Construct {
       endpoint: string;
     }
 
+    const logsEndpoint = region_info.Fact.find(
+      props.account.region,
+      region_info.FactName.servicePrincipal("logs.amazonaws.com")
+    )!;
+
     // Set up Logging Options
     const loggingOptions: {
       [key: string]: LoggingOptions;
@@ -469,10 +474,7 @@ export class MRDataplane extends Construct {
         log_format: "json/emf",
         log_key: "log",
         log_stream_prefix: "${TASK_ID}/",
-        endpoint: region_info.Fact.find(
-          props.account.region,
-          region_info.FactName.servicePrincipal("logs.amazonaws.com")
-        )!
+        endpoint: `https://${logsEndpoint}`
       }
     };
 
