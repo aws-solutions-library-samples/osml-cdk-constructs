@@ -81,10 +81,6 @@ export class MESMRole extends Construct {
     super(scope, id);
 
     // Defining constants for better readability
-    const MR_CONTAINER_REPOSITORY_NAME =
-      this.mrContainerConfig.MR_CONTAINER_REPOSITORY;
-    const ME_CONTAINER_REPOSITORY_NAME =
-      this.meContainerConfig.ME_CONTAINER_REPOSITORY;
     const MR_FIRELENS_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens`;
     const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService`;
     const MR_HTTPENDPOINT_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint`;
@@ -158,8 +154,7 @@ export class MESMRole extends Construct {
         "ecr:DescribeRepositories"
       ],
       resources: [
-        `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${MR_CONTAINER_REPOSITORY_NAME}`,
-        `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${ME_CONTAINER_REPOSITORY_NAME}`
+        `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/*`
       ]
     });
 

@@ -109,6 +109,7 @@ export class MRContainer extends Construct {
         this,
         "MRContainerECRDeployment",
         {
+          account: props.account,
           sourceUri: this.mrAppContainerConfig.MR_DEFAULT_CONTAINER,
           repositoryName: this.mrAppContainerConfig.MR_CONTAINER_REPOSITORY,
           removalPolicy: this.removalPolicy,

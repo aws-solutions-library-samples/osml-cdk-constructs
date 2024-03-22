@@ -109,6 +109,7 @@ export class TSContainer extends Construct {
         this,
         "TSContainerECRDeployment",
         {
+          account: props.account,
           sourceUri: this.config.TS_CONTAINER,
           repositoryName: this.config.TS_REPOSITORY,
           removalPolicy: this.removalPolicy,

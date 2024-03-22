@@ -95,6 +95,8 @@ export class OSMLVpc extends Construct {
   constructor(scope: Construct, id: string, props: OSMLVpcProps) {
     super(scope, id);
 
+    const isIsoB = props.account.region === "us-isob-east-1";
+
     // Set the removal policy based on the account type
     this.removalPolicy = props.account.prodLike
       ? RemovalPolicy.RETAIN
@@ -110,6 +112,7 @@ export class OSMLVpc extends Construct {
       // Create a new VPC
       const vpc = new Vpc(this, "OSMLVPC", {
         vpcName: props.vpcName,
+        maxAzs: isIsoB ? 2 : 3,
         subnetConfiguration: [
           {
             cidrMask: 23,
@@ -133,7 +136,7 @@ export class OSMLVpc extends Construct {
         subnetType: SubnetType.PRIVATE_WITH_EGRESS
       });
 
-      // Create custom endpoint prefixes for known ADC (AWS Direct Connect) regions requiring it
+      // Create custom endpoint prefixes for known regions requiring it
       let partitionPrefix;
       if (props.account.region === "us-iso-east-1") {
         partitionPrefix = "gov.ic.c2s";
