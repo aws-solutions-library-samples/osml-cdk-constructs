@@ -120,6 +120,7 @@ export class MEContainer extends Construct {
         this,
         "MEContainerECRDeployment",
         {
+          account: props.account,
           sourceUri: this.config.ME_DEFAULT_CONTAINER,
           repositoryName: this.config.ME_CONTAINER_REPOSITORY,
           removalPolicy: this.removalPolicy,

@@ -3,7 +3,12 @@
  */
 
 import { RemovalPolicy } from "aws-cdk-lib";
-import { Stream, StreamEncryption, StreamMode } from "aws-cdk-lib/aws-kinesis";
+import {
+  CfnStream,
+  Stream,
+  StreamEncryption,
+  StreamMode
+} from "aws-cdk-lib/aws-kinesis";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
@@ -124,6 +129,12 @@ export class MRSync extends Construct {
         shardCount: 1,
         encryption: StreamEncryption.MANAGED
       });
+
+      // https://github.com/aws/aws-cdk/issues/19652
+      if (props.account.isAdc) {
+        const cfnStream = this.resultStream.node.defaultChild as CfnStream;
+        cfnStream.addPropertyDeletionOverride("StreamModeDetails");
+      }
     }
   }
 }

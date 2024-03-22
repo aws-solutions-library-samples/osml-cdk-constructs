@@ -98,6 +98,9 @@ export class MRTaskRole extends Construct {
       this.mrDataplaneConfig.DDB_ENDPOINT_PROCESSING_TABLE;
     const DDB_REGION_REQUEST_TABLE_NAME =
       this.mrDataplaneConfig.DDB_REGION_REQUEST_TABLE;
+    const MR_FIRELENS_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens`;
+    const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService`;
+    const MR_HTTPENDPOINT_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint`;
 
     // Create an AWS IAM role for the Model Runner Fargate ECS task
     const mrTaskRole = new Role(this, "MRTaskRole", {
@@ -231,6 +234,25 @@ export class MRTaskRole extends Construct {
       ]
     });
 
+    // Add permission for CW ECS permissions
+    const cwPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        "logs:PutLogEvents",
+        "logs:GetLogEvents",
+        "logs:DescribeLogStreams",
+        "logs:DescribeLogGroups",
+        "logs:CreateLogStream",
+        "logs:CreateLogGroup"
+      ],
+      resources: [
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_FIRELENS_LOG_GROUP_NAME}:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_SERVICE_LOG_GROUP_NAME}:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_HTTPENDPOINT_LOG_GROUP_NAME}:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/*`
+      ]
+    });
+
     // Add permission for autoscaling CW permissions
     const autoScalingCwPolicyStatement = new PolicyStatement({
       effect: Effect.ALLOW,
@@ -281,7 +303,8 @@ export class MRTaskRole extends Construct {
       sqsPolicyStatement,
       ddbPolicyStatement,
       autoScalingEcsPolicyStatement,
-      autoScalingCwPolicyStatement
+      autoScalingCwPolicyStatement,
+      cwPolicyStatement
     );
 
     mrTaskRole.addManagedPolicy(mrPolicy);

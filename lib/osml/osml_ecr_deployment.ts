@@ -9,6 +9,7 @@ import { ContainerImage, EcrImage } from "aws-cdk-lib/aws-ecs";
 import { DockerImageName, ECRDeployment } from "cdk-ecr-deployment";
 import { Construct } from "constructs";
 
+import { OSMLAccount } from "./osml_account";
 import { OSMLRepository } from "./osml_repository";
 
 /**
@@ -17,6 +18,13 @@ import { OSMLRepository } from "./osml_repository";
  * @interface OSMLECRDeploymentProps
  */
 export interface OSMLECRDeploymentProps {
+  /**
+   * The OSML account associated with this VPC.
+   *
+   * @type {OSMLAccount}
+   */
+  account: OSMLAccount;
+
   /**
    * The URI of the source for the container image.
    *

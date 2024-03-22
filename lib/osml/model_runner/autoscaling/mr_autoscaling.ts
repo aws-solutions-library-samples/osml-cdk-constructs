@@ -93,12 +93,12 @@ export class MRAutoScaling extends Construct {
       this.mrAutoscalingConfig = new MRAutoscalingConfig();
     }
 
-    // Create custom autoscaling for ADC regions where it isn't available.
+    // Create custom autoscaling for regions where it isn't available.
     if (props.account.isAdc) {
       /**
        * CloudWatch Scheduled Job to control scaling.
        * This is currently used to provide scaling capability for ECS
-       * tasks in the ADC partitions.
+       * tasks in the partitions where it isn't available.
        */
       const regionQueueScalingAlarm = new Alarm(
         this,
@@ -150,8 +150,9 @@ export class MRAutoScaling extends Construct {
       );
     } else {
       /**
-       * This is currently used when not deploying into ADC
-       * partitions. We can swap fully to this when the autoscaling
+       * This is currently used when not deploying into
+       * partitions where it isn't available.
+       * We can swap fully to this when the autoscaling
        * capability is enabled for ECS.
        */
       const mrServiceScaling =

@@ -250,7 +250,8 @@ export class MREndpoints extends Construct {
         this.securityGroupId = props.osmlVpc.vpcDefaultSecurityGroup;
       }
     }
-    if (props.deployHttpCenterpointModel != false) {
+    // EphemeralStorage is supported in most regions
+    if (props.deployHttpCenterpointModel != false && !props.account.isAdc) {
       // Check if a role was provided for the HTTP endpoint
       if (props.httpEndpointRole != undefined) {
         // Import passed custom role for the HTTP endpoint

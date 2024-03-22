@@ -76,7 +76,7 @@ export class TSDataplaneConfig {
     public ECS_CONTAINER_NAME: string = "TSContainer",
     public ECS_TASK_MEMORY: number = 16384,
     public ECS_TASK_CPU: number = 8192,
-    public ECS_CONTAINER_MEMORY: number = 15360,
+    public ECS_CONTAINER_MEMORY: number = 10240,
     public ECS_CONTAINER_CPU: number = 7168,
     public ECS_CONTAINER_PORT: number = 8080,
     public EFS_MOUNT_NAME: string = "ts-efs-volume",
@@ -471,6 +471,24 @@ export class TSDataplane extends Construct {
         roleName: this.config.EXECUTION_ROLE_NAME
       }).role;
     }
+
+    // Set up an few regional S3 endpoint for GDAL to use
+    class S3FactISO implements region_info.IFact {
+      public readonly region = "us-iso-east-1";
+      public readonly name =
+        region_info.FactName.servicePrincipal("s3.amazonaws.com");
+      public readonly value = "s3.us-iso-east-1.c2s.ic.gov";
+    }
+
+    class S3FactISOB implements region_info.IFact {
+      public readonly region = "us-isob-east-1";
+      public readonly name =
+        region_info.FactName.servicePrincipal("s3.amazonaws.com");
+      public readonly value = "s3.us-isob-east-1.sc2s.sgov.gov";
+    }
+
+    region_info.Fact.register(new S3FactISO(), true);
+    region_info.Fact.register(new S3FactISOB(), true);
 
     // Set up a regional S3 endpoint for GDAL to use
     this.regionalS3Endpoint = region_info.Fact.find(

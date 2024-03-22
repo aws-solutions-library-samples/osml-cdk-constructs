@@ -76,6 +76,7 @@ export class MRExecutionRole extends Construct {
     const MR_CONTAINER_REPOSITORY_NAME =
       this.mrContainerConfig.MR_CONTAINER_REPOSITORY;
     const MR_FIRELENS_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens`;
+    const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService`;
 
     // Determine the AWS partition based on the provided AWS region
     this.partition = region_info.Fact.find(
@@ -129,7 +130,8 @@ export class MRExecutionRole extends Construct {
         "logs:CreateLogGroup"
       ],
       resources: [
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_FIRELENS_LOG_GROUP_NAME}:*`
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_FIRELENS_LOG_GROUP_NAME}:*`,
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_SERVICE_LOG_GROUP_NAME}:*`
       ]
     });
 
