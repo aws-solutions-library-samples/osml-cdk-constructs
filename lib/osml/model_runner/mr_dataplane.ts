@@ -17,11 +17,8 @@ import {
   ContainerDefinition,
   ContainerImage,
   FargateService,
-  FireLensLogDriverProps,
   FirelensLogRouterType,
   LogDriver,
-  LogDrivers,
-  obtainDefaultFluentBitECRImage,
   Protocol,
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
@@ -30,6 +27,7 @@ import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
 
+import { MRLoggingOptions } from "../model_runner/monitoring/mr_logging_options";
 import { OSMLAccount } from "../osml_account";
 import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
@@ -448,68 +446,15 @@ export class MRDataplane extends Construct {
       desiredCount: this.mrDataplaneConfig.MR_DEFAULT_DESIRE_COUNT
     });
 
-    interface LoggingOptions {
-      Name: string;
-      region: string;
-      log_group_name: string;
-      log_format: string;
-      log_key: string;
-      log_stream_prefix: string;
-      endpoint: string;
-    }
-
-    const logsEndpoint = region_info.Fact.find(
-      props.account.region,
-      region_info.FactName.servicePrincipal("logs.amazonaws.com")
-    )!;
-
-    // Set up Logging Options
-    const loggingOptions: {
-      [key: string]: LoggingOptions;
-    } = {
-      options: {
-        Name: "cloudwatch",
-        region: props.account.region,
-        log_group_name: this.logGroup.logGroupName,
-        log_format: "json/emf",
-        log_key: "log",
-        log_stream_prefix: "${TASK_ID}/",
-        endpoint: `https://${logsEndpoint}`
-      }
-    };
-
-    const logging = LogDrivers.firelens(
-      loggingOptions as FireLensLogDriverProps
-    );
-
-    // Build a fluent bit log router for the MR container
-    let fluentBitImage;
-    if (props.account.isAdc) {
-      // Get Fluent Bit Container from ECR repo
-      if (props.account.region === "us-iso-east-1") {
-        fluentBitImage = ContainerImage.fromRegistry(
-          `${props.account.id}.dkr.ecr.us-iso-east-1.c2s.ic.gov/aws-for-fluent-bit:latest`
-        );
-      } else if (props.account.region === "us-isob-east-1") {
-        fluentBitImage = ContainerImage.fromRegistry(
-          `${props.account.id}.dkr.ecr.us-isob-east-1.sc2s.sgov.gov/aws-for-fluent-bit:latest`
-        );
-      } else {
-        fluentBitImage = obtainDefaultFluentBitECRImage(
-          this.taskDefinition,
-          this.taskDefinition.defaultContainer?.logDriverConfig
-        );
-      }
-    } else {
-      fluentBitImage = obtainDefaultFluentBitECRImage(
-        this.taskDefinition,
-        this.taskDefinition.defaultContainer?.logDriverConfig
-      );
-    }
+    const loggingOptions = new MRLoggingOptions(this, "MRLoggingOptions", {
+      account: props.account,
+      logGroup: this.logGroup,
+      taskDefinition: this.taskDefinition
+    });
 
     // Build a fluent bit log router for the MR container
     this.taskDefinition.addFirelensLogRouter("MRFireLensContainer", {
-      image: fluentBitImage,
+      image: loggingOptions.fluentBitImage,
       essential: true,
       firelensConfig: {
         type: FirelensLogRouterType.FLUENTBIT
@@ -547,7 +492,7 @@ export class MRDataplane extends Construct {
         startTimeout: Duration.minutes(1),
         stopTimeout: Duration.minutes(1),
         // Create a log group for console output (STDOUT)
-        logging: logging,
+        logging: loggingOptions.logging,
         disableNetworking: false
       }
     );
