@@ -27,12 +27,12 @@ import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
 
-import { MRLoggingOptions } from "../model_runner/monitoring/mr_logging_options";
 import { OSMLAccount } from "../osml_account";
 import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
 import { OSMLTopic } from "../osml_topic";
 import { OSMLVpc } from "../osml_vpc";
+import { MRFluentBitLogDriver } from "./monitoring/mr_fluentbit_log_driver";
 import { MRExecutionRole } from "./roles/mr_execution_role";
 import { MRTaskRole } from "./roles/mr_task_role";
 
@@ -446,7 +446,7 @@ export class MRDataplane extends Construct {
       desiredCount: this.mrDataplaneConfig.MR_DEFAULT_DESIRE_COUNT
     });
 
-    const loggingOptions = new MRLoggingOptions(this, "MRLoggingOptions", {
+    const loggingOptions = new MRFluentBitLogDriver(this, "MRLoggingOptions", {
       account: props.account,
       logGroup: this.logGroup,
       taskDefinition: this.taskDefinition

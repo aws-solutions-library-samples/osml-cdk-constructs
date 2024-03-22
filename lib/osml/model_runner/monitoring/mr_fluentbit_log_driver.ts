@@ -5,7 +5,6 @@
 import { region_info } from "aws-cdk-lib";
 import {
   ContainerImage,
-  FireLensLogDriverProps,
   LogDriver,
   LogDrivers,
   obtainDefaultFluentBitECRImage,
@@ -17,36 +16,11 @@ import { Construct } from "constructs";
 import { OSMLAccount } from "../../osml_account";
 
 /**
- * Interface for logging options configuration
- *
- * @interface LoggingOptions
- *
- * @description Defines the configuration options needed to set up AWS IoT logging
- *
- * @property {string} Name - The name of the logging configuration
- * @property {string} region - The AWS region for the log group
- * @property {string} log_group_name - The name of the CloudWatch Logs log group
- * @property {string} log_format - The format of the log messages
- * @property {string} log_key - The key used for indexing log events
- * @property {string} log_stream_prefix - The prefix for the log stream name
- * @property {string} endpoint - The endpoint for the logging service
- */
-export interface LoggingOptions {
-  Name: string;
-  region: string;
-  log_group_name: string;
-  log_format: string;
-  log_key: string;
-  log_stream_prefix: string;
-  endpoint: string;
-}
-
-/**
  * Defines the configuration options needed to set up logging for an OSML model runner
  *
- * @interface MRLoggingOptionsProps
+ * @interface MRFluentBitLogDriverProps
  */
-export interface MRLoggingOptionsProps {
+export interface MRFluentBitLogDriverProps {
   /**
    * The OSML deployment account.
    * @type {OSMLAccount}
@@ -67,9 +41,9 @@ export interface MRLoggingOptionsProps {
 }
 
 /**
- * Represents an MRLoggingOptions construct for managing logging options for Model Runner.
+ * Represents an MRFluentBitLogDriver construct for managing logging options for Model Runner.
  */
-export class MRLoggingOptions extends Construct {
+export class MRFluentBitLogDriver extends Construct {
   /**
    * The container image for the Fluent Bit container.
    */
@@ -81,12 +55,12 @@ export class MRLoggingOptions extends Construct {
   public logging: LogDriver;
 
   /**
-   * Creates an MRLoggingOptions construct.
+   * Creates an MRFluentBitLogDriver construct.
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The ID of this construct within the current scope.
-   * @param {MRLoggingProps} props - The properties of this construct.
+   * @param {MRFluentBitLogDriverProps} props - The properties of this construct.
    */
-  constructor(scope: Construct, id: string, props: MRLoggingOptionsProps) {
+  constructor(scope: Construct, id: string, props: MRFluentBitLogDriverProps) {
     super(scope, id);
 
     const logsEndpoint = region_info.Fact.find(
@@ -95,9 +69,7 @@ export class MRLoggingOptions extends Construct {
     )!;
 
     // Set up Logging Options
-    const loggingOptions: {
-      [key: string]: LoggingOptions;
-    } = {
+    this.logging = LogDrivers.firelens({
       options: {
         Name: "cloudwatch",
         region: props.account.region,
@@ -107,11 +79,7 @@ export class MRLoggingOptions extends Construct {
         log_stream_prefix: "${TASK_ID}/",
         endpoint: `https://${logsEndpoint}`
       }
-    };
-
-    this.logging = LogDrivers.firelens(
-      loggingOptions as FireLensLogDriverProps
-    );
+    });
 
     if (props.account.isAdc) {
       // Get Fluent Bit Container from ECR repo
