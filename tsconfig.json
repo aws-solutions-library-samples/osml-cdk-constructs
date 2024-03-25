@@ -25,6 +25,7 @@
       "./node_modules/@types"
     ]
   },
+  "include": ["./lib/**/*", "./test/**/*", "jest.config.js"],
   "typedocOptions": {
       "entryPoints": ["lib/index.ts"],
       "out": "docs",
