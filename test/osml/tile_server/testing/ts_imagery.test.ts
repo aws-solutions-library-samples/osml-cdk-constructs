@@ -4,41 +4,41 @@
 
 import { App, RemovalPolicy, Stack } from "aws-cdk-lib";
 
-import { MRImagery, MRImageryConfig, OSMLVpc } from "../../../../lib";
+import { OSMLVpc, TSImagery, TSImageryConfig } from "../../../../lib";
 import { test_account } from "../../../test_account";
 
-describe("MRImagery constructor", () => {
+describe("TSImagery constructor", () => {
   let app: App;
   let stack: Stack;
   let osmlVpc: OSMLVpc;
-  let mrImagery: MRImagery;
-  let config: MRImageryConfig;
-  describe("MRImagery", () => {
+  let tsImagery: TSImagery;
+  let config: TSImageryConfig;
+  describe("TSImagery", () => {
     beforeEach(() => {
       app = new App();
-      stack = new Stack(app, "MRImageryStack");
+      stack = new Stack(app, "TSImageryStack");
 
       osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
         account: test_account
       });
 
-      config = new MRImageryConfig();
+      config = new TSImageryConfig();
       config.S3_IMAGE_BUCKET = "jest-buckets";
       config.S3_TEST_IMAGES_PATH = "lib/"; // just used for replicating object(s)
 
-      mrImagery = new MRImagery(stack, "MRImagery", {
+      tsImagery = new TSImagery(stack, "TSImagery", {
         account: test_account,
         vpc: osmlVpc.vpc,
-        mrImageryConfig: config
+        tsImageryConfig: config
       });
     });
 
     it("sets removal policy based on prodLike flag", () => {
-      expect(mrImagery.removalPolicy).toEqual(RemovalPolicy.RETAIN);
+      expect(tsImagery.removalPolicy).toEqual(RemovalPolicy.RETAIN);
     });
 
     it("uses config if provided", () => {
-      expect(mrImagery.mrImageryConfig).toEqual(config);
+      expect(tsImagery.tsImageryConfig).toEqual(config);
     });
   });
 });

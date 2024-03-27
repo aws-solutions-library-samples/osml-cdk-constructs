@@ -5,28 +5,20 @@
 import { App, Stack } from "aws-cdk-lib";
 import { Vpc } from "aws-cdk-lib/aws-ec2";
 
-import { OSMLAccount } from "../../lib/osml/osml_account";
 import { OSMLVpc } from "../../lib/osml/osml_vpc";
+import { test_account } from "../test_account";
 
 describe("OSMLVpc", () => {
   let osmlVpc: OSMLVpc;
   let app: App;
-  let account: OSMLAccount;
   let stack: Stack;
 
   beforeEach(() => {
     app = new App();
     stack = new Stack(app, "OSMLVpcStack");
 
-    account = {
-      id: "123456789012",
-      name: "test",
-      prodLike: true,
-      region: "us-iso-east-1"
-    } as OSMLAccount;
-
     osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
-      account: account
+      account: test_account
     });
   });
 
@@ -35,7 +27,7 @@ describe("OSMLVpc", () => {
     const removalPolicy = osmlVpc.removalPolicy;
 
     // Assert it is set correctly based on account type
-    if (account.prodLike) {
+    if (test_account.prodLike) {
       expect(removalPolicy).toBe("retain");
     } else {
       expect(removalPolicy).toBe("destroy");

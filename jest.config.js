@@ -5,7 +5,7 @@ module.exports = {
     "^.+\\.tsx?$": "ts-jest"
   },
   moduleNameMapper: {
-    "^@osml-cdk-constructs/(.*)$": "<rootDir>/lib/$1"
+    "^@/(.*)$": "<rootDir>/lib/$1"
   },
   transformIgnorePatterns: ["<rootDir>/node_modules/"],
   collectCoverage: true,
@@ -13,8 +13,14 @@ module.exports = {
     "**/*.{ts,tsx}",
     "!**/node_modules/**",
     "!**/vendor/**",
-    "!**/dist/**"
+    "!**/dist/**",
+    "!**/test_account.ts"
   ],
+  coverageThreshold: {
+    global: {
+      lines: 93
+    }
+  },
   coverageReporters: ["html"],
   coverageDirectory: "<rootDir>/coverage",
   verbose: true

@@ -4,12 +4,12 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { MESMRole, MRTaskRole, OSMLAccount, OSMLVpc } from "../../lib";
+import { MESMRole, MRTaskRole } from "../../lib";
 import { MEHTTPRole } from "../../lib/osml/model_endpoint/roles/me_http_role";
+import { test_account } from "../test_account";
 
 describe("OSMLRolesStack", () => {
   let app: App;
-  let account: OSMLAccount;
   let stack: Stack;
   let mrTaskRole: MRTaskRole;
   let meSMRole: MESMRole;
@@ -19,25 +19,18 @@ describe("OSMLRolesStack", () => {
     app = new App();
     stack = new Stack(app, "OSMLRolesStack");
 
-    account = {
-      id: "123456789012",
-      name: "test",
-      prodLike: true,
-      region: "us-west-2"
-    } as OSMLAccount;
-
     mrTaskRole = new MRTaskRole(stack, "MRTaskRole", {
-      account: account,
+      account: test_account,
       roleName: "test"
     });
 
     meSMRole = new MESMRole(stack, "MESMRole", {
-      account: account,
+      account: test_account,
       roleName: "test"
     });
 
     meHTTPRole = new MEHTTPRole(stack, "HTTPEndpointTaskRole", {
-      account: account,
+      account: test_account,
       roleName: "test"
     });
   });

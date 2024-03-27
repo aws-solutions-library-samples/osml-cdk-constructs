@@ -3,66 +3,45 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
+import { Code } from "aws-cdk-lib/aws-lambda";
 
-import {
-  MRDataplaneConfig,
-  MRImagery,
-  OSMLAccount,
-  OSMLVpc,
-  TSContainer,
-  TSDataplane,
-  TSDataplaneProps
-} from "../../../lib";
+import { OSMLVpc, TSContainer, TSDataplane } from "../../../lib";
+import { test_account } from "../../test_account";
 
 describe("TSDataplane constructor", () => {
-  let dataplane: TSDataplane;
   let app: App;
-  let account: OSMLAccount;
   let stack: Stack;
   let osmlVpc: OSMLVpc;
   let tsContainer: TSContainer;
+  let tsDataplane: TSDataplane;
 
   beforeEach(() => {
     app = new App();
     stack = new Stack(app, "TSDataplaneStack");
 
-    account = {
-      id: "123456789012",
-      name: "test",
-      prodLike: true,
-      region: "us-west-2"
-    } as OSMLAccount;
-
     osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
-      account: account
+      account: test_account
     });
 
     tsContainer = new TSContainer(stack, "TSContainer", {
-      account: account,
+      account: test_account,
       buildFromSource: false,
       osmlVpc: osmlVpc
     });
 
-    // dataplane = new TSDataplane(stack, "TSDataplane", {
-    //   account: account,
-    //   taskRole: undefined,
-    //   osmlVpc: osmlVpc,
-    //   containerImage: tsContainer.containerImage
-    // });
+    Object.defineProperty(Code, "fromAsset", {
+      value: () => Code.fromInline("test code")
+    });
+
+    tsDataplane = new TSDataplane(stack, "TSDataplane", {
+      account: test_account,
+      taskRole: undefined,
+      osmlVpc: osmlVpc,
+      containerImage: tsContainer.containerImage
+    });
   });
 
-  it("sets the removal policy correctly based on prodLike flag", () => {
-    // assert removal policy
+  it("creates jobTable instance", () => {
+    expect(tsDataplane.jobTable).toBeDefined();
   });
-
-  it("calls this.setup() with props", () => {
-    // spy on setup method
-    // assert it was called
-  });
-
-  it("creates OSMLTable instance", () => {
-    // assert jobTable property was set
-  });
-
-  // additional tests for other constructor logic
 });

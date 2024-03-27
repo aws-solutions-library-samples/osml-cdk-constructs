@@ -4,53 +4,48 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { MRContainer, MRDataplane, OSMLAccount, OSMLVpc } from "../../../lib";
+import { MRContainer, MRDataplane, OSMLVpc } from "../../../lib";
+import { test_account } from "../../test_account";
 
 describe("MRDataplane constructor", () => {
   let app: App;
-  let account: OSMLAccount;
   let stack: Stack;
   let osmlVpc: OSMLVpc;
   let mrContainer: MRContainer;
   let mrDataplane: MRDataplane;
 
-  beforeEach(() => {
-    app = new App();
-    stack = new Stack(app, "MRDataplaneStack");
+  describe("MRDataplane", () => {
+    beforeEach(() => {
+      app = new App();
+      stack = new Stack(app, "MRDataplaneStack");
 
-    account = {
-      id: "123456789012",
-      name: "test",
-      prodLike: true,
-      region: "us-west-2"
-    } as OSMLAccount;
+      osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
+        account: test_account
+      });
 
-    osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
-      account: account
+      mrContainer = new MRContainer(stack, "MRContainer", {
+        account: test_account,
+        buildFromSource: false,
+        osmlVpc: osmlVpc
+      });
+
+      mrDataplane = new MRDataplane(stack, "MRDataplane", {
+        account: test_account,
+        taskRole: undefined,
+        osmlVpc: osmlVpc,
+        mrContainerImage: mrContainer.containerImage
+      });
     });
 
-    mrContainer = new MRContainer(stack, "MRContainer", {
-      account: account,
-      buildFromSource: false,
-      osmlVpc: osmlVpc
+    it("sets the removal policy correctly based on prodLike flag", () => {
+      expect(mrDataplane.removalPolicy).toBeDefined();
     });
 
-    mrDataplane = new MRDataplane(stack, "MRDataplane", {
-      account: account,
-      taskRole: undefined,
-      osmlVpc: osmlVpc,
-      mrContainerImage: mrContainer.containerImage
+    it("check if OSMLTable(s) are created", () => {
+      expect(mrDataplane.featureTable).toBeDefined();
+      expect(mrDataplane.jobStatusTable).toBeDefined();
+      expect(mrDataplane.regionRequestTable).toBeDefined();
+      expect(mrDataplane.endpointStatisticsTable).toBeDefined();
     });
-  });
-
-  it("sets the removal policy correctly based on prodLike flag", () => {
-    expect(mrDataplane.removalPolicy).toBeDefined();
-  });
-
-  it("check if OSMLTable(s) are created", () => {
-    expect(mrDataplane.featureTable).toBeDefined();
-    expect(mrDataplane.jobStatusTable).toBeDefined();
-    expect(mrDataplane.regionRequestTable).toBeDefined();
-    expect(mrDataplane.endpointStatisticsTable).toBeDefined();
   });
 });

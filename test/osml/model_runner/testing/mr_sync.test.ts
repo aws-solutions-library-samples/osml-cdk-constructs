@@ -4,29 +4,22 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { MRSync, OSMLAccount } from "../../../../lib";
+import { MRSync } from "../../../../lib";
+import { test_account } from "../../../test_account";
 
 describe("MRSync", () => {
   let app: App;
-  let account: OSMLAccount;
   let stack: Stack;
   let mrSync: MRSync;
 
   beforeEach(() => {
     app = new App();
     stack = new Stack(app, "MRSyncStack");
-
-    account = {
-      id: "123456789012",
-      name: "test",
-      prodLike: true,
-      region: "us-west-2"
-    } as OSMLAccount;
   });
 
   it("creates bucket with default config", () => {
     mrSync = new MRSync(stack, "MRSync", {
-      account: account
+      account: test_account
     });
 
     expect(mrSync.resultsBucket).toBeDefined();
@@ -34,7 +27,7 @@ describe("MRSync", () => {
 
   it("creates stream with default config", () => {
     mrSync = new MRSync(stack, "MRSync", {
-      account: account
+      account: test_account
     });
 
     expect(mrSync.resultStream).toBeDefined();
@@ -42,7 +35,7 @@ describe("MRSync", () => {
 
   it("does not create resources if disabled", () => {
     mrSync = new MRSync(stack, "Test", {
-      account: account,
+      account: test_account,
       deploySyncBucket: false
     });
 

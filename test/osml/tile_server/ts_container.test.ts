@@ -45,10 +45,6 @@ describe("TSContainer", () => {
     expect(container.config).toBeDefined();
   });
 
-  it("creates container image from Docker asset if buildFromSource", () => {
-    // empty suite since its impossible to create a Docker asset in a test environment
-  });
-
   it("sets container image", () => {
     expect(container.containerImage).toBeDefined();
   });

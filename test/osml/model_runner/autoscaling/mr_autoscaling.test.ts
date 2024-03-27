@@ -9,13 +9,12 @@ import {
   MRAutoscalingConfig,
   MRContainer,
   MRDataplane,
-  OSMLAccount,
   OSMLVpc
 } from "../../../../lib";
+import { test_account } from "../../../test_account";
 
 describe("MRAutoScaling constructor", () => {
   let app: App;
-  let account: OSMLAccount;
   let stack: Stack;
   let osmlVpc: OSMLVpc;
   let mrContainer: MRContainer;
@@ -26,25 +25,18 @@ describe("MRAutoScaling constructor", () => {
     app = new App();
     stack = new Stack(app, "MRAutoScalingStack");
 
-    account = {
-      id: "123456789012",
-      name: "test",
-      prodLike: true,
-      region: "us-west-2"
-    } as OSMLAccount;
-
     osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
-      account: account
+      account: test_account
     });
 
     mrContainer = new MRContainer(stack, "MRContainer", {
-      account: account,
+      account: test_account,
       buildFromSource: false,
       osmlVpc: osmlVpc
     });
 
     mrDataplane = new MRDataplane(stack, "MRDataplane", {
-      account: account,
+      account: test_account,
       taskRole: undefined,
       osmlVpc: osmlVpc,
       mrContainerImage: mrContainer.containerImage
@@ -59,7 +51,7 @@ describe("MRAutoScaling constructor", () => {
       (config.MR_AUTOSCALING_TASK_OUT_INCREMENT = 8);
 
     mrAutoScaling = new MRAutoScaling(stack, "MRAutoScaling", {
-      account: account,
+      account: test_account,
       mrDataplane: mrDataplane,
       mrAutoscalingConfig: config
     });
