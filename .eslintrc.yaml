@@ -38,6 +38,7 @@ rules:
   "@typescript-eslint/require-await": error
   "@typescript-eslint/no-empty-function": off
   "jest/no-done-callback": off
+  "jest/no-conditional-expect": off
 
 settings:
   import/resolver:
