@@ -11,7 +11,6 @@ This project demonstrates a CDK Construct Library which includes the constructs 
 * [Feature Flags](#feature-flags)
 * [Support & Feedback](#support-feedback)
 * [Security](#security)
-    + [Compliant Code: Meeting AWS Solutions and NIST 800-53 rev 5 Standards](#compliant-code-meeting-aws-solutions-and-nist-800-53-rev-5-standards)
 * [License](#license)
 
 ## Useful commands
