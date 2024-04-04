@@ -18,13 +18,13 @@ import { OSMLVpc } from "../osml_vpc";
 export class TSContainerConfig {
   /**
    * Creates an instance of TSContainerConfig.
-   * @param {string} [TS_CONTAINER="awsosml/osml-tile-server:main"] - The container image to use for the TileServer.
+   * @param {string} [TS_CONTAINER="awsosml/osml-tile-server:latest"] - The container image to use for the TileServer.
    * @param {string} [TS_BUILD_PATH="lib/osml-tile-server"] - The build path for the TileServer.
    * @param {string} [TS_BUILD_TARGET="osml_tile_sever"] - The build target for the TileServer.
    * @param {string} [TS_REPOSITORY="tile-server-container"] - The repository name for the TileServer.
    */
   constructor(
-    public TS_CONTAINER: string = "awsosml/osml-tile-server:main",
+    public TS_CONTAINER: string = "awsosml/osml-tile-server:latest",
     public TS_BUILD_PATH: string = "lib/osml-tile-server",
     public TS_BUILD_TARGET: string = "osml_tile_server",
     public TS_REPOSITORY: string = "tile-server-container"

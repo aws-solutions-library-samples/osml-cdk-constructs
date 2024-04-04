@@ -13,7 +13,7 @@ import { OSMLVpc } from "../osml_vpc";
 
 export class MEContainerConfig {
   constructor(
-    public ME_DEFAULT_CONTAINER = "awsosml/osml-models:main",
+    public ME_DEFAULT_CONTAINER = "awsosml/osml-models:latest",
     public ME_CONTAINER_BUILD_PATH = "lib/osml-models",
     public ME_CONTAINER_BUILD_TARGET = "osml_model",
     public ME_CONTAINER_REPOSITORY = "model-container"
