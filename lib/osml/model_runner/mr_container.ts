@@ -18,13 +18,13 @@ import { OSMLVpc } from "../osml_vpc";
 export class MRContainerConfig {
   /**
    * Creates an instance of MRAppContainerConfig.
-   * @param {string} [MR_DEFAULT_CONTAINER="awsosml/osml-model-runner:main"] - The container image to use for the MRApp.
+   * @param {string} [MR_DEFAULT_CONTAINER="awsosml/osml-model-runner:latest"] - The container image to use for the MRApp.
    * @param {string} [MR_CONTAINER_BUILD_PATH="lib/osml-model-runner"] - The build path for the MRApp.
    * @param {string} [MR_CONTAINER_BUILD_TARGET="model_runner"] - The build target for the MRApp.
    * @param {string} [MR_CONTAINER_REPOSITORY="model-runner-container"] - The repository name for the MRApp.
    */
   constructor(
-    public MR_DEFAULT_CONTAINER: string = "awsosml/osml-model-runner:main",
+    public MR_DEFAULT_CONTAINER: string = "awsosml/osml-model-runner:latest",
     public MR_CONTAINER_BUILD_PATH: string = "lib/osml-model-runner",
     public MR_CONTAINER_BUILD_TARGET: string = "model_runner",
     public MR_CONTAINER_REPOSITORY: string = "model-runner-container"
