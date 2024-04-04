@@ -8,7 +8,6 @@ import {
   OSMLVpc,
   TSImagery,
   TSImageryConfig,
-  TSTestRunner,
   TSTestRunnerContainer
 } from "../../../../lib";
 import { test_account } from "../../../test_account";
@@ -18,7 +17,6 @@ describe("TSDataplane constructor", () => {
   let stack: Stack;
   let osmlVpc: OSMLVpc;
   let tsTestRunnerContainer: TSTestRunnerContainer;
-  let tsTestRunner: TSTestRunner;
   let config: TSImageryConfig;
   let tsImagery: TSImagery;
 
@@ -51,19 +49,13 @@ describe("TSDataplane constructor", () => {
         buildFromSource: false
       }
     );
-
-    tsTestRunner = new TSTestRunner(stack, "TSDataplane", {
-      account: test_account,
-      osmlVpc: osmlVpc,
-      dockerImageCode: tsTestRunnerContainer.dockerImageCode
-    });
   });
 
   it("sets removal policy based on prodLike flag", () => {
     expect(tsImagery.removalPolicy).toEqual(RemovalPolicy.RETAIN);
   });
 
-  it("check of the ts integ runner is defined", () => {
-    expect(tsTestRunner.lambdaIntegRunner.functionArn).toBeDefined();
+  it("check of the ts test runner docker image code is defined", () => {
+    expect(tsTestRunnerContainer.dockerImageCode).toBeDefined();
   });
 });
