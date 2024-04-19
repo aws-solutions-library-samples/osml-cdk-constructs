@@ -1,0 +1,24 @@
+name: docs
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      - name: Build Docs
+        run: |
+          npm ci
+          npm run build
+          npx typedoc
+      - uses: peaceiris/actions-gh-pages@v3.9.3
+        with:
+          publish_branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/
+          force_orphan: true
