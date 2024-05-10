@@ -39,7 +39,7 @@ export interface MRTaskRoleProps {
 }
 
 /**
- * Represents an MRTaskRole construct.
+ * Represents a MRTaskRole construct.
  */
 export class MRTaskRole extends Construct {
   /**

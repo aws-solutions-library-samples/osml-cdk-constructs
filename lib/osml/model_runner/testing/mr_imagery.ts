@@ -25,7 +25,7 @@ export class MRImageryConfig {
    * @param {string} S3_TEST_IMAGES_PATH - The local path to the test imager to deploy.
    */
   constructor(
-    public S3_IMAGE_BUCKET: string = "test-images",
+    public S3_IMAGE_BUCKET: string = "mr-test-images",
     public S3_TEST_IMAGES_PATH: string = "assets/images/model-runner"
   ) {}
 }
@@ -59,7 +59,7 @@ export interface MRImageryProps {
    *
    * @type {MRImageryConfig|undefined}
    */
-  mrImageryConfig?: MRImageryConfig;
+  config?: MRImageryConfig;
 
   /**
    * Optional security group ID to apply to the VPC config for SM endpoints.
@@ -87,7 +87,7 @@ export class MRImagery extends Construct {
   /**
    * Configuration options for MRImagery.
    */
-  public mrImageryConfig: MRImageryConfig;
+  public config: MRImageryConfig;
 
   /**
    * Creates an MRImagery cdk construct.
@@ -99,29 +99,29 @@ export class MRImagery extends Construct {
     super(scope, id);
 
     // Check if a custom configuration was provided
-    if (props.mrImageryConfig != undefined) {
+    if (props.config != undefined) {
       // Import existing MR configuration
-      this.mrImageryConfig = props.mrImageryConfig;
+      this.config = props.config;
     } else {
       // Create a new default configuration
-      this.mrImageryConfig = new MRImageryConfig();
+      this.config = new MRImageryConfig();
     }
 
-    // Setup a removal policy based on the 'prodLike' property
+    // Set up a removal policy based on the 'prodLike' property
     this.removalPolicy = props.account.prodLike
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
     // Create an image bucket to store MR imagery data
-    this.imageBucket = new OSMLBucket(this, `OSMLTestImageBucket`, {
-      bucketName: `${this.mrImageryConfig.S3_IMAGE_BUCKET}-${props.account.id}`,
+    this.imageBucket = new OSMLBucket(this, `MRTestImageBucket`, {
+      bucketName: `${this.config.S3_IMAGE_BUCKET}-${props.account.id}`,
       prodLike: props.account.prodLike,
       removalPolicy: this.removalPolicy
     });
 
     // Deploy test images into the bucket
-    new BucketDeployment(this, "OSMLTestImageDeployment", {
-      sources: [Source.asset(this.mrImageryConfig.S3_TEST_IMAGES_PATH)],
+    new BucketDeployment(this, "MRTestImageDeployment", {
+      sources: [Source.asset(this.config.S3_TEST_IMAGES_PATH)],
       destinationBucket: this.imageBucket.bucket,
       accessControl: BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
       memoryLimit: 10240,

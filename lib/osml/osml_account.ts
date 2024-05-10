@@ -57,6 +57,14 @@ export interface OSMLAccount {
   deployTileServer: boolean;
 
   /**
+   * Indicates whether to deploy the data intake application
+   *
+   * @type {boolean}
+   * @memberof OSMLAccount
+   */
+  deployDataIntake: boolean;
+
+  /**
    * Optional: Indicates whether the account is configured as an ADC (Application Development Cloud).
    *
    * @type {boolean|undefined}
