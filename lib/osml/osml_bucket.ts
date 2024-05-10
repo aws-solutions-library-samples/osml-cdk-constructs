@@ -76,7 +76,7 @@ export class OSMLBucket extends Construct {
 
     // Set up shared properties for our bucket and access logging bucket
     const bucketProps = {
-      autoDeleteObjects: !props.prodLike,
+      emptyOnDelete: !props.prodLike,
       enforceSSL: true,
       encryption: BucketEncryption.KMS_MANAGED,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,

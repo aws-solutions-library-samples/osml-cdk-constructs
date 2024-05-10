@@ -2,6 +2,10 @@
  * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
 
+export * from "./osml/data_intake/di_container";
+export * from "./osml/data_intake/di_dataplane";
+export * from "./osml/data_intake/testing/di_imagery";
+export * from "./osml/data_intake/roles/di_lambda_role";
 export * from "./osml/model_runner/autoscaling/mr_autoscaling";
 export * from "./osml/model_runner/mr_dataplane";
 export * from "./osml/model_runner/mr_container";

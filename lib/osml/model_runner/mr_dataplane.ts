@@ -65,6 +65,7 @@ export class MRDataplaneConfig {
    * @param {number} MR_LOGGING_MEMORY - The memory configuration for logging.
    * @param {number} MR_LOGGING_CPU - The CPU configuration for logging.
    * @param {number} MR_WORKERS_PER_CPU - The number of workers per CPU.
+   * @param {number} MR_DEFAULT_DESIRE_COUNT - The desired number of tasks to use for the service.
    * @param {string} MR_REGION_SIZE - The size of MR regions in the format "(width, height)".
    * @param {boolean} MR_ENABLE_IMAGE_STATUS - Whether to deploy image status messages.
    * @param {boolean} MR_ENABLE_REGION_STATUS - Whether to deploy region status messages.
@@ -232,7 +233,7 @@ export class MRDataplane extends Construct {
       }).role;
     }
 
-    // Set up an few regional S3 endpoint for GDAL to use
+    // Set up a few regional S3 endpoint for GDAL to use
     class S3FactISO implements region_info.IFact {
       public readonly region = "us-iso-east-1";
       public readonly name =

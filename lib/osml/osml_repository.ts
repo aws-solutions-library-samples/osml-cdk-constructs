@@ -48,7 +48,7 @@ export class OSMLRepository extends Construct {
       removalPolicy: props.removalPolicy,
       imageScanOnPush: true,
       encryption: RepositoryEncryption.KMS,
-      autoDeleteImages: props.removalPolicy == RemovalPolicy.DESTROY
+      emptyOnDelete: props.removalPolicy == RemovalPolicy.DESTROY
     });
   }
 }

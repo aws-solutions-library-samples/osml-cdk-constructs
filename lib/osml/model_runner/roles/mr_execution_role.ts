@@ -1,6 +1,7 @@
 /*
  * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
+
 import { region_info } from "aws-cdk-lib";
 import {
   CompositePrincipal,
@@ -18,132 +19,102 @@ import { MRContainerConfig } from "../mr_container";
 import { MRDataplaneConfig } from "../mr_dataplane";
 
 /**
- * Represents the properties required to define a model runner ECS task role.
- *
+ * Defines the properties required for creating an `MRExecutionRole`.
  * @interface MRExecutionRoleProps
+ * @property {OSMLAccount} account - The OSML (OversightML) deployment account associated with this role.
+ * @property {string} roleName - The name to assign to the IAM role.
  */
 export interface MRExecutionRoleProps {
-  /**
-   * The OSML (OversightML) deployment account associated with this role.
-   *
-   * @type {OSMLAccount}
-   */
   account: OSMLAccount;
-
-  /**
-   * The name to give to the role.
-   *
-   * @type {string}
-   */
   roleName: string;
 }
 
 /**
- * Represents an MRExecutionRole construct.
+ * Constructs a new IAM role designed for ECS tasks execution within AWS,
+ * providing necessary permissions predefined for model runner operations.
+ *
+ * @class MRExecutionRole
+ * @extends {Construct}
+ * @property {IRole} role - The AWS IAM role associated with this construct.
+ * @property {string} partition - The AWS partition in which the role will operate.
  */
 export class MRExecutionRole extends Construct {
-  /**
-   * The AWS IAM role associated with this MRExecutionRole.
-   */
   public role: IRole;
-
-  /**
-   * The AWS partition to be used for this MRExecutionRole.
-   */
   public partition: string;
 
   /**
-   * The Model Runner Dataplane Configuration values to be used for this MRExecutionRole
-   */
-  public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
-
-  /**
-   * The Model Runner Container Configuration values to be used for this MRExecutionRole
-   */
-  public mrContainerConfig: MRContainerConfig = new MRContainerConfig();
-
-  /**
-   * Creates an MRExecutionRole construct.
-   * @param {Construct} scope - The scope/stack in which to define this construct.
-   * @param {string} id - The id of this construct within the current scope.
-   * @param {MRExecutionRoleProps} props - The properties of this construct.
-   * @returns MRExecutionRole - The MRExecutionRole construct.
+   * Initializes a new instance of the `MRExecutionRole` class.
+   *
+   * @constructor
+   * @param {Construct} scope - The scope in which to define this construct, typically a CDK `Stack`.
+   * @param {string} id - A unique identifier for this construct within the scope.
+   * @param {MRExecutionRoleProps} props - The properties for configuring this role.
    */
   constructor(scope: Construct, id: string, props: MRExecutionRoleProps) {
     super(scope, id);
 
-    // Defining constants for better readability
-    const MR_CONTAINER_REPOSITORY_NAME =
-      this.mrContainerConfig.MR_CONTAINER_REPOSITORY;
-    const MR_FIRELENS_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens`;
-    const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService`;
+    const containerRepositoryName = new MRContainerConfig()
+      .MR_CONTAINER_REPOSITORY;
+    const firelensLogGroupName = `/aws/${
+      new MRDataplaneConfig().METRICS_NAMESPACE
+    }/MRFireLens`;
+    const serviceLogGroupName = `/aws/${
+      new MRDataplaneConfig().METRICS_NAMESPACE
+    }/MRService`;
 
-    // Determine the AWS partition based on the provided AWS region
     this.partition = region_info.Fact.find(
       props.account.region,
       region_info.FactName.PARTITION
     )!;
 
-    // Create an AWS IAM role for the Model Runner Fargate ECS execution
-    const mrExecutionRole = new Role(this, "MRExecutionRole", {
+    const role = new Role(this, "MRExecutionRole", {
       roleName: props.roleName,
       assumedBy: new CompositePrincipal(
         new ServicePrincipal("ecs-tasks.amazonaws.com")
       ),
-      description:
-        "Allows the Oversight Model Runner to access necessary AWS services to boot up the ECS task..."
+      description: "Allows ECS tasks to access necessary AWS services."
     });
 
-    const mrPolicy = new ManagedPolicy(this, "MRExecutionPolicy", {
+    const policy = new ManagedPolicy(this, "MRExecutionPolicy", {
       managedPolicyName: "MRExecutionPolicy"
     });
 
-    // Add permissions for ECR permissions
-    const ecrAuthPolicyStatement = new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ["ecr:GetAuthorizationToken"],
-      resources: ["*"]
-    });
-
-    const ecrPolicyStatement = new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: [
-        "ecr:BatchCheckLayerAvailability",
-        "ecr:GetDownloadUrlForLayer",
-        "ecr:BatchGetImage",
-        "ecr:DescribeRepositories"
-      ],
-      resources: [
-        `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${MR_CONTAINER_REPOSITORY_NAME}`
-      ]
-    });
-
-    // Add permissions for cloudwatch permissions
-    const cwPolicyStatement = new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: [
-        "logs:PutLogEvents",
-        "logs:GetLogEvents",
-        "logs:DescribeLogStreams",
-        "logs:DescribeLogGroups",
-        "logs:CreateLogStream",
-        "logs:CreateLogGroup"
-      ],
-      resources: [
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_FIRELENS_LOG_GROUP_NAME}:*`,
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_SERVICE_LOG_GROUP_NAME}:*`
-      ]
-    });
-
-    mrPolicy.addStatements(
-      ecrAuthPolicyStatement,
-      ecrPolicyStatement,
-      cwPolicyStatement
+    policy.addStatements(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ["ecr:GetAuthorizationToken"],
+        resources: ["*"]
+      }),
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:DescribeRepositories"
+        ],
+        resources: [
+          `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${containerRepositoryName}`
+        ]
+      }),
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "logs:PutLogEvents",
+          "logs:GetLogEvents",
+          "logs:DescribeLogStreams",
+          "logs:DescribeLogGroups",
+          "logs:CreateLogStream",
+          "logs:CreateLogGroup"
+        ],
+        resources: [
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${firelensLogGroupName}:*`,
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${serviceLogGroupName}:*`
+        ]
+      })
     );
 
-    mrExecutionRole.addManagedPolicy(mrPolicy);
-
-    // Set the MRExecutionRole property to the created role
-    this.role = mrExecutionRole;
+    role.addManagedPolicy(policy);
+    this.role = role;
   }
 }

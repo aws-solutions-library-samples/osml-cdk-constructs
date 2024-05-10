@@ -10,7 +10,8 @@ export const test_account: OSMLAccount = {
   prodLike: true,
   region: "us-west-2",
   deployModelRunner: true,
-  deployTileServer: true
+  deployTileServer: true,
+  deployDataIntake: true
 };
 
 export const test_special_account: OSMLAccount = {
@@ -20,5 +21,6 @@ export const test_special_account: OSMLAccount = {
   region: "us-isob-east-1",
   isAdc: true,
   deployModelRunner: true,
-  deployTileServer: true
+  deployTileServer: true,
+  deployDataIntake: true
 };
