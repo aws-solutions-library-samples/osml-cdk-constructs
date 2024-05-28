@@ -65,6 +65,14 @@ export interface OSMLAccount {
   deployDataIntake: boolean;
 
   /**
+   * Indicates whether to deploy the key cloak application
+   *
+   * @type {boolean}
+   * @memberof OSMLAccount
+   */
+  deployKeyCloakServer?: boolean;
+
+  /**
    * Optional: Indicates whether the account is configured as an ADC (Application Development Cloud).
    *
    * @type {boolean|undefined}
@@ -79,4 +87,12 @@ export interface OSMLAccount {
    * @memberof OSMLAccount
    */
   vpcId?: string;
+
+  /**
+   * Optional: Indicates whether to enable authentication / authorization for the account.
+   *
+   * @type {boolean|undefined}
+   * @memberof OSMLAccount
+   */
+  enableAuths?: boolean;
 }

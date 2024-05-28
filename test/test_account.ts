@@ -11,7 +11,8 @@ export const test_account: OSMLAccount = {
   region: "us-west-2",
   deployModelRunner: true,
   deployTileServer: true,
-  deployDataIntake: true
+  deployDataIntake: true,
+  enableAuths: true
 };
 
 export const test_special_account: OSMLAccount = {
