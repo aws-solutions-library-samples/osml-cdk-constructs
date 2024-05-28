@@ -36,6 +36,7 @@ import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
+import { OSMLAuthConfig, OSMLAuthenticate } from "../osml_authenticate";
 import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
 import { OSMLVpc } from "../osml_vpc";
@@ -143,6 +144,13 @@ export interface TSDataplaneProps {
    * @type {ContainerImage}
    */
   containerImage: ContainerImage;
+
+  /**
+   * Custom configuration for TSDataplane Constructs Authentication (optional)
+   *  But it is required if setting enableAuth to true in your account configuration
+   * @type {string[] | undefined}
+   */
+  authConfig?: OSMLAuthConfig;
 }
 
 /**
@@ -239,22 +247,6 @@ export class TSDataplane extends Construct {
       environment: {
         JOB_TABLE: this.config.DDB_JOB_TABLE
       }
-    });
-
-    // Create a Lambda function to clean up the TS DLQ
-    this.lambdaIntegTest = new Function(this, "TSLambdaIntegTest", {
-      code: Code.fromAsset("lib/osml-tile-server/test-integ"),
-      handler: "aws.osml.tile_server.test_tileserver.test_tileserver",
-      functionName: "TSLambdaIntegTest",
-      runtime: Runtime.PYTHON_3_11,
-      role: this.lambdaRole,
-      environment: {
-        JOB_TABLE: this.config.DDB_JOB_TABLE
-      },
-      vpc: props.osmlVpc.vpc,
-      vpcSubnets: props.osmlVpc.selectedSubnets,
-      securityGroups: this.securityGroup ? [this.securityGroup] : [],
-      timeout: Duration.minutes(10)
     });
 
     // Attach DLQ Queue to Lambda Sweeper Function
@@ -390,9 +382,18 @@ export class TSDataplane extends Construct {
         securityGroups: this.securityGroup ? [this.securityGroup] : [],
         taskSubnets: props.osmlVpc.selectedSubnets,
         assignPublicIp: false,
-        publicLoadBalancer: false
+        publicLoadBalancer: props.account.enableAuths
       }
     );
+
+    // Add HTTPS, enable Auth, and update actions
+    if (props.authConfig && props.account.enableAuths) {
+      new OSMLAuthenticate(this, "TSAuth", {
+        serverALB: this.fargateService,
+        authConfig: props.authConfig,
+        vpc: props.osmlVpc.vpc
+      });
+    }
 
     // Allow access to EFS from Fargate ECS
     this.fileSystem.grantRootAccess(
