@@ -28,6 +28,7 @@ export * from "./osml/model_endpoint/me_http_endpoint";
 export * from "./osml/osml_table";
 export * from "./osml/osml_topic";
 export * from "./osml/osml_vpc";
+export * from "./osml/osml_authenticate";
 export * from "./osml/tile_server/ts_container";
 export * from "./osml/tile_server/ts_dataplane";
 export * from "./osml/tile_server/roles/ts_task_role";
