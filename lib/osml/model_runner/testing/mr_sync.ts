@@ -20,12 +20,12 @@ import { OSMLBucket } from "../../osml_bucket";
 export class MRSyncConfig {
   /**
    * Creates an instance of MRSyncConfig.
-   * @param {string} S3_RESULTS_BUCKET - The name of the S3 bucket for storing results. Default is "test-results".
-   * @param {string} KINESIS_RESULTS_STREAM - The name of the Kinesis stream for publishing results. Default is "test-stream".
+   * @param {string} S3_RESULTS_BUCKET - The name of the S3 bucket for storing results. Default is "mr-test-results".
+   * @param {string} KINESIS_RESULTS_STREAM - The name of the Kinesis stream for publishing results. Default is "mr-test-stream".
    */
   constructor(
-    public S3_RESULTS_BUCKET: string = "test-results",
-    public KINESIS_RESULTS_STREAM: string = "test-stream"
+    public S3_RESULTS_BUCKET: string = "mr-test-results",
+    public KINESIS_RESULTS_STREAM: string = "mr-test-stream"
   ) {}
 }
 
