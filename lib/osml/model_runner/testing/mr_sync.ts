@@ -127,7 +127,8 @@ export class MRSync extends Construct {
         streamName: `${this.mrSyncConfig.KINESIS_RESULTS_STREAM}-${props.account.id}`,
         streamMode: StreamMode.PROVISIONED,
         shardCount: 1,
-        encryption: StreamEncryption.MANAGED
+        encryption: StreamEncryption.MANAGED,
+        removalPolicy: this.removalPolicy
       });
 
       // https://github.com/aws/aws-cdk/issues/19652
