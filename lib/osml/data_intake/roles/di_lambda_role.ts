@@ -82,6 +82,9 @@ export class DILambdaRole extends Construct {
       managedPolicies: [
         ManagedPolicy.fromAwsManagedPolicyName(
           "service-role/AWSLambdaBasicExecutionRole"
+        ),
+        ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AWSLambdaVPCAccessExecutionRole"
         )
       ]
     });
