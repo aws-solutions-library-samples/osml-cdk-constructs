@@ -171,7 +171,7 @@ export class OSMLVpc extends Construct {
           service: GatewayVpcEndpointAwsService.DYNAMODB
         });
         this.vpc.addInterfaceEndpoint("CWInterfaceEndpoint", {
-          service: InterfaceVpcEndpointAwsService.CLOUDWATCH,
+          service: InterfaceVpcEndpointAwsService.CLOUDWATCH_MONITORING,
           privateDnsEnabled: true
         });
         this.vpc.addInterfaceEndpoint("CWLogsInterfaceEndpoint", {
