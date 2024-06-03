@@ -22,34 +22,34 @@ import { Construct } from "constructs";
 import { OSMLAccount } from "./osml_account";
 
 /**
- * Represents the properties for configuring the OSMLVpc Construct.
+ * Configuration properties for the OSMLVpc Construct, defining how the VPC should be setup.
  *
  * @interface OSMLVpcProps
  */
 export interface OSMLVpcProps {
   /**
-   * The OSML account associated with this VPC.
+   * The account details for OSML which will determine some VPC settings based on region and environment.
    *
    * @type {OSMLAccount}
    */
   account: OSMLAccount;
 
   /**
-   * An optional name for the VPC.
+   * An optional custom name to identify the VPC.
    *
    * @type {string | undefined}
    */
   vpcName?: string;
 
   /**
-   * An optional unique identifier for the VPC.
+   * Optional unique identifier to import/use an existing VPC instead of creating a new one.
    *
    * @type {string | undefined}
    */
   vpcId?: string;
 
   /**
-   * An optional array of target subnets within the VPC.
+   * Specifies an optional list of subnet IDs to specifically target within the VPC.
    *
    * @type {string[] | undefined}
    */
@@ -57,59 +57,54 @@ export interface OSMLVpcProps {
 }
 
 /**
- * Represents a Virtual Private Cloud (VPC) for OSML (Open Source Machine Learning) to operate in.
+ * OSMLVpc is a construct that defines a Virtual Private Cloud specifically configured for OSML operations.
  */
 export class OSMLVpc extends Construct {
   /**
-   * The VPC resource.
+   * Holds the AWS VPC instance.
    */
   public readonly vpc: IVpc;
 
   /**
-   * The default security group associated with the VPC.
+   * The default security group automatically created with the VPC. Useful for configuring network access.
    */
   public readonly vpcDefaultSecurityGroup: string;
 
   /**
-   * The selected subnets within the VPC.
+   * Selected subnets based on the configuration, these are typically private subnets with egress access.
    */
-  public readonly selectedSubnets: SelectedSubnets;
+  public selectedSubnets: SelectedSubnets;
 
   /**
-   * The VPC flow log resource which captures network flow information for a VPC
+   * Flow log instance to monitor and capture IP traffic related to the VPC.
    */
-  public readonly flowLog: FlowLog;
+  public flowLog: FlowLog;
 
   /**
-   * The removal policy for the Construct resources.
+   * Determines the lifecycle of VPC resources upon stack deletion.
    */
   public removalPolicy: RemovalPolicy;
 
   /**
-   * Creates or imports a VPC for OSML to operate in.
+   * Constructor for OSMLVpc. Sets up a VPC with or without custom configurations based on the provided properties.
    * @param scope - The scope/stack in which to define this construct.
    * @param id - The ID of this construct within the current scope.
-   * @param props - The properties of this construct.
-   * @returns The OSMLVpc construct.
+   * @param props - The properties defining how the VPC should be configured.
    */
   constructor(scope: Construct, id: string, props: OSMLVpcProps) {
     super(scope, id);
 
     const isIsoB = props.account.region === "us-isob-east-1";
-
-    // Set the removal policy based on the account type
     this.removalPolicy = props.account.prodLike
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
-    // if an osmlVpc ID is not explicitly given, use the default osmlVpc
     if (props.vpcId) {
       this.vpc = Vpc.fromLookup(this, "OSMLImportVPC", {
         vpcId: props.vpcId,
         isDefault: false
       });
     } else {
-      // Create a new VPC
       const vpc = new Vpc(this, "OSMLVPC", {
         vpcName: props.vpcName,
         maxAzs: isIsoB ? 2 : 3,
@@ -127,60 +122,93 @@ export class OSMLVpc extends Construct {
         ]
       });
       this.vpc = vpc;
-
-      // Expose the default security group created with the VPC
       this.vpcDefaultSecurityGroup = vpc.vpcDefaultSecurityGroup;
 
-      // Expose the private subnets associated with the VPC
-      this.selectedSubnets = vpc.selectSubnets({
-        subnetType: SubnetType.PRIVATE_WITH_EGRESS
-      });
-
-      // Create custom endpoint prefixes for known regions requiring it
-      let partitionPrefix;
-      if (props.account.region === "us-iso-east-1") {
-        partitionPrefix = "gov.ic.c2s";
-      } else if (props.account.region === "us-isob-east-1") {
-        partitionPrefix = "gov.sgov.sc2s";
-      }
-
-      // Create VPC endpoints
-      this.vpc.addGatewayEndpoint("S3GatewayEndpoint", {
-        service: GatewayVpcEndpointAwsService.S3
-      });
-      this.vpc.addInterfaceEndpoint("SMApiInterfaceEndpoint", {
-        service: partitionPrefix
-          ? new InterfaceVpcEndpointService(
-              `${partitionPrefix}.${props.account.region}.sagemaker.api`
-            )
-          : InterfaceVpcEndpointAwsService.SAGEMAKER_API,
-        privateDnsEnabled: true
-      });
-      this.vpc.addInterfaceEndpoint("SMRuntimeInterfaceEndpoint", {
-        service: partitionPrefix
-          ? new InterfaceVpcEndpointService(
-              `${partitionPrefix}.${props.account.region}.sagemaker.runtime`
-            )
-          : InterfaceVpcEndpointAwsService.SAGEMAKER_RUNTIME,
-        privateDnsEnabled: true
-      });
-
-      // Certain endpoints are not supported in ADC regions
-      if (!props.account.isAdc) {
-        this.vpc.addGatewayEndpoint("DDBGatewayEndpoint", {
-          service: GatewayVpcEndpointAwsService.DYNAMODB
-        });
-        this.vpc.addInterfaceEndpoint("CWInterfaceEndpoint", {
-          service: InterfaceVpcEndpointAwsService.CLOUDWATCH_MONITORING,
-          privateDnsEnabled: true
-        });
-        this.vpc.addInterfaceEndpoint("CWLogsInterfaceEndpoint", {
-          service: InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
-          privateDnsEnabled: true
-        });
-      }
+      this.setupVpcEndpoints(props);
     }
 
+    this.selectSubnets(props);
+
+    if (props.account.prodLike) {
+      this.setupFlowLogs();
+    }
+  }
+
+  /**
+   * Configures the VPC endpoints based on regional and account-specific requirements.
+   * It dynamically sets up the endpoints for S3, SageMaker, and optionally DynamoDB and CloudWatch,
+   * depending on the region and whether the account is associated with the US Government's secured networks.
+   *
+   * @param props - The properties object containing account and VPC configurations.
+   */
+  private setupVpcEndpoints(props: OSMLVpcProps): void {
+    let partitionPrefix;
+    if (props.account.region === "us-iso-east-1") {
+      partitionPrefix = "gov.ic.c2s";
+    } else if (props.account.region === "us-isob-east-1") {
+      partitionPrefix = "gov.sgov.sc2s";
+    }
+
+    this.vpc.addGatewayEndpoint("S3GatewayEndpoint", {
+      service: GatewayVpcEndpointAwsService.S3
+    });
+    this.vpc.addInterfaceEndpoint("SMApiInterfaceEndpoint", {
+      service: partitionPrefix
+        ? new InterfaceVpcEndpointService(
+            `${partitionPrefix}.${props.account.region}.sagemaker.api`
+          )
+        : InterfaceVpcEndpointAwsService.SAGEMAKER_API,
+      privateDnsEnabled: true
+    });
+    this.vpc.addInterfaceEndpoint("SMRuntimeInterfaceEndpoint", {
+      service: partitionPrefix
+        ? new InterfaceVpcEndpointService(
+            `${partitionPrefix}.${props.account.region}.sagemaker.runtime`
+          )
+        : InterfaceVpcEndpointAwsService.SAGEMAKER_RUNTIME,
+      privateDnsEnabled: true
+    });
+
+    if (!props.account.isAdc) {
+      this.vpc.addGatewayEndpoint("DDBGatewayEndpoint", {
+        service: GatewayVpcEndpointAwsService.DYNAMODB
+      });
+      this.vpc.addInterfaceEndpoint("CWInterfaceEndpoint", {
+        service: InterfaceVpcEndpointAwsService.CLOUDWATCH_MONITORING,
+        privateDnsEnabled: true
+      });
+      this.vpc.addInterfaceEndpoint("CWLogsInterfaceEndpoint", {
+        service: InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+        privateDnsEnabled: true
+      });
+    }
+  }
+
+  /**
+   * Sets up the VPC flow logs for monitoring and auditing network traffic.
+   * The logs are stored in CloudWatch with a specified retention period and removal policy.
+   */
+  private setupFlowLogs(): void {
+    const flowLogGroup = new LogGroup(this, "OSMLVpcFlowLogsLogGroup", {
+      logGroupName: `OSML-VPC-FlowLogs`,
+      retention: RetentionDays.TEN_YEARS,
+      removalPolicy: this.removalPolicy
+    });
+
+    this.flowLog = new FlowLog(this, "OSMLVpcFlowLogs", {
+      resourceType: FlowLogResourceType.fromVpc(this.vpc),
+      destination: FlowLogDestination.toCloudWatchLogs(flowLogGroup)
+    });
+  }
+
+  /**
+   * Selects subnets within the VPC based on user specifications.
+   * If target subnets are provided, those are selected; otherwise,
+   * it defaults to selecting all private subnets with egress.
+   *
+   * @param props - The object containing the target subnet IDs and VPC configurations.
+   */
+  private selectSubnets(props: OSMLVpcProps): void {
     // If specified subnets are provided, use them
     if (props.targetSubnets) {
       this.selectedSubnets = this.vpc.selectSubnets({
@@ -190,20 +218,6 @@ export class OSMLVpc extends Construct {
       // Otherwise, select all private subnets
       this.selectedSubnets = this.vpc.selectSubnets({
         subnetType: SubnetType.PRIVATE_WITH_EGRESS
-      });
-    }
-
-    if (props.account.prodLike) {
-      // enable vpc flow logs
-      const flowLogGroup = new LogGroup(this, "OSMLVpcFlowLogsLogGroup", {
-        logGroupName: `OSML-VPC-FlowLogs-${id}`,
-        retention: RetentionDays.TEN_YEARS,
-        removalPolicy: this.removalPolicy
-      });
-
-      this.flowLog = new FlowLog(this, "OSMLVpcFlowLogs", {
-        resourceType: FlowLogResourceType.fromVpc(this.vpc),
-        destination: FlowLogDestination.toCloudWatchLogs(flowLogGroup)
       });
     }
   }
