@@ -75,6 +75,14 @@ export interface OSMLAccount {
   deployKeyCloakServer?: boolean;
 
   /**
+   * Indicates whether to deploy the data catalog application
+   *
+   * @type {boolean}
+   * @memberof OSMLAccount
+   */
+  deployDataCatalog?: boolean;
+
+  /**
    * Optional: Indicates whether the account is configured as an ADC (Application Development Cloud).
    *
    * @type {boolean|undefined}
