@@ -12,7 +12,13 @@ export const test_account: OSMLAccount = {
   deployModelRunner: true,
   deployTileServer: true,
   deployDataIntake: true,
-  enableAuths: true
+  auth: {
+    clientId: "CLIENT_ID_TEST",
+    clientSecret: "CLIENT_SECRET_TEST",
+    authority: "AUTHORITY_TEST",
+    certificateArn: "CERTIFICATE_ARN_TEST",
+    domainName: "DOMAIN_NAME_TEST"
+  }
 };
 
 export const test_special_account: OSMLAccount = {

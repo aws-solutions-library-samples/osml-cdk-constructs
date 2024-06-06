@@ -36,7 +36,8 @@ import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
-import { OSMLAuthConfig, OSMLAuthenticate } from "../osml_authenticate";
+import { OSMLAuth } from "../osml_auth";
+import { OSMLAuthALB } from "../osml_auth_alb";
 import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
 import { OSMLVpc } from "../osml_vpc";
@@ -122,7 +123,7 @@ export interface TSDataplaneProps {
   lambdaRole?: IRole;
 
   /**
-   * The IAM (Identity and Access Management) role to be used for ECS execution role (optional).
+   * The IAM (Identity and Access Management) role to be used for an ECS execution role (optional).
    * @type {IRole | undefined}
    */
   executionRole?: IRole;
@@ -150,7 +151,7 @@ export interface TSDataplaneProps {
    *  But it is required if setting enableAuth to true in your account configuration
    * @type {string[] | undefined}
    */
-  authConfig?: OSMLAuthConfig;
+  authConfig?: OSMLAuth;
 }
 
 /**
@@ -382,13 +383,13 @@ export class TSDataplane extends Construct {
         securityGroups: this.securityGroup ? [this.securityGroup] : [],
         taskSubnets: props.osmlVpc.selectedSubnets,
         assignPublicIp: false,
-        publicLoadBalancer: props.account.enableAuths
+        publicLoadBalancer: !!props.account.auth
       }
     );
 
     // Add HTTPS, enable Auth, and update actions
-    if (props.authConfig && props.account.enableAuths) {
-      new OSMLAuthenticate(this, "TSAuth", {
+    if (props.authConfig) {
+      new OSMLAuthALB(this, "TSAuth", {
         serverALB: this.fargateService,
         authConfig: props.authConfig,
         vpc: props.osmlVpc.vpc
@@ -473,7 +474,7 @@ export class TSDataplane extends Construct {
       }).role;
     }
 
-    // Set up an few regional S3 endpoint for GDAL to use
+    // Set up a few regional S3 endpoints for GDAL to use
     class S3FactISO implements region_info.IFact {
       public readonly region = "us-iso-east-1";
       public readonly name =

@@ -14,43 +14,13 @@ import {
 import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 
-/**
- * Represents the configuration for the authentication.
- *
- * @interface OSMLAuthConfig
- */
-export interface OSMLAuthConfig {
-  /**
-   * The client ID of the application.
-   */
-  clientId: string;
-
-  /**
-   * The client secret of the application
-   */
-  clientSecret: string;
-
-  /**
-   * The authority of the authentication.
-   */
-  authority: string;
-
-  /**
-   * The certificate arn of the certificate.
-   */
-  certificateArn: string;
-
-  /**
-   * The domain name of the authentication.
-   */
-  domainName: string;
-}
+import { OSMLAuth } from "./osml_auth";
 
 /**
- * Represents the properties required to configure the OSMLAuthenticate Construct.
+ * Represents the properties required to configure the OSMLAuthALB Construct.
  * @interface
  */
-export interface OSMLAuthenticateProps {
+export interface OSMLAuthALBProps {
   /**
    * The ALB that hosts the service.
    *
@@ -61,9 +31,9 @@ export interface OSMLAuthenticateProps {
   /**
    * The configuration for the authentication.
    *
-   * @type {OSMLAuthConfig}
+   * @type {OSMLAuth}
    */
-  authConfig: OSMLAuthConfig;
+  authConfig: OSMLAuth;
 
   /**
    * The VPC that the service resides in.
@@ -76,17 +46,17 @@ export interface OSMLAuthenticateProps {
 /**
  * Represents the construct that authenticates the user.
  */
-export class OSMLAuthenticate extends Construct {
+export class OSMLAuthALB extends Construct {
   /**
-   * Creates an instance of OSMLAuthenticate.
+   * Creates an instance of OSMLAuthALB.
    * @param {Construct} scope - The scope/stack in which to define this construct.
-   * @param {string} id - The id of this construct within the current scope.
-   * @param {OSMLAuthenticateProps} props - The properties of this construct.
+   * @param {string} id - The unique id of the construct within current scope.
+   * @param {OSMLAuthALBProps} props - The properties of this construct.
    */
-  constructor(scope: Construct, id: string, props: OSMLAuthenticateProps) {
+  constructor(scope: Construct, id: string, props: OSMLAuthALBProps) {
     super(scope, id);
 
-    // change the default HTTP listener and redirect it to HTTPS
+    // Change the default HTTP listener and redirect it to HTTPS
     props.serverALB.listener.addAction("default", {
       action: ListenerAction.redirect({
         port: "443",
@@ -97,12 +67,12 @@ export class OSMLAuthenticate extends Construct {
       })
     });
 
-    // get user's certificate arn
+    // Get user's certificate arn
     const certificate: IListenerCertificate = {
       certificateArn: props.authConfig?.certificateArn
     };
 
-    // create target group to allow inbound / outbound traffic
+    // Create a target security group to allow inbound / outbound traffic
     const securityGroup = new SecurityGroup(this, `SecurityGroup${id}`, {
       vpc: props.vpc,
       allowAllOutbound: true
@@ -122,7 +92,7 @@ export class OSMLAuthenticate extends Construct {
       )
     });
 
-    // add HTTPS listener to authenticate then access ECS cluster
+    // Add HTTPS listener to authenticate then access ECS cluster
     props.serverALB.loadBalancer.addListener("https", {
       port: 443,
       protocol: ApplicationProtocol.HTTPS,

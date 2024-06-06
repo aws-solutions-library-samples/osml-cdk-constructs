@@ -9,8 +9,7 @@ import {
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { Code } from "aws-cdk-lib/aws-lambda";
 
-import { OSMLVpc, TSContainer, TSDataplane } from "../../../lib";
-import { OSMLAuthConfig } from "../../../lib/osml/osml_authenticate";
+import { OSMLAuth, OSMLVpc, TSContainer, TSDataplane } from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("TSDataplane constructor", () => {
@@ -38,7 +37,7 @@ describe("TSDataplane constructor", () => {
       value: () => Code.fromInline("test code")
     });
 
-    const authConfig: OSMLAuthConfig = {
+    const authConfig: OSMLAuth = {
       clientId: "CLIENT_ID_TEST",
       clientSecret: "CLIENT_SECRET_TEST",
       authority: "AUTHORITY_TEST",
