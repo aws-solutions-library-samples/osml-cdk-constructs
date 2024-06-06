@@ -2,6 +2,8 @@
  * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
 
+import { OSMLAuth } from "./osml_auth";
+
 /**
  * Represents an OSML (OversightML) deployment account configuration.
  *
@@ -89,10 +91,10 @@ export interface OSMLAccount {
   vpcId?: string;
 
   /**
-   * Optional: Indicates whether to enable authentication / authorization for the account.
+   * Optional: Specifies and authentication configuration for the auth server to deploy.
    *
    * @type {boolean|undefined}
    * @memberof OSMLAccount
    */
-  enableAuths?: boolean;
+  auth?: OSMLAuth;
 }
