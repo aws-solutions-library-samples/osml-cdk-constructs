@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@cdklabs/cdk-enterprise-iac": "^0.0.450",
+    "@aws-sdk/client-iam": "^3.592.0",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.12.12",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

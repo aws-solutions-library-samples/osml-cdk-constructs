@@ -54,6 +54,13 @@ export interface OSMLVpcProps {
    * @type {string[] | undefined}
    */
   targetSubnets?: string[];
+
+  /**
+   * Specifies an optional list of availability to specifically target within the VPC.
+   *
+   * @type {string[] | undefined}
+   */
+  availabilityZones?: string[];
 }
 
 /**
@@ -107,7 +114,8 @@ export class OSMLVpc extends Construct {
     } else {
       const vpc = new Vpc(this, "OSMLVPC", {
         vpcName: props.vpcName,
-        maxAzs: isIsoB ? 2 : 3,
+        maxAzs: props.availabilityZones ? undefined : isIsoB ? 2 : 3,
+        availabilityZones: props.availabilityZones,
         subnetConfiguration: [
           {
             cidrMask: 23,
