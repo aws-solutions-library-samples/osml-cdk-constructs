@@ -16,7 +16,7 @@ describe("DIDataplane constructor", () => {
   let diDataplane: DIDataplane;
 
   describe("DIDataplane", () => {
-    beforeEach(() => {
+    beforeAll(() => {
       app = new App();
       stack = new Stack(app, "DIDataplaneStack");
 

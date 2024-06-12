@@ -2,10 +2,15 @@
  * Copyright 2024 Amazon.com, Inc. or its affiliates.
  */
 
+import { IAMClient, ListRolesCommand } from "@aws-sdk/client-iam";
 import { Duration, RemovalPolicy, Size } from "aws-cdk-lib";
 import { LambdaRestApi } from "aws-cdk-lib/aws-apigateway";
 import { ISecurityGroup, Port, SecurityGroup } from "aws-cdk-lib/aws-ec2";
-import { AnyPrincipal, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import {
+  AnyPrincipal,
+  CfnServiceLinkedRole,
+  PolicyStatement
+} from "aws-cdk-lib/aws-iam";
 import { IRole } from "aws-cdk-lib/aws-iam/lib/role";
 import {
   ApplicationLogLevel,
@@ -140,6 +145,36 @@ export class DCDataplane extends Construct {
         vpc: props.osmlVpc.vpc
       }
     );
+
+    // Service-linked role that Amazon OpenSearch Service will use
+    const iamClient = new IAMClient({
+      region: props.account.region // Must be defined in the region
+    });
+
+    (async () => {
+      const response = await iamClient.send(
+        new ListRolesCommand({
+          PathPrefix: "/aws-service-role/opensearchservice.amazonaws.com/"
+        })
+      );
+
+      // Only if the role for OpenSearch Service doesn't exist, it will be created.
+      if (response.Roles && response.Roles.length == 0) {
+        new CfnServiceLinkedRole(this, "OpensearchServiceLinkedRole", {
+          awsServiceName: "es.amazonaws.com"
+        });
+      }
+
+      return "Role check and creation process completed successfully."; // Ensures the promise resolves with a value
+    })()
+      .then((message) => {
+        console.log(message); // Log the message indicating success
+        return message; // Ensures the promise resolves with a value
+      })
+      .catch((error) => {
+        console.error("Error during role check and creation process:", error);
+        throw error; // Re-throw the error to comply with the rule
+      });
 
     const osDomain = new Domain(this, "DataCatalogOSDomain", {
       version: EngineVersion.OPENSEARCH_2_11,

@@ -19,7 +19,7 @@ describe("TSDataplane constructor", () => {
   let tsContainer: TSContainer;
   let tsDataplane: TSDataplane;
 
-  beforeEach(() => {
+  beforeAll(() => {
     app = new App();
     stack = new Stack(app, "TSDataplaneStack");
 
@@ -34,7 +34,7 @@ describe("TSDataplane constructor", () => {
     });
 
     Object.defineProperty(Code, "fromAsset", {
-      value: () => Code.fromInline("test code")
+      value: () => Code.fromInline("inline code")
     });
 
     const authConfig: OSMLAuth = {
