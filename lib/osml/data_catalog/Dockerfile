@@ -1,6 +1,6 @@
 # Copyright 2024 Amazon.com, Inc. or its affiliates.
 
-FROM public.ecr.aws/lambda/python:3.10 as osml_data_catalog
+FROM public.ecr.aws/lambda/python:3.11 as osml_data_catalog
 
 RUN yum -y upgrade
 RUN yum -y install gcc

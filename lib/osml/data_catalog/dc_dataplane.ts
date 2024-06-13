@@ -4,7 +4,7 @@
 
 import { IAMClient, ListRolesCommand } from "@aws-sdk/client-iam";
 import { Duration, RemovalPolicy, Size } from "aws-cdk-lib";
-import { LambdaRestApi } from "aws-cdk-lib/aws-apigateway";
+import { LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
 import { ISecurityGroup, Port, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import {
   AnyPrincipal,
@@ -23,6 +23,7 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
 import { OSMLECRDeployment } from "../osml_ecr_deployment";
+import { OSMLRestApi } from "../osml_restapi";
 import { OSMLVpc } from "../osml_vpc";
 import { DCLambdaRole } from "./roles/dc_lambda_role";
 
@@ -49,10 +50,11 @@ export class DCDataplaneConfig {
    * @param {string} ES_PORT The port of the OpenSearch cluster.
    * @param {string} ES_USE_SSL A boolean to use SSL
    * @param {string} STAC_FASTAPI_ROOT_PATH The root path for FASTAPI that is set by APIGateway
+   * @param {string} SERVICE_NAME_ABBREVIATION The name of the service in abbreviation.
    */
   constructor(
     public LAMBDA_ROLE_NAME: string = "DCLambdaRole",
-    public LAMBDA_FUNCTION_NAME: string = "SCLambda",
+    public LAMBDA_FUNCTION_NAME: string = "DCLambda",
     public LAMBDA_MEMORY_SIZE: number = 4096,
     public LAMBDA_STORAGE_SIZE: number = 10,
     public LAMBDA_TIMEOUT: number = 300, // 5 minutes
@@ -69,7 +71,8 @@ export class DCDataplaneConfig {
     public ES_USE_SSL: string = "true",
     public ES_VERIFY_CERTS: string = "true",
     public BACKEND: string = "opensearch",
-    public STAC_FASTAPI_ROOT_PATH: string = "data-catalog"
+    public STAC_FASTAPI_ROOT_PATH: string = "data-catalog",
+    public SERVICE_NAME_ABBREVIATION: string = "DC"
   ) {}
 }
 
@@ -151,7 +154,7 @@ export class DCDataplane extends Construct {
       region: props.account.region // Must be defined in the region
     });
 
-    (async () => {
+    async () => {
       const response = await iamClient.send(
         new ListRolesCommand({
           PathPrefix: "/aws-service-role/opensearchservice.amazonaws.com/"
@@ -164,17 +167,7 @@ export class DCDataplane extends Construct {
           awsServiceName: "es.amazonaws.com"
         });
       }
-
-      return "Role check and creation process completed successfully."; // Ensures the promise resolves with a value
-    })()
-      .then((message) => {
-        console.log(message); // Log the message indicating success
-        return message; // Ensures the promise resolves with a value
-      })
-      .catch((error) => {
-        console.error("Error during role check and creation process:", error);
-        throw error; // Re-throw the error to comply with the rule
-      });
+    };
 
     const osDomain = new Domain(this, "DataCatalogOSDomain", {
       version: EngineVersion.OPENSEARCH_2_11,
@@ -237,14 +230,16 @@ export class DCDataplane extends Construct {
 
     osDomain.connections.allowFrom(dockerImageFunction, Port.tcp(443));
 
-    new LambdaRestApi(this, "DataCatalogRestAPI", {
-      handler: dockerImageFunction,
-      proxy: true,
-      deployOptions: {
-        stageName: this.config.STAC_FASTAPI_ROOT_PATH
-      }
-    });
+    if (props.account.auth) {
+      new OSMLRestApi(this, "DataCatalogRestApi", {
+        account: props.account,
+        name: this.config.SERVICE_NAME_ABBREVIATION,
+        apiStageName: this.config.STAC_FASTAPI_ROOT_PATH,
+        integration: new LambdaIntegration(dockerImageFunction)
+      });
+    }
   }
+
   /**
    * Sets up the DCDataplane construct with the provided properties.
    * This method initializes the construct's configuration based on the input properties,
