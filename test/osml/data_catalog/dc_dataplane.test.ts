@@ -3,7 +3,7 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
-import { DockerImageCode } from "aws-cdk-lib/aws-lambda";
+import { Code, DockerImageCode } from "aws-cdk-lib/aws-lambda";
 import * as path from "path";
 
 import { DCDataplane, OSMLVpc } from "../../../lib";
@@ -31,6 +31,11 @@ describe("DCDataplane constructor", () => {
         path.join(__dirname, ""),
         { file: "Dockerfile" }
       );
+
+      Object.defineProperty(Code, "fromAsset", {
+        value: () => Code.fromInline("inline code")
+      });
+
       dcDataplane = new DCDataplane(stack, "DCDataplane", {
         account: test_account,
         lambdaRole: undefined,
