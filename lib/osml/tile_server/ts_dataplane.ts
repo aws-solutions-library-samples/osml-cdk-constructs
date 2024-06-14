@@ -147,6 +147,13 @@ export interface TSDataplaneProps {
   containerImage: ContainerImage;
 
   /**
+   * The location of the lambda function code to handle requests that end up in
+   *  the dead letter queue (DLQ).
+   * @type {string | undefined}
+   */
+  sourcePathDLQLambda?: string;
+
+  /**
    * Custom configuration for TSDataplane Constructs Authentication (optional)
    *  But it is required if setting enableAuth to true in your account configuration
    * @type {string[] | undefined}
@@ -239,7 +246,9 @@ export class TSDataplane extends Construct {
     // Create a Lambda function to clean up the TS DLQ
     this.lambdaSweeperFunction = new Function(this, "TSLambdaSweeperDLQ", {
       code: Code.fromAsset(
-        "lib/osml-tile-server/src/aws/osml/tile_server/lambda"
+        props.sourcePathDLQLambda
+          ? props.sourcePathDLQLambda
+          : "lib/osml-tile-server/src/aws/osml/tile_server/lambda"
       ),
       handler: "cleanup_dlq.lambda_handler",
       functionName: "TSLambdaSweeperDLQ",

@@ -72,13 +72,6 @@ export interface MRMonitoringProps {
    * @type {MRDataplaneConfig}
    */
   mrDataplaneConfig: MRDataplaneConfig;
-
-  /**
-   * Optional model information.
-   *
-   * @type {string | undefined}
-   */
-  model?: string;
 }
 
 /**
@@ -106,7 +99,7 @@ export class MRMonitoring extends Construct {
     const topRowWidgets = [
       new SingleValueWidget({
         region: props.account.region,
-        title: "Counts",
+        title: "Completed",
         width: 3,
         height: 5,
         metrics: [
@@ -121,7 +114,8 @@ export class MRMonitoring extends Construct {
               "SUM(SEARCH('{OSML/ModelRunner, ModelName, Operation} TileProcessing Invocations', 'Sum'))"
           })
         ],
-        sparkline: false
+        sparkline: false,
+        setPeriodToTimeRange: true
       }),
       new GraphWidget({
         region: props.account.region,
@@ -168,6 +162,7 @@ export class MRMonitoring extends Construct {
         width: 5,
         view: GraphWidgetView.PIE,
         statistic: "Average",
+        setPeriodToTimeRange: true,
         left: [
           new MathExpression({
             expression:
@@ -230,7 +225,7 @@ export class MRMonitoring extends Construct {
           "  fromMillis(request.start_time) as Start, fromMillis(request.end_time) as End",
           'filter message = "StatusMonitorUpdate" and status in ["SUCCESS", "FAILED"]',
           "sort @timestamp desc",
-          "limit 20"
+          "limit 50"
         ]
       })
     );
