@@ -49,8 +49,7 @@ describe("OSMLMonitoring constructor", () => {
         imageRequestDlQueue: mrDataplane.imageRequestQueue.dlQueue,
         regionRequestDlQueue: mrDataplane.regionRequestQueue.dlQueue,
         service: mrDataplane.fargateService,
-        mrDataplaneConfig: mrDataplane.mrDataplaneConfig,
-        model: "aircraft"
+        mrDataplaneConfig: mrDataplane.mrDataplaneConfig
       });
     });
 
