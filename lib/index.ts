@@ -29,7 +29,6 @@ export * from "./osml/osml_table";
 export * from "./osml/osml_topic";
 export * from "./osml/osml_vpc";
 export * from "./osml/osml_auth";
-export * from "./osml/osml_auth_alb";
 export * from "./osml/osml_authorizer/osml_authorizer";
 export * from "./osml/osml_restapi";
 export * from "./osml/data_catalog/dc_dataplane";

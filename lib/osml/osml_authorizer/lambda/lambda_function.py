@@ -29,9 +29,9 @@ def lambda_handler(event: Dict[str, Any], context) -> Dict[str, Any]:
         return generate_policy(effect="Deny", resource=event["methodArn"])
 
     authority = os.environ.get("AUTHORITY", "")
-    client_id = os.environ.get("CLIENT_ID", "")
+    audience = os.environ.get("AUDIENCE", "")
 
-    if jwt_data := id_token_is_valid(id_token=id_token, client_id=client_id, authority=authority):
+    if jwt_data := id_token_is_valid(id_token=id_token, audience=audience, authority=authority):
         policy = generate_policy(effect="Allow", resource=event["methodArn"], username=jwt_data["sub"])
         policy["context"] = {"username": jwt_data["sub"]}
 
@@ -63,12 +63,12 @@ def generate_policy(*, effect: str, resource: str, username: str = "username") -
     return policy
 
 
-def id_token_is_valid(*, id_token: str, client_id: str, authority: str) -> Union[Dict[str, Any], bool]:
+def id_token_is_valid(*, id_token: str, audience: str, authority: str) -> Union[Dict[str, Any], bool]:
     """
     Check whether an ID token is valid and return decoded data.
 
     :param id_token: ID token to validate
-    :param client_id: Client ID to validate against
+    :param audience: Audience to validate against
     :param authority: Authority to validate against
 
     :return: Decoded JWT data or False if invalid
@@ -101,7 +101,7 @@ def id_token_is_valid(*, id_token: str, client_id: str, authority: str) -> Union
             signing_key.key,
             algorithms=["RS256"],
             issuer=authority,
-            audience=client_id,
+            audience=audience,
             options={
                 "verify_signature": True,
                 "verify_exp": True,

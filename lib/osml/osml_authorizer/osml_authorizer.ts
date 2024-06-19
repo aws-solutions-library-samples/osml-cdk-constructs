@@ -61,7 +61,7 @@ export class OSMLAuthorizer extends Construct {
       handler: "lambda_function.lambda_handler",
       environment: {
         AUTHORITY: props.account.auth ? props.account.auth.authority : "",
-        CLIENT_ID: props.account.auth ? props.account.auth.clientId : ""
+        AUDIENCE: props.account.auth ? props.account.auth.audience : ""
       }
     });
   }

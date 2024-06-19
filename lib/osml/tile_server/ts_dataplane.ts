@@ -4,13 +4,18 @@
 
 import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
 import {
+  ConnectionType,
+  HttpIntegration,
+  VpcLink
+} from "aws-cdk-lib/aws-apigateway";
+import {
   BackupPlan,
   BackupPlanRule,
   BackupResource,
   BackupVault
 } from "aws-cdk-lib/aws-backup";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
-import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
+import { ISecurityGroup, Peer, Port, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import {
   AwsLogDriver,
   AwsLogDriverMode,
@@ -18,7 +23,7 @@ import {
   Compatibility,
   ContainerDefinition,
   ContainerImage,
-  Protocol,
+  Protocol as ecs_protocol,
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
@@ -29,6 +34,11 @@ import {
   PerformanceMode,
   ThroughputMode
 } from "aws-cdk-lib/aws-efs";
+import {
+  NetworkLoadBalancer,
+  Protocol as elbv2_protocol
+} from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import { AlbTarget } from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
 import { AnyPrincipal, IRole, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
@@ -36,9 +46,8 @@ import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
-import { OSMLAuth } from "../osml_auth";
-import { OSMLAuthALB } from "../osml_auth_alb";
 import { OSMLQueue } from "../osml_queue";
+import { OSMLRestApi } from "../osml_restapi";
 import { OSMLTable } from "../osml_table";
 import { OSMLVpc } from "../osml_vpc";
 import { TSExecutionRole } from "./roles/ts_execution_role";
@@ -67,6 +76,9 @@ export class TSDataplaneConfig {
    * @param {string} LAMBDA_ROLE_NAME - The name of the TS Lambda execution role.
    * @param {string} EXECUTION_ROLE_NAME - The name of the TS ECS execution role.
    * @param {string} CW_LOGGROUP_NAME - The name of the TS Log Group name.
+   * @param {string} SERVICE_NAME_ABBREVIATION - The abbreviation of TS service.
+   * @param {string} FASTAPI_ROOT_PATH - The FastAPI root path for viewpoints.
+   * @param {string} NETWORK_LOAD_BALANCER_PORT - The port to use in Network Load Balancer.
    */
   constructor(
     public SQS_JOB_QUEUE: string = "TSJobQueue",
@@ -84,7 +96,10 @@ export class TSDataplaneConfig {
     public EFS_MOUNT_NAME: string = "ts-efs-volume",
     public LAMBDA_ROLE_NAME: string = "TSLambdaRole",
     public EXECUTION_ROLE_NAME: string = "TSExecutionRole",
-    public CW_LOGGROUP_NAME: string = "TSService"
+    public CW_LOGGROUP_NAME: string = "TSService",
+    public SERVICE_NAME_ABBREVIATION: string = "TS",
+    public FASTAPI_ROOT_PATH: string = "viewpoints",
+    public NETWORK_LOAD_BALANCER_PORT: number = 80
   ) {}
 }
 
@@ -152,13 +167,6 @@ export interface TSDataplaneProps {
    * @type {string | undefined}
    */
   sourcePathDLQLambda?: string;
-
-  /**
-   * Custom configuration for TSDataplane Constructs Authentication (optional)
-   *  But it is required if setting enableAuth to true in your account configuration
-   * @type {string[] | undefined}
-   */
-  authConfig?: OSMLAuth;
 }
 
 /**
@@ -378,7 +386,7 @@ export class TSDataplane extends Construct {
     this.taskDefinition.defaultContainer?.addPortMappings({
       containerPort: this.config.ECS_CONTAINER_PORT,
       hostPort: this.config.ECS_CONTAINER_PORT,
-      protocol: Protocol.TCP
+      protocol: ecs_protocol.TCP
     });
 
     // Set up Fargate service
@@ -392,16 +400,75 @@ export class TSDataplane extends Construct {
         securityGroups: this.securityGroup ? [this.securityGroup] : [],
         taskSubnets: props.osmlVpc.selectedSubnets,
         assignPublicIp: false,
-        publicLoadBalancer: !!props.account.auth
+        publicLoadBalancer: false
       }
     );
 
-    // Add HTTPS, enable Auth, and update actions
-    if (props.authConfig) {
-      new OSMLAuthALB(this, "TSAuth", {
-        serverALB: this.fargateService,
-        authConfig: props.authConfig,
-        vpc: props.osmlVpc.vpc
+    if (props.account.auth) {
+      this.fargateService.loadBalancer.connections.allowFrom(
+        Peer.ipv4(props.osmlVpc.vpc.vpcCidrBlock),
+        Port.tcp(80),
+        "Allow HTTP traffic from VPC"
+      );
+
+      this.fargateService.service.connections.allowFrom(
+        this.fargateService.loadBalancer,
+        Port.tcp(8080),
+        "Allow traffic from ALB"
+      );
+
+      // Create Network Load Balancer (NLB) within the private VPC
+      const nlb = new NetworkLoadBalancer(this, "TSNetworkLoadBalancer", {
+        vpc: props.osmlVpc.vpc,
+        internetFacing: false
+      });
+
+      const nlbListener = nlb.addListener("TSNlbListener", {
+        port: this.config.NETWORK_LOAD_BALANCER_PORT,
+        protocol: elbv2_protocol.TCP
+      });
+
+      nlbListener.addTargets("TSNlbTargetGroup", {
+        targets: [
+          new AlbTarget(
+            this.fargateService.loadBalancer,
+            this.config.NETWORK_LOAD_BALANCER_PORT
+          )
+        ],
+        port: this.config.NETWORK_LOAD_BALANCER_PORT
+      });
+
+      // Create VPC Link to connect APIGW to NLB
+      const vpcLink = new VpcLink(this, "TSVpcLink", {
+        targets: [nlb]
+      });
+
+      const apiPath = "latest/viewpoints";
+      const proxyIntegration = new HttpIntegration(
+        `http://${nlb.loadBalancerDnsName}/${apiPath}/{proxy}`,
+        {
+          httpMethod: "ANY",
+          proxy: true,
+          options: {
+            vpcLink: vpcLink,
+            connectionType: ConnectionType.VPC_LINK,
+            requestParameters: {
+              "integration.request.path.proxy": "method.request.path.proxy",
+              "integration.request.header.X-Forwarded-Path":
+                "method.request.path.proxy",
+              "integration.request.header.Accept":
+                "method.request.header.Accept"
+            }
+          }
+        }
+      );
+
+      // Create RestApi along with Proxy enabled, then attach Authorizer to the API-Gateway
+      new OSMLRestApi(this, "TileServerRestApi", {
+        account: props.account,
+        name: this.config.SERVICE_NAME_ABBREVIATION,
+        apiStageName: this.config.FASTAPI_ROOT_PATH,
+        integration: proxyIntegration
       });
     }
 

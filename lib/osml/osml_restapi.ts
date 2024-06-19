@@ -1,8 +1,11 @@
 /*
  * Copyright 2024 Amazon.com, Inc. or its affiliates.
  */
+import { Duration } from "aws-cdk-lib";
 import {
   AuthorizationType,
+  Cors,
+  EndpointType,
   IdentitySource,
   Integration,
   RequestAuthorizer,
@@ -75,7 +78,8 @@ export class OSMLRestApi extends Construct {
       {
         authorizerName: `${props.name}-Authorizer`,
         handler: osmlAuthorizer.authorizerFunction,
-        identitySources: [IdentitySource.header("Authorization")]
+        identitySources: [IdentitySource.header("Authorization")],
+        resultsCacheTtl: Duration.minutes(0)
       }
     );
 
@@ -84,17 +88,25 @@ export class OSMLRestApi extends Construct {
       deployOptions: {
         stageName: props.apiStageName
       },
+      endpointTypes: [EndpointType.REGIONAL],
+      defaultIntegration: props.integration,
       defaultMethodOptions: {
+        requestParameters: {
+          "method.request.path.proxy": true,
+          "method.request.header.Accept": true
+        },
         authorizer: this.requestAuthorizer,
         authorizationType: AuthorizationType.CUSTOM
+      },
+      defaultCorsPreflightOptions: {
+        allowOrigins: Cors.ALL_ORIGINS,
+        allowHeaders: Cors.DEFAULT_HEADERS,
+        allowMethods: Cors.ALL_METHODS
       }
     });
 
-    this.restApi.root
-      .addResource("{proxy+}")
-      .addMethod("ANY", props.integration, {
-        authorizer: this.requestAuthorizer,
-        authorizationType: AuthorizationType.CUSTOM
-      });
+    this.restApi.root.addProxy({
+      anyMethod: true
+    });
   }
 }
