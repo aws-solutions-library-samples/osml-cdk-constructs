@@ -9,27 +9,12 @@
  */
 export interface OSMLAuth {
   /**
-   * The client ID of the application.
+   * The audience of the application.
    */
-  clientId: string;
-
-  /**
-   * The client secret of the application
-   */
-  clientSecret: string;
+  audience: string;
 
   /**
    * The authority of the authentication.
    */
   authority: string;
-
-  /**
-   * The certificate arn of the certificate.
-   */
-  certificateArn: string;
-
-  /**
-   * The domain name of the authentication.
-   */
-  domainName: string;
 }
