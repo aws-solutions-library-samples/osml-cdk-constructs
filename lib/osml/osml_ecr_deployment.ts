@@ -6,6 +6,7 @@ import { RemovalPolicy } from "aws-cdk-lib";
 import { IVpc, SubnetSelection } from "aws-cdk-lib/aws-ec2";
 import { Repository } from "aws-cdk-lib/aws-ecr";
 import { ContainerImage, EcrImage } from "aws-cdk-lib/aws-ecs";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { DockerImageName, ECRDeployment } from "cdk-ecr-deployment";
 import { Construct } from "constructs";
 
@@ -61,6 +62,13 @@ export interface OSMLECRDeploymentProps {
   vpcSubnets?: SubnetSelection;
 
   /**
+   * An optional lambdaRuntime for copying Docker images into ECR.
+   *
+   * @type {Runtime | undefined}
+   */
+  lambdaRuntime?: Runtime;
+
+  /**
    * An optional tag for identifying the container.
    *
    * @type {string | undefined}
@@ -109,7 +117,8 @@ export class OSMLECRDeployment extends Construct {
       dest: new DockerImageName(this.ecrImage.imageName),
       memoryLimit: 10240,
       vpc: props.vpc,
-      vpcSubnets: props.vpcSubnets
+      vpcSubnets: props.vpcSubnets,
+      lambdaRuntime: props.lambdaRuntime
     });
 
     // Build a container image object to vend.

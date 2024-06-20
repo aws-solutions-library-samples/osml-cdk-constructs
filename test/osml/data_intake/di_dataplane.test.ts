@@ -3,7 +3,7 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
-import { Code } from "aws-cdk-lib/aws-lambda";
+import { Code, Runtime } from "aws-cdk-lib/aws-lambda";
 
 import { DIContainer, DIDataplane, OSMLVpc } from "../../../lib";
 import { test_account } from "../../test_account";
@@ -27,7 +27,8 @@ describe("DIDataplane constructor", () => {
       diContainer = new DIContainer(stack, "DIContainer", {
         account: test_account,
         buildFromSource: false,
-        osmlVpc: osmlVpc
+        osmlVpc: osmlVpc,
+        lambdaRuntime: Runtime.PROVIDED_AL2023
       });
 
       Object.defineProperty(Code, "fromAsset", {

@@ -3,6 +3,7 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 import {
   MRAutoScaling,
@@ -32,7 +33,8 @@ describe("MRAutoScaling constructor", () => {
     mrContainer = new MRContainer(stack, "MRContainer", {
       account: test_account,
       buildFromSource: false,
-      osmlVpc: osmlVpc
+      osmlVpc: osmlVpc,
+      lambdaRuntime: Runtime.PROVIDED_AL2023
     });
 
     mrDataplane = new MRDataplane(stack, "MRDataplane", {
