@@ -3,7 +3,7 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
-import { Code } from "aws-cdk-lib/aws-lambda";
+import { Code, Runtime } from "aws-cdk-lib/aws-lambda";
 
 import { OSMLVpc, TSContainer, TSDataplane } from "../../../lib";
 import { test_account } from "../../test_account";
@@ -26,7 +26,8 @@ describe("TSDataplane constructor", () => {
     tsContainer = new TSContainer(stack, "TSContainer", {
       account: test_account,
       buildFromSource: false,
-      osmlVpc: osmlVpc
+      osmlVpc: osmlVpc,
+      lambdaRuntime: Runtime.PROVIDED_AL2023
     });
 
     Object.defineProperty(Code, "fromAsset", {

@@ -3,6 +3,7 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 import { MEContainer, MREndpoints, OSMLVpc } from "../../../../lib";
 import { test_account } from "../../../test_account";
@@ -26,7 +27,8 @@ describe("MREndpoints constructor", () => {
       meContainer = new MEContainer(stack, "MEContainer", {
         account: test_account,
         buildFromSource: false,
-        osmlVpc: osmlVpc
+        osmlVpc: osmlVpc,
+        lambdaRuntime: Runtime.PROVIDED_AL2023
       });
 
       mrEndpoints = new MREndpoints(stack, "MREndpoints", {
