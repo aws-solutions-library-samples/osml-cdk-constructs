@@ -2,7 +2,7 @@
  * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
 
-import { RemovalPolicy } from "aws-cdk-lib";
+import { RemovalPolicy, Stack } from "aws-cdk-lib";
 import {
   FlowLog,
   FlowLogDestination,
@@ -56,11 +56,11 @@ export interface OSMLVpcProps {
   targetSubnets?: string[];
 
   /**
-   * Specifies an optional list of availability to specifically target within the VPC.
+   * Define the maximum number of AZs for the VPC
    *
-   * @type {string[] | undefined}
+   * @type {number[] | undefined}
    */
-  availabilityZones?: string[];
+  maxAzs?: number;
 }
 
 /**
@@ -101,7 +101,6 @@ export class OSMLVpc extends Construct {
   constructor(scope: Construct, id: string, props: OSMLVpcProps) {
     super(scope, id);
 
-    const isIsoB = props.account.region === "us-isob-east-1";
     this.removalPolicy = props.account.prodLike
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
@@ -114,8 +113,9 @@ export class OSMLVpc extends Construct {
     } else {
       const vpc = new Vpc(this, "OSMLVPC", {
         vpcName: props.vpcName,
-        maxAzs: props.availabilityZones ? undefined : isIsoB ? 2 : 3,
-        availabilityZones: props.availabilityZones,
+        // Default two AZs, customer can use more if they'd like
+        maxAzs:
+          props.maxAzs ?? Math.min(2, Stack.of(this).availabilityZones.length),
         subnetConfiguration: [
           {
             cidrMask: 23,

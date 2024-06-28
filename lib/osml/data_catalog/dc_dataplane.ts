@@ -40,7 +40,6 @@ export class DCDataplaneConfig {
    * @param {number} LAMBDA_TIMEOUT The timeout of the Lambda function.
    * @param {number} OS_DATA_NODES The number of data nodes in the OpenSearch cluster.
    * @param {number} OS_EBS_SIZE The EBS size of the OpenSearch cluster.
-   * @param {number} AZ_ZONES The number of availability zones for the data catalog server.
    * @param {string} STAC_FASTAPI_TITLE The title of the STAC FastAPI application.
    * @param {string} STAC_FASTAPI_DESCRIPTION The description of the STAC FastAPI application.
    * @param {string} STAC_FASTAPI_VERSION The version of the STAC FastAPI application.
@@ -60,7 +59,6 @@ export class DCDataplaneConfig {
     public LAMBDA_TIMEOUT: number = 300, // 5 minutes
     public OS_DATA_NODES: number = 4,
     public OS_EBS_SIZE: number = 10,
-    public AZ_ZONES: number = 3,
     public STAC_FASTAPI_TITLE: string = "stac-fastapi-opensearch",
     public STAC_FASTAPI_DESCRIPTION: string = "A STAC FastAPI with an OpenSearch backend",
     public STAC_FASTAPI_VERSION: string = "2.4.1",
@@ -186,7 +184,7 @@ export class DCDataplane extends Construct {
         : RemovalPolicy.DESTROY,
       zoneAwareness: {
         enabled: true,
-        availabilityZoneCount: this.config.AZ_ZONES
+        availabilityZoneCount: props.osmlVpc.selectedSubnets.subnetIds.length
       },
       securityGroups: [opensearchSecurityGroup]
     });

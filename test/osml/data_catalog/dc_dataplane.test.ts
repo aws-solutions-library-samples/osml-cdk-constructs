@@ -20,11 +20,8 @@ describe("DCDataplane constructor", () => {
       app = new App();
       stack = new Stack(app, "DCDataplaneStack");
 
-      const availabilityZones = ["us-west-2a", "us-west-2b", "us-west-2c"];
-
       osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
-        account: test_account,
-        availabilityZones: availabilityZones
+        account: test_account
       });
 
       const dockerImageCode = DockerImageCode.fromImageAsset(
