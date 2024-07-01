@@ -2,7 +2,7 @@
  * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
 
-import { RemovalPolicy, Stack } from "aws-cdk-lib";
+import { RemovalPolicy } from "aws-cdk-lib";
 import {
   FlowLog,
   FlowLogDestination,
@@ -19,6 +19,7 @@ import {
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
+import { maxAzsConfig } from "./config/region_az_config";
 import { OSMLAccount } from "./osml_account";
 
 /**
@@ -113,9 +114,7 @@ export class OSMLVpc extends Construct {
     } else {
       const vpc = new Vpc(this, "OSMLVPC", {
         vpcName: props.vpcName,
-        // Default two AZs, customer can use more if they'd like
-        maxAzs:
-          props.maxAzs ?? Math.min(2, Stack.of(this).availabilityZones.length),
+        maxAzs: props.maxAzs ?? maxAzsConfig[props.account.region],
         subnetConfiguration: [
           {
             cidrMask: 23,
