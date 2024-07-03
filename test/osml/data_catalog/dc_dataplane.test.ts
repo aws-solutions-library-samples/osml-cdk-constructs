@@ -3,10 +3,14 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
-import { Code, DockerImageCode } from "aws-cdk-lib/aws-lambda";
-import * as path from "path";
+import { Code } from "aws-cdk-lib/aws-lambda";
 
-import { DCDataplane, OSMLVpc } from "../../../lib";
+import {
+  DCDataplane,
+  DCIngestContainer,
+  DCStacContainer,
+  OSMLVpc
+} from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("DCDataplane constructor", () => {
@@ -14,6 +18,8 @@ describe("DCDataplane constructor", () => {
   let stack: Stack;
   let osmlVpc: OSMLVpc;
   let dcDataplane: DCDataplane;
+  let dcStacContainer: DCStacContainer;
+  let dcIngestContainer: DCIngestContainer;
 
   describe("DCDataplane", () => {
     beforeAll(() => {
@@ -24,10 +30,17 @@ describe("DCDataplane constructor", () => {
         account: test_account
       });
 
-      const dockerImageCode = DockerImageCode.fromImageAsset(
-        path.join(__dirname, ""),
-        { file: "Dockerfile" }
-      );
+      dcIngestContainer = new DCIngestContainer(stack, "DCIngestContainer", {
+        account: test_account,
+        buildFromSource: false,
+        osmlVpc: osmlVpc
+      });
+
+      dcStacContainer = new DCStacContainer(stack, "DCStacContainer", {
+        account: test_account,
+        buildFromSource: false,
+        osmlVpc: osmlVpc
+      });
 
       Object.defineProperty(Code, "fromAsset", {
         value: () => Code.fromInline("inline code")
@@ -37,7 +50,8 @@ describe("DCDataplane constructor", () => {
         account: test_account,
         lambdaRole: undefined,
         osmlVpc: osmlVpc,
-        dockerImageCode: dockerImageCode
+        stacCode: dcStacContainer.dockerImageCode,
+        ingestCode: dcIngestContainer.dockerImageCode
       });
     });
 

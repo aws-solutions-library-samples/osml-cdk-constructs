@@ -4,6 +4,7 @@
 
 import { region_info } from "aws-cdk-lib";
 import {
+  CfnServiceLinkedRole,
   CompositePrincipal,
   Effect,
   IRole,
@@ -51,6 +52,11 @@ export class DCLambdaRole extends Construct {
   public role: IRole;
 
   /**
+   * The AWS IAM role associated OpenSearch service link.
+   */
+  public serviceLinkedRole: CfnServiceLinkedRole;
+
+  /**
    * The AWS partition to be used for this DCLambdaRole.
    */
   public partition: string;
@@ -70,6 +76,15 @@ export class DCLambdaRole extends Construct {
       props.account.region,
       region_info.FactName.PARTITION
     )!;
+
+    // Define the service-linked role if it doesn't exist
+    this.serviceLinkedRole = new CfnServiceLinkedRole(
+      this,
+      "OpensearchServiceLinkedRole",
+      {
+        awsServiceName: "es.amazonaws.com"
+      }
+    );
 
     // Create an AWS IAM role for the Tile Server Lambda Sweeper Function
     const role = new Role(this, "DCLambdaRole", {

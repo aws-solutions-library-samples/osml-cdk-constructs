@@ -56,7 +56,6 @@ export interface OSMLRestApiProps {
 export class OSMLRestApi extends Construct {
   public requestAuthorizer: RequestAuthorizer;
   public restApi: RestApi;
-  public integration: Integration;
 
   /**
    * Creates an instance of OSML Rest APi
