@@ -3,7 +3,6 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 import { OSMLAccount, OSMLVpc, TSContainer } from "../../../lib";
 
@@ -34,8 +33,7 @@ describe("TSContainer", () => {
     container = new TSContainer(stack, "TSContainer", {
       account: account,
       buildFromSource: false,
-      osmlVpc: osmlVpc,
-      lambdaRuntime: Runtime.PROVIDED_AL2023
+      osmlVpc: osmlVpc
     });
   });
 

@@ -12,6 +12,7 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "./osml_account";
 import { OSMLRepository } from "./osml_repository";
+import { RegionalConfig } from "./utils/regional_config";
 
 /**
  * Interface representing the properties for the OSMLECRDeployment Construct.
@@ -99,6 +100,8 @@ export class OSMLECRDeployment extends Construct {
   constructor(scope: Construct, id: string, props: OSMLECRDeploymentProps) {
     super(scope, id);
 
+    const regionConfig = RegionalConfig.getConfig(props.account.region);
+
     // Check if a tag is provided, otherwise set it to "latest".
     this.tag = props.tag ? props.tag : "latest";
 
@@ -118,7 +121,7 @@ export class OSMLECRDeployment extends Construct {
       memoryLimit: 10240,
       vpc: props.vpc,
       vpcSubnets: props.vpcSubnets,
-      lambdaRuntime: props.lambdaRuntime
+      lambdaRuntime: props.lambdaRuntime ?? regionConfig.ecrCdkDeployRuntime
     });
 
     // Build a container image object to vend.

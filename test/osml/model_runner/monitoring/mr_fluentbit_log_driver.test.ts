@@ -3,7 +3,6 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 import {
   MRContainer,
@@ -33,8 +32,7 @@ describe("MRFluentBitLogDriver constructor", () => {
       mrContainer = new MRContainer(stack, "MRContainer", {
         account: test_special_account,
         buildFromSource: false,
-        osmlVpc: osmlVpc,
-        lambdaRuntime: Runtime.PROVIDED_AL2023
+        osmlVpc: osmlVpc
       });
 
       mrDataplane = new MRDataplane(stack, "MRDataplane", {

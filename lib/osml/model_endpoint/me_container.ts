@@ -5,7 +5,6 @@
 import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import { ContainerImage } from "aws-cdk-lib/aws-ecs";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
@@ -37,11 +36,6 @@ export interface MEContainerProps {
    * The OSML vpc to deploy into
    */
   osmlVpc: OSMLVpc;
-
-  /**
-   * The lambda runtime environment for copying Docker images to ECR.
-   */
-  lambdaRuntime: Runtime;
 
   /**
    * Optional flag to instruct building model container from source.
@@ -131,8 +125,7 @@ export class MEContainer extends Construct {
           repositoryName: this.config.ME_CONTAINER_REPOSITORY,
           removalPolicy: this.removalPolicy,
           vpc: props.osmlVpc.vpc,
-          vpcSubnets: props.osmlVpc.selectedSubnets,
-          lambdaRuntime: props.lambdaRuntime
+          vpcSubnets: props.osmlVpc.selectedSubnets
         }
       );
       this.containerImage = ecrDeployment.containerImage;

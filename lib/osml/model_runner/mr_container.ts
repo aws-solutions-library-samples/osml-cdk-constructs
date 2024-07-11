@@ -6,7 +6,6 @@ import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import { ContainerImage } from "aws-cdk-lib/aws-ecs";
 import { IRole } from "aws-cdk-lib/aws-iam";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
@@ -45,11 +44,6 @@ export interface MRAppContainerProps {
    * The OSML VPC (Virtual Private Cloud) associated with the MRAppContainer.
    */
   osmlVpc: OSMLVpc;
-
-  /**
-   * The lambda runtime environment for copying Docker images to ECR.
-   */
-  lambdaRuntime: Runtime;
 
   /**
    * Optional task role to be used by the MRAppContainer.
@@ -120,8 +114,7 @@ export class MRContainer extends Construct {
           repositoryName: this.mrAppContainerConfig.MR_CONTAINER_REPOSITORY,
           removalPolicy: this.removalPolicy,
           vpc: props.osmlVpc.vpc,
-          vpcSubnets: props.osmlVpc.selectedSubnets,
-          lambdaRuntime: props.lambdaRuntime
+          vpcSubnets: props.osmlVpc.selectedSubnets
         }
       );
       this.containerImage = ecrDeployment.containerImage;
