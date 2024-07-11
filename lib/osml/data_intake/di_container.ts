@@ -3,7 +3,7 @@
  */
 
 import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
-import { DockerImageCode, Runtime } from "aws-cdk-lib/aws-lambda";
+import { DockerImageCode } from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
@@ -42,11 +42,6 @@ export interface DIContainerProps {
    * The OSML vpc to deploy into
    */
   osmlVpc: OSMLVpc;
-
-  /**
-   * The lambda runtime environment for copying Docker images to ECR.
-   */
-  lambdaRuntime: Runtime;
 
   /**
    * Optional flag to instruct building Data Intake Lambda container from source.
@@ -110,8 +105,7 @@ export class DIContainer extends Construct {
         repositoryName: this.config.DI_REPOSITORY,
         removalPolicy: this.removalPolicy,
         vpc: props.osmlVpc.vpc,
-        vpcSubnets: props.osmlVpc.selectedSubnets,
-        lambdaRuntime: props.lambdaRuntime
+        vpcSubnets: props.osmlVpc.selectedSubnets
       });
       this.dockerImageCode = DockerImageCode.fromEcr(
         this.ecrDeployment.ecrRepository

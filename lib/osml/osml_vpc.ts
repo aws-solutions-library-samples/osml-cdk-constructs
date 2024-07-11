@@ -20,7 +20,7 @@ import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "./osml_account";
-import { maxAzsConfig } from "./utils/region_az_config";
+import { RegionalConfig } from "./utils/regional_config";
 
 /**
  * Configuration properties for the OSMLVpc Construct, defining how the VPC should be setup.
@@ -102,6 +102,8 @@ export class OSMLVpc extends Construct {
   constructor(scope: Construct, id: string, props: OSMLVpcProps) {
     super(scope, id);
 
+    const regionConfig = RegionalConfig.getConfig(props.account.region);
+
     this.removalPolicy = props.account.prodLike
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
@@ -114,7 +116,7 @@ export class OSMLVpc extends Construct {
     } else {
       const vpc = new Vpc(this, "OSMLVPC", {
         vpcName: props.vpcName,
-        maxAzs: props.maxAzs ?? maxAzsConfig[props.account.region],
+        maxAzs: props.maxAzs ?? regionConfig.maxVpcAzs,
         subnetConfiguration: [
           {
             cidrMask: 23,

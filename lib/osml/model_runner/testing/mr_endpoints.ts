@@ -13,6 +13,7 @@ import { MEHTTPRole } from "../../model_endpoint/roles/me_http_role";
 import { MESMRole } from "../../model_endpoint/roles/me_sm_role";
 import { OSMLAccount } from "../../osml_account";
 import { OSMLVpc } from "../../osml_vpc";
+import { RegionalConfig } from "../../utils/regional_config";
 
 /**
  * Configuration class for defining endpoints for OSML model endpoints.
@@ -28,7 +29,6 @@ export class MRModelEndpointsConfig {
    * @param {number} SM_INITIAL_VARIANT_WEIGHT - The initial weight for the SageMaker variant.
    * @param {string} SM_VARIANT_NAME - The name of the SageMaker variant.
    * @param {string} SM_CPU_INSTANCE_TYPE - The SageMaker CPU instance type.
-   * @param {string} SM_GPU_INSTANCE_TYPE - The SageMaker GPU instance type.
    * @param {string} SM_REPOSITORY_ACCESS_MODE - The repository access mode for SageMaker.
    * @param {string} HTTP_ENDPOINT_NAME - The name of the HTTP endpoint cluster.
    * @param {string} HTTP_ENDPOINT_ROLE_NAME - The name of the HTTP endpoint execution role.
@@ -48,7 +48,6 @@ export class MRModelEndpointsConfig {
     public SM_INITIAL_VARIANT_WEIGHT: number = 1,
     public SM_VARIANT_NAME: string = "AllTraffic",
     public SM_CPU_INSTANCE_TYPE: string = "ml.m5.xlarge",
-    public SM_GPU_INSTANCE_TYPE: string = "ml.p3.2xlarge",
     public SM_REPOSITORY_ACCESS_MODE: string = "Platform",
     public HTTP_ENDPOINT_NAME: string = "HTTPModelCluster",
     public HTTP_ENDPOINT_ROLE_NAME: string = "HTTPEndpointRole",
@@ -150,6 +149,12 @@ export interface MRModelEndpointsProps {
    * @type {boolean}
    */
   deployHttpCenterpointModel?: boolean;
+  /**
+   * (Optional) Defines SageMake Endpoint Instance Type
+   *
+   * @type {string | undefined}
+   */
+  sageMakerGpuEndpointInstanceType?: string;
 }
 
 /**
@@ -211,6 +216,7 @@ export class MREndpoints extends Construct {
   constructor(scope: Construct, id: string, props: MRModelEndpointsProps) {
     super(scope, id);
 
+    const regionConfig = RegionalConfig.getConfig(props.account.region);
     // Check if a custom config was provided
     if (props.mrModelEndpointsConfig != undefined) {
       // Import existing passed-in MR configuration
@@ -348,7 +354,9 @@ export class MREndpoints extends Construct {
           ecrContainerUri: props.modelContainerUri,
           modelName: this.mrModelEndpointsConfig.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
-          instanceType: this.mrModelEndpointsConfig.SM_GPU_INSTANCE_TYPE,
+          instanceType:
+            props.sageMakerGpuEndpointInstanceType ??
+            regionConfig.sageMakerGpuEndpointInstanceType,
           initialInstanceCount:
             this.mrModelEndpointsConfig.SM_INITIAL_INSTANCE_COUNT,
           initialVariantWeight:

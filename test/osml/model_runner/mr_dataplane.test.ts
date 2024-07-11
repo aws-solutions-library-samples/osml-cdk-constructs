@@ -3,7 +3,6 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 import { MRContainer, MRDataplane, OSMLVpc } from "../../../lib";
 import { test_account } from "../../test_account";
@@ -27,8 +26,7 @@ describe("MRDataplane constructor", () => {
       mrContainer = new MRContainer(stack, "MRContainer", {
         account: test_account,
         buildFromSource: false,
-        osmlVpc: osmlVpc,
-        lambdaRuntime: Runtime.PROVIDED_AL2023
+        osmlVpc: osmlVpc
       });
 
       mrDataplane = new MRDataplane(stack, "MRDataplane", {

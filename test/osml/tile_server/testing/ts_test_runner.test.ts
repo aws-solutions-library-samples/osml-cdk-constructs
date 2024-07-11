@@ -3,7 +3,6 @@
  */
 
 import { App, RemovalPolicy, Stack } from "aws-cdk-lib";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 import {
   OSMLVpc,
@@ -49,8 +48,7 @@ describe("TSDataplane constructor", () => {
         osmlVpc: osmlVpc,
         tsEndpoint: "https://localhost/latest",
         tsTestImageBucket: tsImagery.imageBucket.bucket.bucketName,
-        buildFromSource: false,
-        lambdaRuntime: Runtime.PROVIDED_AL2023
+        buildFromSource: false
       }
     );
 
