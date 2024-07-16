@@ -38,7 +38,7 @@ describe("DIDataplane constructor", () => {
         account: test_account,
         lambdaRole: undefined,
         osmlVpc: osmlVpc,
-        dockerImageCode: diContainer.dockerImageCode
+        intakeCode: diContainer.dockerImageCode
       });
     });
 

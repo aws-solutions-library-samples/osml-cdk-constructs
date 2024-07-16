@@ -18,13 +18,15 @@ export class DIContainerConfig {
    * Creates an instance of DIContainerConfig.
    * @param {string} [DI_CONTAINER="awsosml/osml-data-intake:latest"] - Container image to use for the lambda container.
    * @param {string} [DI_BUILD_PATH="lib/osml-data-intake"] - The build path for the Data Intake source code.
-   * @param {string} [DI_BUILD_TARGET="osml_data_intake"] - The build target for the Data Intake Dockerfile.
+   * @param {string} [DI_BUILD_TARGET="intake"] - The build target for the Data Intake Dockerfile.
+   * @param {string} [DI_DOCKERFILE="docker/Dockerfile.intake"] - The Dockerfile to build the container.
    * @param {string} [DI_REPOSITORY="data-intake-container"] - The repository name for the Data Intake source repo.
    */
   constructor(
     public DI_CONTAINER: string = "awsosml/osml-data-intake:latest",
     public DI_BUILD_PATH: string = "lib/osml-data-intake",
-    public DI_BUILD_TARGET: string = "osml_data_intake",
+    public DI_BUILD_TARGET: string = "intake",
+    public DI_DOCKERFILE: string = "docker/Dockerfile.intake",
     public DI_REPOSITORY: string = "data-intake-container"
   ) {}
 }
@@ -92,7 +94,7 @@ export class DIContainer extends Construct {
       this.dockerImageCode = DockerImageCode.fromImageAsset(
         this.config.DI_BUILD_PATH,
         {
-          file: "Dockerfile",
+          file: this.config.DI_DOCKERFILE,
           followSymlinks: SymlinkFollowMode.ALWAYS,
           target: this.config.DI_BUILD_TARGET
         }

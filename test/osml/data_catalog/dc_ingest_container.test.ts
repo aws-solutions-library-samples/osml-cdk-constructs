@@ -4,25 +4,25 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { DCContainer, OSMLVpc } from "../../../lib";
+import { DCIngestContainer, OSMLVpc } from "../../../lib";
 import { test_account } from "../../test_account";
 
-describe("DIContainer", () => {
+describe("DCIngestContainer", () => {
   let app: App;
   let stack: Stack;
   let osmlVpc: OSMLVpc;
-  let dcContainer: DCContainer;
+  let dcContainer: DCIngestContainer;
 
   beforeEach(() => {
     app = new App();
-    stack = new Stack(app, "DCContainerStack");
+    stack = new Stack(app, "DCIngestContainerStack");
 
     osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
       account: test_account
     });
 
     // Mock dependencies
-    dcContainer = new DCContainer(stack, "DCContainer", {
+    dcContainer = new DCIngestContainer(stack, "DCIngestContainer", {
       account: test_account,
       osmlVpc: osmlVpc
     });

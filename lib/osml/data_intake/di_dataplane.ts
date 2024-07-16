@@ -7,7 +7,7 @@ import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { IRole } from "aws-cdk-lib/aws-iam";
 import { DockerImageCode, DockerImageFunction } from "aws-cdk-lib/aws-lambda";
 import { Bucket } from "aws-cdk-lib/aws-s3";
-import { Topic } from "aws-cdk-lib/aws-sns";
+import { ITopic, Topic } from "aws-cdk-lib/aws-sns";
 import { LambdaSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
 
@@ -25,21 +25,23 @@ export class DIDataplaneConfig {
    * @param {string} LAMBDA_ROLE_NAME - The name of the DI Lambda execution role.
    * @param {string} LAMBDA_FUNCTION_NAME - The name of the Lambda for the Data Intake.
    * @param {number} LAMBDA_MEMORY_SIZE - The memory in Mb to give the lambda runtime.
+   * @param {number} LAMBDA_RETRY_ATTEMPTS - The number of times to retry a failed function call.
    * @param {number} LAMBDA_STORAGE_SIZE - The size of the storage to assign lambda runtime in GB.
    * @param {number} LAMBDA_TIMEOUT - The timeout, in seconds, for the Lambda function.
    * @param {string} SNS_INPUT_TOPIC_NAME - The name to give the input SNS topic.
-   * @param {string} SNS_OUTPUT_TOPIC_NAME - The name to give the output SNS topic.
+   * @param {string} SNS_STAC_TOPIC_NAME - The name to give the output SNS topic.
    * @param {string} S3_INPUT_BUCKET_NAME - The name to give the input bucket.
    * @param {string} S3_OUTPUT_BUCKET_NAME - The name to give the output bucket.
    */
   constructor(
     public LAMBDA_ROLE_NAME: string = "DILambdaRole",
     public LAMBDA_FUNCTION_NAME: string = "DILambda",
-    public LAMBDA_MEMORY_SIZE: number = 4096,
+    public LAMBDA_MEMORY_SIZE: number = 1024,
+    public LAMBDA_RETRY_ATTEMPTS: number = 3,
     public LAMBDA_STORAGE_SIZE: number = 10,
     public LAMBDA_TIMEOUT: number = 120,
-    public SNS_INPUT_TOPIC_NAME: string = "DIInputTopic",
-    public SNS_OUTPUT_TOPIC_NAME: string = "DIOutputTopic",
+    public SNS_INPUT_TOPIC_NAME: string = "osml-data-intake",
+    public SNS_STAC_TOPIC_NAME: string = "osml-stac-ingest",
     public S3_INPUT_BUCKET_NAME: string = "di-input-bucket",
     public S3_OUTPUT_BUCKET_NAME: string = "di-output-bucket"
   ) {}
@@ -64,7 +66,7 @@ export interface DIDataplaneProps {
   /**
    * The Docker image code to use for the lambda function
    */
-  dockerImageCode: DockerImageCode;
+  intakeCode: DockerImageCode;
 
   /**
    * The security group ID to use for the Dataplane (optional).
@@ -82,13 +84,13 @@ export interface DIDataplaneProps {
    * The input topic to receive Data Intake requests (optional).
    * @type {Topic | undefined}
    */
-  inputTopic?: Topic;
+  inputTopic?: ITopic;
 
   /**
    * The output topic to send generated STAC items (optional).
    * @type {Topic | undefined}
    */
-  stacTopic?: Topic;
+  stacTopic?: ITopic;
 
   /**
    * Custom configuration for the DIDataplane Construct (optional).
@@ -111,8 +113,8 @@ export class DIDataplane extends Construct {
   // Public properties
   public config: DIDataplaneConfig;
   public lambdaFunction: DockerImageFunction;
-  public inputTopic: Topic;
-  public stacTopic: Topic;
+  public inputTopic: ITopic;
+  public stacTopic: ITopic;
   public outputBucket: Bucket;
   public removalPolicy: RemovalPolicy;
   public lambdaRole: IRole;
@@ -132,14 +134,14 @@ export class DIDataplane extends Construct {
 
     // Create a test output bucket
     this.outputBucket = new OSMLBucket(this, `DIInputBucket`, {
-      bucketName: props.account.id + "-" + this.config.S3_OUTPUT_BUCKET_NAME,
+      bucketName: `${this.config.S3_OUTPUT_BUCKET_NAME}-${props.account.id}`,
       prodLike: props.account.prodLike,
       removalPolicy: this.removalPolicy
     }).bucket;
 
     // Define a Lambda function with a container image
     this.lambdaFunction = new DockerImageFunction(this, "DataIntakeFunction", {
-      code: props.dockerImageCode,
+      code: props.intakeCode,
       timeout: Duration.seconds(this.config.LAMBDA_TIMEOUT),
       functionName: this.config.LAMBDA_FUNCTION_NAME,
       environment: {
@@ -198,7 +200,7 @@ export class DIDataplane extends Construct {
       this.stacTopic = props.stacTopic;
     } else {
       this.stacTopic = new Topic(this, "DIOutputTopic", {
-        topicName: this.config.SNS_OUTPUT_TOPIC_NAME
+        topicName: this.config.SNS_STAC_TOPIC_NAME
       });
     }
 
