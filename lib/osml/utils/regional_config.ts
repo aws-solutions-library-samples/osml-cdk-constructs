@@ -10,6 +10,7 @@ export interface RegionConfig {
   ecrCdkDeployRuntime: Runtime;
   maxVpcAzs: number;
   sageMakerGpuEndpointInstanceType: string;
+  s3Endpoint: string;
 }
 
 export class RegionalConfig {

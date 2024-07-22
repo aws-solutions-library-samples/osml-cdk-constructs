@@ -32,6 +32,7 @@ import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
 import { OSMLTopic } from "../osml_topic";
 import { OSMLVpc } from "../osml_vpc";
+import { RegionalConfig } from "../utils/regional_config";
 import { MRFluentBitLogDriver } from "./monitoring/mr_fluentbit_log_driver";
 import { MRExecutionRole } from "./roles/mr_execution_role";
 import { MRTaskRole } from "./roles/mr_task_role";
@@ -207,10 +208,9 @@ export class MRDataplane extends Construct {
       : RemovalPolicy.DESTROY;
 
     // Set up a regional S3 endpoint for GDAL to use
-    this.regionalS3Endpoint = region_info.Fact.find(
-      props.account.region,
-      region_info.FactName.servicePrincipal("s3.amazonaws.com")
-    )!;
+    this.regionalS3Endpoint = RegionalConfig.getConfig(
+      props.account.region
+    ).s3Endpoint;
 
     // Check if a custom configuration was provided
     if (props.dataplaneConfig) {
@@ -232,30 +232,6 @@ export class MRDataplane extends Construct {
         roleName: this.mrDataplaneConfig.MR_TASK_ROLE_NAME
       }).role;
     }
-
-    // Set up a few regional S3 endpoint for GDAL to use
-    class S3FactISO implements region_info.IFact {
-      public readonly region = "us-iso-east-1";
-      public readonly name =
-        region_info.FactName.servicePrincipal("s3.amazonaws.com");
-      public readonly value = "s3.us-iso-east-1.c2s.ic.gov";
-    }
-
-    class S3FactISOB implements region_info.IFact {
-      public readonly region = "us-isob-east-1";
-      public readonly name =
-        region_info.FactName.servicePrincipal("s3.amazonaws.com");
-      public readonly value = "s3.us-isob-east-1.sc2s.sgov.gov";
-    }
-
-    region_info.Fact.register(new S3FactISO(), true);
-    region_info.Fact.register(new S3FactISOB(), true);
-
-    // Set up a regional S3 endpoint for GDAL to use
-    this.regionalS3Endpoint = region_info.Fact.find(
-      props.account.region,
-      region_info.FactName.servicePrincipal("s3.amazonaws.com")
-    )!;
 
     // Check if an execution role was provided
     if (props.executionRole != undefined) {
