@@ -2,7 +2,7 @@
  * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
 
-import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
+import { Duration, RemovalPolicy } from "aws-cdk-lib";
 import {
   ConnectionType,
   HttpIntegration,
@@ -50,6 +50,7 @@ import { OSMLQueue } from "../osml_queue";
 import { OSMLRestApi } from "../osml_restapi";
 import { OSMLTable } from "../osml_table";
 import { OSMLVpc } from "../osml_vpc";
+import { RegionalConfig } from "../utils/regional_config";
 import { TSExecutionRole } from "./roles/ts_execution_role";
 import { TSLambdaRole } from "./roles/ts_lambda_role";
 import { TSTaskRole } from "./roles/ts_task_role";
@@ -550,28 +551,8 @@ export class TSDataplane extends Construct {
       }).role;
     }
 
-    // Set up a few regional S3 endpoints for GDAL to use
-    class S3FactISO implements region_info.IFact {
-      public readonly region = "us-iso-east-1";
-      public readonly name =
-        region_info.FactName.servicePrincipal("s3.amazonaws.com");
-      public readonly value = "s3.us-iso-east-1.c2s.ic.gov";
-    }
-
-    class S3FactISOB implements region_info.IFact {
-      public readonly region = "us-isob-east-1";
-      public readonly name =
-        region_info.FactName.servicePrincipal("s3.amazonaws.com");
-      public readonly value = "s3.us-isob-east-1.sc2s.sgov.gov";
-    }
-
-    region_info.Fact.register(new S3FactISO(), true);
-    region_info.Fact.register(new S3FactISOB(), true);
-
-    // Set up a regional S3 endpoint for GDAL to use
-    this.regionalS3Endpoint = region_info.Fact.find(
-      props.account.region,
-      region_info.FactName.servicePrincipal("s3.amazonaws.com")
-    )!;
+    this.regionalS3Endpoint = RegionalConfig.getConfig(
+      props.account.region
+    ).s3Endpoint;
   }
 }
