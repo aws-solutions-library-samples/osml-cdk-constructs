@@ -39,7 +39,7 @@ export class DIDataplaneConfig {
     public LAMBDA_MEMORY_SIZE: number = 1024,
     public LAMBDA_RETRY_ATTEMPTS: number = 3,
     public LAMBDA_STORAGE_SIZE: number = 10,
-    public LAMBDA_TIMEOUT: number = 120,
+    public LAMBDA_TIMEOUT: number = 900,
     public SNS_INPUT_TOPIC_NAME: string = "osml-data-intake",
     public SNS_STAC_TOPIC_NAME: string = "osml-stac-ingest",
     public S3_INPUT_BUCKET_NAME: string = "di-input-bucket",
