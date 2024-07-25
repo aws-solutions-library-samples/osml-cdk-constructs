@@ -23,7 +23,7 @@ export class DIContainerConfig {
    * @param {string} [DI_REPOSITORY="data-intake-container"] - The repository name for the Data Intake source repo.
    */
   constructor(
-    public DI_CONTAINER: string = "awsosml/osml-data-intake:latest",
+    public DI_CONTAINER: string = "awsosml/osml-data-intake-intake:latest",
     public DI_BUILD_PATH: string = "lib/osml-data-intake",
     public DI_BUILD_TARGET: string = "intake",
     public DI_DOCKERFILE: string = "docker/Dockerfile.intake",
