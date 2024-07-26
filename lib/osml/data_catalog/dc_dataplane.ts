@@ -202,7 +202,7 @@ export class DCDataplane extends Construct {
       ES_PORT: this.config.ES_PORT,
       ES_USE_SSL: this.config.ES_USE_SSL,
       ES_VERIFY_CERTS: this.config.ES_VERIFY_CERTS,
-      STAC_FASTAPI_ROOT_PATH: this.config.STAC_FASTAPI_ROOT_PATH
+      STAC_FASTAPI_ROOT_PATH: `/${this.config.STAC_FASTAPI_ROOT_PATH}`
     };
 
     // Package op the container function
