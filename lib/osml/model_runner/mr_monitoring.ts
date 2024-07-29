@@ -15,8 +15,8 @@ import { FargateService } from "aws-cdk-lib/aws-ecs";
 import { Queue } from "aws-cdk-lib/aws-sqs";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "../../osml_account";
-import { MRDataplaneConfig } from "../mr_dataplane";
+import { OSMLAccount } from "../osml_account";
+import { MRDataplaneConfig } from "./mr_dataplane";
 
 /**
  * Interface for MR Monitoring Props.
@@ -85,9 +85,7 @@ export class MRMonitoring extends Construct {
    * @param {MRMonitoringProps} props - The properties of this construct.
    * @returns {MRMonitoring} - The MRMonitoring construct.
    */
-  public modelStatsWidget: SingleValueWidget;
   public mrDashboard: Dashboard;
-  public requestsWidget: SingleValueWidget;
   constructor(scope: Construct, id: string, props: MRMonitoringProps) {
     super(scope, id);
 

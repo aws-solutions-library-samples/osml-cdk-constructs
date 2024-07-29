@@ -4,7 +4,7 @@
 import { Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "../osml_account";
+import { OSMLAuth } from "../osml_auth";
 
 /**
  * Represents the properties required to configure the OSMLAuthorizer Construct.
@@ -16,7 +16,7 @@ export interface OSMLAuthorizerProps {
    *
    * @type {OSMLAuth}
    */
-  account: OSMLAccount;
+  auth: OSMLAuth;
 
   /**
    * The name of the service
@@ -60,8 +60,8 @@ export class OSMLAuthorizer extends Construct {
       ),
       handler: "lambda_function.lambda_handler",
       environment: {
-        AUTHORITY: props.account.auth ? props.account.auth.authority : "",
-        AUDIENCE: props.account.auth ? props.account.auth.audience : ""
+        AUTHORITY: props.auth ? props.auth.authority : "",
+        AUDIENCE: props.auth ? props.auth.audience : ""
       }
     });
   }

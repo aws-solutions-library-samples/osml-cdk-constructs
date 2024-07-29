@@ -2,6 +2,7 @@
  * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
 
+import { EcsIsoServiceAutoscaler } from "@cdklabs/cdk-enterprise-iac";
 import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
 import {
   BackupPlan,
@@ -9,97 +10,343 @@ import {
   BackupResource,
   BackupVault
 } from "aws-cdk-lib/aws-backup";
+import { Alarm } from "aws-cdk-lib/aws-cloudwatch";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
 import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import {
+  AwsLogDriver,
   Cluster,
   Compatibility,
   ContainerDefinition,
-  ContainerImage,
   FargateService,
-  FirelensLogRouterType,
-  LogDriver,
   Protocol,
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
 import { Effect, IRole, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import {
+  CfnStream,
+  Stream,
+  StreamEncryption,
+  StreamMode
+} from "aws-cdk-lib/aws-kinesis";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
+import { NagSuppressions } from "cdk-nag";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
+import { OSMLBucket } from "../osml_bucket";
+import { OSMLContainer } from "../osml_container";
 import { OSMLQueue } from "../osml_queue";
 import { OSMLTable } from "../osml_table";
 import { OSMLTopic } from "../osml_topic";
 import { OSMLVpc } from "../osml_vpc";
+import { BaseConfig, ConfigType } from "../utils/base_config";
 import { RegionalConfig } from "../utils/regional_config";
-import { MRFluentBitLogDriver } from "./monitoring/mr_fluentbit_log_driver";
+import { MRMonitoring } from "./mr_monitoring";
 import { MRExecutionRole } from "./roles/mr_execution_role";
 import { MRTaskRole } from "./roles/mr_task_role";
 
 /**
  * Configuration class for MRDataplane Construct.
  */
-export class MRDataplaneConfig {
+export class MRDataplaneConfig extends BaseConfig {
+  /**
+   * The name of the SNS topic for image status.
+   * @default "ImageStatusTopic"
+   */
+  public SNS_IMAGE_STATUS_TOPIC: string;
+
+  /**
+   * The name of the SNS topic for region status.
+   * @default "RegionStatusTopic"
+   */
+  public SNS_REGION_STATUS_TOPIC: string;
+
+  /**
+   * The name of the SQS queue for image status.
+   * @default "ImageStatusQueue"
+   */
+  public SQS_IMAGE_STATUS_QUEUE: string;
+
+  /**
+   * The name of the SQS queue for region status.
+   * @default "RegionStatusQueue"
+   */
+  public SQS_REGION_STATUS_QUEUE: string;
+
+  /**
+   * The name of the SQS queue for image requests.
+   * @default "ImageRequestQueue"
+   */
+  public SQS_IMAGE_REQUEST_QUEUE: string;
+
+  /**
+   * The name of the SQS queue for region requests.
+   * @default "RegionRequestQueue"
+   */
+  public SQS_REGION_REQUEST_QUEUE: string;
+
+  /**
+   * The name of the DynamoDB table for job status.
+   * @default "ImageProcessingJobStatus"
+   */
+  public DDB_JOB_STATUS_TABLE: string;
+
+  /**
+   * The name of the DynamoDB table for image processing features.
+   * @default "ImageProcessingFeatures"
+   */
+  public DDB_FEATURES_TABLE: string;
+
+  /**
+   * The name of the DynamoDB table for endpoint processing statistics.
+   * @default "EndpointProcessingStatistics"
+   */
+  public DDB_ENDPOINT_PROCESSING_TABLE: string;
+
+  /**
+   * The name of the DynamoDB table for region request status.
+   * @default "RegionProcessingJobStatus"
+   */
+  public DDB_REGION_REQUEST_TABLE: string;
+
+  /**
+   * The attribute name for expiration time in DynamoDB.
+   * @default "expire_time"
+   */
+  public DDB_TTL_ATTRIBUTE: string;
+
+  /**
+   * The namespace for metrics.
+   * @default "OSML"
+   */
+  public METRICS_NAMESPACE: string;
+
+  /**
+   * The name of the MR cluster.
+   * @default "OSMLCluster"
+   */
+  public MR_CLUSTER_NAME: string;
+
+  /**
+   * The name of the MR task role.
+   * @default "OSMLTaskRole"
+   */
+  public MR_TASK_ROLE_NAME: string;
+
+  /**
+   * The name of the MR execution role.
+   * @default "OSMLExecutionRole"
+   */
+  public MR_EXECUTION_ROLE_NAME: string;
+
+  /**
+   * The name of the MR container.
+   * @default "OSMLModelRunnerContainer"
+   */
+  public MR_CONTAINER_NAME: string;
+
+  /**
+   * The memory configuration for MR tasks.
+   * @default 16384
+   */
+  public MR_TASK_MEMORY: number;
+
+  /**
+   * The CPU configuration for MR tasks.
+   * @default 8192
+   */
+  public MR_TASK_CPU: number;
+
+  /**
+   * The memory configuration for MR containers.
+   * @default 10240
+   */
+  public MR_CONTAINER_MEMORY: number;
+
+  /**
+   * The CPU configuration for MR containers.
+   * @default 7168
+   */
+  public MR_CONTAINER_CPU: number;
+
+  /**
+   * The number of workers per CPU.
+   * @default 2
+   */
+  public MR_WORKERS_PER_CPU: number;
+
+  /**
+   * The desired number of tasks to use for the service.
+   * @default 1
+   */
+  public MR_DEFAULT_DESIRE_COUNT: number;
+
+  /**
+   * The size of MR regions in the format "(width, height)".
+   * @default "(8192, 8192)"
+   */
+  public MR_REGION_SIZE: string;
+
+  /**
+   * Whether to deploy image status messages.
+   * @default true
+   */
+  public MR_ENABLE_IMAGE_STATUS: boolean;
+
+  /**
+   * Whether to deploy region status messages.
+   * @default false
+   */
+  public MR_ENABLE_REGION_STATUS: boolean;
+
+  /**
+   * Whether to deploy a monitoring dashboard for model runner.
+   * @default true
+   */
+  public MR_ENABLE_MONITORING: boolean;
+
+  /**
+   * Whether to deploy a kinesis output sync stream.
+   * @default false
+   */
+  public MR_ENABLE_KINESIS_SYNC: boolean;
+
+  /**
+   * Whether to deploy a s3 output sync bucket.
+   * @default true
+   */
+  public MR_ENABLE_S3_SYNC: boolean;
+
+  /**
+   * The maximum number of tasks allowed in the cluster.
+   * @default 40
+   */
+  public MR_AUTOSCALING_TASK_MAX_COUNT: number;
+
+  /**
+   * The minimum number of tasks required in the cluster.
+   * @default 3
+   */
+  public MR_AUTOSCALING_TASK_MIN_COUNT: number;
+
+  /**
+   * The cooldown period (in minutes) after scaling out tasks.
+   * @default 3
+   */
+  public MR_AUTOSCALING_TASK_OUT_COOLDOWN: number;
+
+  /**
+   * The cooldown period (in minutes) after scaling in tasks.
+   * @default 1
+   */
+  public MR_AUTOSCALING_TASK_IN_COOLDOWN: number;
+
+  /**
+   * The number of tasks to increment when scaling in.
+   * @default 8
+   */
+  public MR_AUTOSCALING_TASK_IN_INCREMENT: number;
+
+  /**
+   * The number of tasks to increment when scaling out.
+   * @default 8
+   */
+  public MR_AUTOSCALING_TASK_OUT_INCREMENT: number;
+
+  /**
+   * The prefix to assign the deployed S3 bucket output sync.
+   * @default "mr-bucket-sync"
+   */
+  public MR_S3_SYNC_BUCKET_PREFIX: string;
+
+  /**
+   * The prefix to assign the deployed Kinesis stream output sync.
+   * @default "mr-stream-sync"
+   */
+  public MR_KINESIS_SYNC_STREAM_PREFIX: string;
+
+  /**
+   * The default container image.
+   * @default "awsosml/osml-model-runner:latest"
+   */
+  public MR_DEFAULT_CONTAINER: string;
+
+  /**
+   * The path for the container build.
+   * @default "lib/osml-model-runner"
+   */
+  public MR_CONTAINER_BUILD_PATH: string;
+
+  /**
+   * The target for the container build.
+   * @default "model_runner"
+   */
+  public MR_CONTAINER_BUILD_TARGET: string;
+
+  /**
+   * The repository for the container image.
+   * @default "model-runner-container"
+   */
+  public MR_CONTAINER_REPOSITORY: string;
+
+  /**
+   * The relative Dockerfile to use to build the container.
+   * @default "Dockerfile"
+   */
+  public MR_CONTAINER_DOCKERFILE: string;
+
   /**
    * Constructor for MRDataplaneConfig.
-   * @param {string} SNS_IMAGE_STATUS_TOPIC - The name of the SNS topic for image status.
-   * @param {string} SNS_REGION_STATUS_TOPIC - The name of the SNS topic for region status.
-   * @param {string} SQS_IMAGE_STATUS_QUEUE - The name of the SQS queue for image status.
-   * @param {string} SQS_REGION_STATUS_QUEUE -  - The name of the SQS queue for region status.
-   * @param {string} SQS_IMAGE_REQUEST_QUEUE - The name of the SQS queue for image requests.
-   * @param {string} SQS_REGION_REQUEST_QUEUE - The name of the SQS queue for region requests.
-   * @param {string} DDB_JOB_STATUS_TABLE - The name of the DynamoDB table for job status.
-   * @param {string} DDB_FEATURES_TABLE - The name of the DynamoDB table for image processing features.
-   * @param {string} DDB_ENDPOINT_PROCESSING_TABLE - The name of the DynamoDB table for endpoint processing statistics.
-   * @param {string} DDB_REGION_REQUEST_TABLE - The name of the DynamoDB table for region request status.
-   * @param {string} DDB_TTL_ATTRIBUTE - The attribute name for expiration time in DynamoDB.
-   * @param {string} METRICS_NAMESPACE - The namespace for metrics.
-   * @param {string} MR_CLUSTER_NAME - The name of the MR cluster.
-   * @param {string} MR_TASK_ROLE_NAME - The name of the MR task role.
-   * @param {string} MR_EXECUTION_ROLE_NAME - The name of the MR execution role.
-   * @param {string} MR_CONTAINER_NAME - The name of the MR container.
-   * @param {number} MR_TASK_MEMORY - The memory configuration for MR tasks.
-   * @param {number} MR_TASK_CPU - The CPU configuration for MR tasks.
-   * @param {number} MR_CONTAINER_MEMORY - The memory configuration for MR containers.
-   * @param {number} MR_CONTAINER_CPU - The CPU configuration for MR containers.
-   * @param {number} MR_LOGGING_MEMORY - The memory configuration for logging.
-   * @param {number} MR_LOGGING_CPU - The CPU configuration for logging.
-   * @param {number} MR_WORKERS_PER_CPU - The number of workers per CPU.
-   * @param {number} MR_DEFAULT_DESIRE_COUNT - The desired number of tasks to use for the service.
-   * @param {string} MR_REGION_SIZE - The size of MR regions in the format "(width, height)".
-   * @param {boolean} MR_ENABLE_IMAGE_STATUS - Whether to deploy image status messages.
-   * @param {boolean} MR_ENABLE_REGION_STATUS - Whether to deploy region status messages.
+   * @param config - The configuration object for MRDataplane.
    */
-  constructor(
-    public SNS_IMAGE_STATUS_TOPIC: string = "ImageStatusTopic",
-    public SNS_REGION_STATUS_TOPIC: string = "RegionStatusTopic",
-    public SQS_IMAGE_STATUS_QUEUE: string = "ImageStatusQueue",
-    public SQS_REGION_STATUS_QUEUE: string = "RegionStatusQueue",
-    public SQS_IMAGE_REQUEST_QUEUE: string = "ImageRequestQueue",
-    public SQS_REGION_REQUEST_QUEUE: string = "RegionRequestQueue",
-    public DDB_JOB_STATUS_TABLE: string = "ImageProcessingJobStatus",
-    public DDB_FEATURES_TABLE: string = "ImageProcessingFeatures",
-    public DDB_ENDPOINT_PROCESSING_TABLE: string = "EndpointProcessingStatistics",
-    public DDB_REGION_REQUEST_TABLE: string = "RegionProcessingJobStatus",
-    public DDB_TTL_ATTRIBUTE: string = "expire_time",
-    public METRICS_NAMESPACE: string = "OSML",
-    public MR_CLUSTER_NAME: string = "OSMLCluster",
-    public MR_TASK_ROLE_NAME: string = "OSMLTaskRole",
-    public MR_EXECUTION_ROLE_NAME: string = "OSMLExecutionRole",
-    public MR_CONTAINER_NAME: string = "OSMLModelRunnerContainer",
-    public MR_TASK_MEMORY: number = 16384,
-    public MR_TASK_CPU: number = 8192,
-    public MR_CONTAINER_MEMORY: number = 10240,
-    public MR_CONTAINER_CPU: number = 7168,
-    public MR_LOGGING_MEMORY: number = 1024,
-    public MR_LOGGING_CPU: number = 1024,
-    public MR_WORKERS_PER_CPU: number = 2,
-    public MR_DEFAULT_DESIRE_COUNT: number = 1,
-    public MR_REGION_SIZE: string = "(8192, 8192)",
-    public MR_ENABLE_IMAGE_STATUS: boolean = true,
-    public MR_ENABLE_REGION_STATUS: boolean = false
-  ) {}
+  constructor(config: ConfigType = {}) {
+    super({
+      SNS_IMAGE_STATUS_TOPIC: "ImageStatusTopic",
+      SNS_REGION_STATUS_TOPIC: "RegionStatusTopic",
+      SQS_IMAGE_STATUS_QUEUE: "ImageStatusQueue",
+      SQS_REGION_STATUS_QUEUE: "RegionStatusQueue",
+      SQS_IMAGE_REQUEST_QUEUE: "ImageRequestQueue",
+      SQS_REGION_REQUEST_QUEUE: "RegionRequestQueue",
+      DDB_JOB_STATUS_TABLE: "ImageProcessingJobStatus",
+      DDB_FEATURES_TABLE: "ImageProcessingFeatures",
+      DDB_ENDPOINT_PROCESSING_TABLE: "EndpointProcessingStatistics",
+      DDB_REGION_REQUEST_TABLE: "RegionProcessingJobStatus",
+      DDB_TTL_ATTRIBUTE: "expire_time",
+      METRICS_NAMESPACE: "OSML",
+      MR_CLUSTER_NAME: "OSMLCluster",
+      MR_TASK_ROLE_NAME: "OSMLTaskRole",
+      MR_EXECUTION_ROLE_NAME: "OSMLExecutionRole",
+      MR_CONTAINER_NAME: "MRContainer",
+      MR_TASK_MEMORY: 16384,
+      MR_TASK_CPU: 8192,
+      MR_CONTAINER_MEMORY: 10240,
+      MR_CONTAINER_CPU: 7168,
+      MR_WORKERS_PER_CPU: 2,
+      MR_DEFAULT_DESIRE_COUNT: 1,
+      MR_REGION_SIZE: "(8192, 8192)",
+      MR_ENABLE_IMAGE_STATUS: true,
+      MR_ENABLE_REGION_STATUS: false,
+      MR_ENABLE_MONITORING: true,
+      MR_ENABLE_KINESIS_SYNC: false,
+      MR_ENABLE_S3_SYNC: true,
+      MR_AUTOSCALING_TASK_MAX_COUNT: 40,
+      MR_AUTOSCALING_TASK_MIN_COUNT: 3,
+      MR_AUTOSCALING_TASK_OUT_COOLDOWN: 3,
+      MR_AUTOSCALING_TASK_IN_COOLDOWN: 1,
+      MR_AUTOSCALING_TASK_IN_INCREMENT: 8,
+      MR_AUTOSCALING_TASK_OUT_INCREMENT: 8,
+      MR_S3_SYNC_BUCKET_PREFIX: "mr-bucket-sync",
+      MR_KINESIS_SYNC_STREAM_PREFIX: "mr-stream-sync",
+      MR_DEFAULT_CONTAINER: "awsosml/osml-model-runner:latest",
+      MR_CONTAINER_BUILD_PATH: "lib/osml-model-runner",
+      MR_CONTAINER_BUILD_TARGET: "model_runner",
+      MR_CONTAINER_REPOSITORY: "model-runner-container",
+      MR_CONTAINER_DOCKERFILE: "Dockerfile",
+      ...config
+    });
+  }
 }
 
 /**
@@ -143,16 +390,15 @@ export interface MRDataplaneProps {
   executionRole?: IRole;
 
   /**
+   * Optional flag to instruct building model runner container from source.
+   */
+  buildFromSource?: boolean;
+
+  /**
    * Custom configuration for the MRDataplane Construct (optional).
    * @type {MRDataplaneConfig | undefined}
    */
-  dataplaneConfig?: MRDataplaneConfig;
-
-  /**
-   * The container image to be used for the model runner ecs tasks.
-   * @type {ContainerImage}
-   */
-  mrContainerImage: ContainerImage;
+  config?: MRDataplaneConfig;
 }
 
 /**
@@ -166,30 +412,145 @@ export interface MRDataplaneProps {
  * @returns {MRDataplane} - The MRDataplane construct.
  */
 export class MRDataplane extends Construct {
-  // Public properties
+  /**
+   * The IAM role for the ECS task.
+   */
   public taskRole: IRole;
+
+  /**
+   * The IAM role for the ECS task execution.
+   */
   public executionRole: IRole;
-  public mrDataplaneConfig: MRDataplaneConfig;
+
+  /**
+   * The configuration for the MRDataplane.
+   */
+  public config: MRDataplaneConfig;
+
+  /**
+   * The removal policy for resources created by this construct.
+   */
   public removalPolicy: RemovalPolicy;
+
+  /**
+   * The regional S3 endpoint.
+   */
   public regionalS3Endpoint: string;
+
+  /**
+   * The DynamoDB table for job status.
+   */
   public jobStatusTable: OSMLTable;
+
+  /**
+   * The DynamoDB table for feature data.
+   */
   public featureTable: OSMLTable;
+
+  /**
+   * The DynamoDB table for endpoint statistics.
+   */
   public endpointStatisticsTable: OSMLTable;
+
+  /**
+   * The DynamoDB table for region request status.
+   */
   public regionRequestTable: OSMLTable;
+
+  /**
+   * The SNS topic for image status notifications.
+   */
   public imageStatusTopic: OSMLTopic;
+
+  /**
+   * The SNS topic for region status notifications.
+   */
   public regionStatusTopic: OSMLTopic;
+
+  /**
+   * The SQS queue for image processing requests.
+   */
   public imageRequestQueue: OSMLQueue;
+
+  /**
+   * The SQS queue for region processing requests.
+   */
   public regionRequestQueue: OSMLQueue;
+
+  /**
+   * The log group for the MR service.
+   */
   public logGroup: LogGroup;
+
+  /**
+   * The ECS cluster for running tasks.
+   */
   public cluster: Cluster;
+
+  /**
+   * The ECS task definition.
+   */
   public taskDefinition: TaskDefinition;
-  public workers: string;
+
+  /**
+   * The container definition for the MR service.
+   */
   public containerDefinition: ContainerDefinition;
+
+  /**
+   * The Fargate service for the MR container.
+   */
   public fargateService: FargateService;
+
+  /**
+   * The container for the MR service.
+   */
+  public mrContainer: OSMLContainer;
+
+  /**
+   * The security groups for the Fargate service.
+   */
   public securityGroups?: [ISecurityGroup];
+
+  /**
+   * The URI for MR terrain data.
+   */
   public mrTerrainUri?: string;
+
+  /**
+   * The SQS queue for image status updates.
+   */
   public imageStatusQueue?: OSMLQueue;
+
+  /**
+   * The SQS queue for region status updates.
+   */
   public regionStatusQueue?: OSMLQueue;
+
+  /**
+   * The monitoring configuration for the MR service.
+   */
+  public monitoring?: MRMonitoring;
+
+  /**
+   * The autoscaler for the Fargate service.
+   */
+  public serviceAutoscaler?: EcsIsoServiceAutoscaler;
+
+  /**
+   * The S3 bucket for synchronization.
+   */
+  public syncBucket?: OSMLBucket;
+
+  /**
+   * The Kinesis stream for synchronization.
+   */
+  public syncStream?: Stream;
+
+  /**
+   * The number of workers to assign to each Model Runner task.
+   */
+  private workers: string;
 
   /**
    * Constructs an instance of MRDataplane.
@@ -202,63 +563,23 @@ export class MRDataplane extends Construct {
   constructor(scope: Construct, id: string, props: MRDataplaneProps) {
     super(scope, id);
 
-    // Setup a removal policy
-    this.removalPolicy = props.account.prodLike
-      ? RemovalPolicy.RETAIN
-      : RemovalPolicy.DESTROY;
-
-    // Set up a regional S3 endpoint for GDAL to use
-    this.regionalS3Endpoint = RegionalConfig.getConfig(
-      props.account.region
-    ).s3Endpoint;
-
-    // Check if a custom configuration was provided
-    if (props.dataplaneConfig) {
-      // Import existing passed-in MR configuration
-      this.mrDataplaneConfig = props.dataplaneConfig;
-    } else {
-      // Create a new default configuration
-      this.mrDataplaneConfig = new MRDataplaneConfig();
-    }
-
-    // Check if a role was provided
-    if (props.taskRole != undefined) {
-      // Import passed-in MR task role
-      this.taskRole = props.taskRole;
-    } else {
-      // Create a new role
-      this.taskRole = new MRTaskRole(this, "MRTaskRole", {
-        account: props.account,
-        roleName: this.mrDataplaneConfig.MR_TASK_ROLE_NAME
-      }).role;
-    }
-
-    // Check if an execution role was provided
-    if (props.executionRole != undefined) {
-      // Import passed-in MR task role
-      this.executionRole = props.executionRole;
-    } else {
-      // Create a new role
-      this.executionRole = new MRExecutionRole(this, "MRExecutionRole", {
-        account: props.account,
-        roleName: this.mrDataplaneConfig.MR_EXECUTION_ROLE_NAME
-      }).role;
-    }
+    // Configure the construct with passed params
+    this.setup(props);
 
     // Job status table to store worker status info
     this.jobStatusTable = new OSMLTable(this, "MRJobStatusTable", {
-      tableName: this.mrDataplaneConfig.DDB_JOB_STATUS_TABLE,
+      tableName: this.config.DDB_JOB_STATUS_TABLE,
       partitionKey: {
         name: "image_id",
         type: AttributeType.STRING
       },
       removalPolicy: this.removalPolicy,
-      ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
+      ttlAttribute: this.config.DDB_TTL_ATTRIBUTE
     });
 
     // GeoJSON feature storage for mapping back to images
     this.featureTable = new OSMLTable(this, "MRFeaturesTable", {
-      tableName: this.mrDataplaneConfig.DDB_FEATURES_TABLE,
+      tableName: this.config.DDB_FEATURES_TABLE,
       partitionKey: {
         name: "hash_key",
         type: AttributeType.STRING
@@ -268,7 +589,7 @@ export class MRDataplane extends Construct {
         type: AttributeType.STRING
       },
       removalPolicy: this.removalPolicy,
-      ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
+      ttlAttribute: this.config.DDB_TTL_ATTRIBUTE
     });
 
     // Used to track in-progress regions by model endpoint
@@ -276,19 +597,19 @@ export class MRDataplane extends Construct {
       this,
       "MREndpointProcessingTable",
       {
-        tableName: this.mrDataplaneConfig.DDB_ENDPOINT_PROCESSING_TABLE,
+        tableName: this.config.DDB_ENDPOINT_PROCESSING_TABLE,
         partitionKey: {
           name: "hash_key",
           type: AttributeType.STRING
         },
         removalPolicy: this.removalPolicy,
-        ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
+        ttlAttribute: this.config.DDB_TTL_ATTRIBUTE
       }
     );
 
     // Region request table to store region status info
     this.regionRequestTable = new OSMLTable(this, "MRRegionRequestTable", {
-      tableName: this.mrDataplaneConfig.DDB_REGION_REQUEST_TABLE,
+      tableName: this.config.DDB_REGION_REQUEST_TABLE,
       partitionKey: {
         name: "image_id",
         type: AttributeType.STRING
@@ -298,7 +619,7 @@ export class MRDataplane extends Construct {
         type: AttributeType.STRING
       },
       removalPolicy: this.removalPolicy,
-      ttlAttribute: this.mrDataplaneConfig.DDB_TTL_ATTRIBUTE
+      ttlAttribute: this.config.DDB_TTL_ATTRIBUTE
     });
 
     // AWS Backup solution is available in most regions
@@ -319,15 +640,16 @@ export class MRDataplane extends Construct {
       });
     }
 
-    if (this.mrDataplaneConfig.MR_ENABLE_REGION_STATUS) {
+    // If the region status tracking feature is enabled
+    if (this.config.MR_ENABLE_REGION_STATUS) {
       // Create a topic for region request status notifications
       this.regionStatusTopic = new OSMLTopic(this, "MRRegionStatusTopic", {
-        topicName: this.mrDataplaneConfig.SNS_REGION_STATUS_TOPIC
+        topicName: this.config.SNS_REGION_STATUS_TOPIC
       });
 
       // Create an SQS queue for region status processing updates
       this.regionStatusQueue = new OSMLQueue(this, "MRRegionStatusQueue", {
-        queueName: this.mrDataplaneConfig.SQS_REGION_STATUS_QUEUE
+        queueName: this.config.SQS_REGION_STATUS_QUEUE
       });
 
       // Subscribe the region status topic to the queue
@@ -336,15 +658,16 @@ export class MRDataplane extends Construct {
       );
     }
 
-    if (this.mrDataplaneConfig.MR_ENABLE_IMAGE_STATUS) {
+    // If the region image tracking feature is enabled
+    if (this.config.MR_ENABLE_IMAGE_STATUS) {
       // Create a topic for image request status notifications
       this.imageStatusTopic = new OSMLTopic(this, "MRImageStatusTopic", {
-        topicName: this.mrDataplaneConfig.SNS_IMAGE_STATUS_TOPIC
+        topicName: this.config.SNS_IMAGE_STATUS_TOPIC
       });
 
       // Create an SQS queue for image processing status updates
       this.imageStatusQueue = new OSMLQueue(this, "MRImageStatusQueue", {
-        queueName: this.mrDataplaneConfig.SQS_IMAGE_STATUS_QUEUE
+        queueName: this.config.SQS_IMAGE_STATUS_QUEUE
       });
 
       // Subscribe the image status topic to the queue
@@ -355,12 +678,12 @@ export class MRDataplane extends Construct {
 
     // Create a SQS queue for the image processing jobs
     this.imageRequestQueue = new OSMLQueue(this, "MRImageRequestQueue", {
-      queueName: this.mrDataplaneConfig.SQS_IMAGE_REQUEST_QUEUE
+      queueName: this.config.SQS_IMAGE_REQUEST_QUEUE
     });
 
     // Create a SQS queue for the image region processing tasks
     this.regionRequestQueue = new OSMLQueue(this, "MRRegionRequestQueue", {
-      queueName: this.mrDataplaneConfig.SQS_REGION_REQUEST_QUEUE
+      queueName: this.config.SQS_REGION_REQUEST_QUEUE
     });
 
     // Log group for MR container
@@ -370,30 +693,35 @@ export class MRDataplane extends Construct {
       removalPolicy: this.removalPolicy
     });
 
+    // Build the container for model runner
+    this.mrContainer = new OSMLContainer(this, "MRContainer", {
+      account: props.account,
+      buildFromSource: props.buildFromSource,
+      osmlVpc: props.osmlVpc,
+      config: {
+        CONTAINER_URI: this.config.MR_DEFAULT_CONTAINER,
+        CONTAINER_BUILD_PATH: this.config.MR_CONTAINER_BUILD_PATH,
+        CONTAINER_BUILD_TARGET: this.config.MR_CONTAINER_BUILD_TARGET,
+        CONTAINER_REPOSITORY: this.config.MR_CONTAINER_REPOSITORY,
+        CONTAINER_DOCKERFILE: this.config.MR_CONTAINER_DOCKERFILE
+      }
+    });
+
     // Build cluster to house our containers when they spin up
     this.cluster = new Cluster(this, "MRCluster", {
-      clusterName: this.mrDataplaneConfig.MR_CLUSTER_NAME,
+      clusterName: this.config.MR_CLUSTER_NAME,
       vpc: props.osmlVpc.vpc,
       containerInsights: props.account.prodLike
     });
 
     // Define our ECS task
     this.taskDefinition = new TaskDefinition(this, "MRTaskDefinition", {
-      memoryMiB: this.mrDataplaneConfig.MR_TASK_MEMORY.toString(),
-      cpu: this.mrDataplaneConfig.MR_TASK_CPU.toString(),
+      memoryMiB: this.config.MR_TASK_MEMORY.toString(),
+      cpu: this.config.MR_TASK_CPU.toString(),
       compatibility: Compatibility.FARGATE,
       taskRole: this.taskRole,
       executionRole: this.executionRole
     });
-
-    // Calculate the workers to assign per task instance
-    this.workers = Math.ceil(
-      (this.mrDataplaneConfig.MR_CONTAINER_CPU / 1024) *
-        this.mrDataplaneConfig.MR_WORKERS_PER_CPU
-    ).toString();
-
-    // Build our container to run our service
-    const containerEnv = this.buildContainerEnv(props);
 
     // Add port mapping to container
     this.taskDefinition.defaultContainer?.addPortMappings({
@@ -402,17 +730,6 @@ export class MRDataplane extends Construct {
       protocol: Protocol.TCP
     });
 
-    // If a custom security group was provided
-    if (props.securityGroupId) {
-      this.securityGroups = [
-        SecurityGroup.fromSecurityGroupId(
-          this,
-          "MRImportSecurityGroup",
-          props.securityGroupId
-        )
-      ];
-    }
-
     // Set up Fargate service
     this.fargateService = new FargateService(this, "MRService", {
       taskDefinition: this.taskDefinition,
@@ -420,57 +737,26 @@ export class MRDataplane extends Construct {
       minHealthyPercent: 100,
       securityGroups: this.securityGroups,
       vpcSubnets: props.osmlVpc.selectedSubnets,
-      desiredCount: this.mrDataplaneConfig.MR_DEFAULT_DESIRE_COUNT
+      desiredCount: this.config.MR_DEFAULT_DESIRE_COUNT
     });
-
-    const loggingOptions = new MRFluentBitLogDriver(this, "MRLoggingOptions", {
-      account: props.account,
-      logGroup: this.logGroup,
-      taskDefinition: this.taskDefinition
-    });
-
-    // Build a fluent bit log router for the MR container
-    this.taskDefinition.addFirelensLogRouter("MRFireLensContainer", {
-      image: loggingOptions.fluentBitImage,
-      essential: true,
-      firelensConfig: {
-        type: FirelensLogRouterType.FLUENTBIT
-      },
-      cpu: this.mrDataplaneConfig.MR_LOGGING_CPU,
-      memoryLimitMiB: this.mrDataplaneConfig.MR_LOGGING_MEMORY,
-      environment: { LOG_REGION: props.account.region },
-      logging: LogDriver.awsLogs({
-        logGroup: new LogGroup(this, "MRFireLens", {
-          logGroupName: "/aws/OSML/MRFireLens",
-          retention: RetentionDays.TEN_YEARS,
-          removalPolicy: this.removalPolicy
-        }),
-        streamPrefix: "OSML"
-      }),
-      readonlyRootFilesystem: false,
-      healthCheck: {
-        command: [
-          "CMD-SHELL",
-          'echo \'{"health": "check"}\' | nc 127.0.0.1 8877 || exit 1'
-        ],
-        retries: 3
-      }
-    });
+    this.fargateService.node.addDependency(this.mrContainer);
 
     // Build a container definition to run our service
     this.containerDefinition = this.taskDefinition.addContainer(
       "MRContainerDefinition",
       {
-        containerName: this.mrDataplaneConfig.MR_CONTAINER_NAME,
-        image: props.mrContainerImage,
-        memoryLimitMiB: this.mrDataplaneConfig.MR_CONTAINER_MEMORY,
-        cpu: this.mrDataplaneConfig.MR_CONTAINER_CPU,
-        environment: containerEnv,
+        containerName: this.config.MR_CONTAINER_NAME,
+        image: this.mrContainer.containerImage,
+        memoryLimitMiB: this.config.MR_CONTAINER_MEMORY,
+        cpu: this.config.MR_CONTAINER_CPU,
+        environment: this.buildContainerEnv(props),
         startTimeout: Duration.minutes(1),
         stopTimeout: Duration.minutes(1),
-        // Create a log group for console output (STDOUT)
-        logging: loggingOptions.logging,
-        disableNetworking: false
+        disableNetworking: false,
+        logging: new AwsLogDriver({
+          logGroup: this.logGroup,
+          streamPrefix: this.config.METRICS_NAMESPACE
+        })
       }
     );
 
@@ -480,8 +766,7 @@ export class MRDataplane extends Construct {
         region_info.FactName.PARTITION
       )!;
 
-      // need to add permission to access fluent bit container
-      // within the account
+      // Add permission to access fluent bit container
       this.taskDefinition.addToExecutionRolePolicy(
         new PolicyStatement({
           effect: Effect.ALLOW,
@@ -496,10 +781,28 @@ export class MRDataplane extends Construct {
         })
       );
     }
+
+    // Setup autoscaling management for model runner
+    this.buildAutoscaling(props);
+
+    // Build a monitoring dashboard if enabled
+    if (this.config.MR_ENABLE_MONITORING) {
+      this.buildMonitoring(props);
+    }
+
+    // Build desired output syncs
+    this.buildSync(props);
   }
 
-  buildContainerEnv(props: MRDataplaneProps) {
-    // Build our container to run our service
+  /**
+   * Builds the container environment variables for the MR service.
+   *
+   * @param {MRDataplaneProps} props - The properties for configuring the MRDataplane Construct.
+   * @returns {object} - The environment variables for the container.
+   */
+  private buildContainerEnv(props: MRDataplaneProps): {
+    [key: string]: string;
+  } {
     let containerEnv = {
       AWS_DEFAULT_REGION: props.account.region,
       JOB_TABLE: this.jobStatusTable.table.tableName,
@@ -509,28 +812,24 @@ export class MRDataplane extends Construct {
       IMAGE_QUEUE: this.imageRequestQueue.queue.queueUrl,
       REGION_QUEUE: this.regionRequestQueue.queue.queueUrl,
       AWS_S3_ENDPOINT: this.regionalS3Endpoint,
-      WORKERS_PER_CPU: this.mrDataplaneConfig.MR_WORKERS_PER_CPU.toString(),
+      WORKERS_PER_CPU: this.config.MR_WORKERS_PER_CPU.toString(),
       WORKERS: this.workers,
-      REGION_SIZE: this.mrDataplaneConfig.MR_REGION_SIZE
+      REGION_SIZE: this.config.MR_REGION_SIZE
     };
 
-    // Check if a custom model runner container image was provided
     if (props.mrTerrainUri != undefined) {
-      // Import the passed image
       this.mrTerrainUri = props.mrTerrainUri;
       containerEnv = Object.assign(containerEnv, {
         ELEVATION_DATA_LOCATION: this.mrTerrainUri
       });
     }
 
-    // Check if a custom model runner container image was provided
     if (this.imageStatusTopic != undefined) {
       containerEnv = Object.assign(containerEnv, {
         IMAGE_STATUS_TOPIC: this.imageStatusTopic.topic.topicArn
       });
     }
 
-    // Check if we are deploying a regin status message
     if (this.regionStatusTopic != undefined) {
       containerEnv = Object.assign(containerEnv, {
         REGION_STATUS_TOPIC: this.regionStatusTopic.topic.topicArn
@@ -538,5 +837,191 @@ export class MRDataplane extends Construct {
     }
 
     return containerEnv;
+  }
+
+  /**
+   * Builds the configured output syncs for the MR service.
+   *
+   * @param {MRDataplaneProps} props - The properties for configuring the MRDataplane Construct.
+   */
+  private buildSync(props: MRDataplaneProps): void {
+    // Create a bucket to store results if deploySyncBucket is not explicitly set to false
+    if (this.config.MR_ENABLE_S3_SYNC) {
+      this.syncBucket = new OSMLBucket(this, `MRSyncBucket`, {
+        bucketName: `${this.config.MR_S3_SYNC_BUCKET_PREFIX}-${props.account.id}`,
+        prodLike: props.account.prodLike,
+        removalPolicy: this.removalPolicy
+      });
+    }
+
+    // Create a Kinesis stream to store results if deploySyncStream is not explicitly set to false
+    if (this.config.MR_ENABLE_KINESIS_SYNC) {
+      this.syncStream = new Stream(this, "MRSyncStream", {
+        streamName: `${this.config.MR_KINESIS_SYNC_STREAM_PREFIX}-${props.account.id}`,
+        streamMode: StreamMode.PROVISIONED,
+        shardCount: 1,
+        encryption: StreamEncryption.MANAGED,
+        removalPolicy: this.removalPolicy
+      });
+
+      // https://github.com/aws/aws-cdk/issues/19652
+      if (props.account.isAdc) {
+        const cfnStream = this.syncStream.node.defaultChild as CfnStream;
+        cfnStream.addPropertyDeletionOverride("StreamModeDetails");
+      }
+    }
+  }
+
+  /**
+   * Builds a monitoring dashboard for the MR service if monitoring is enabled.
+   *
+   * @param {MRDataplaneProps} props - The properties for configuring the MRDataplane Construct.
+   */
+  private buildMonitoring(props: MRDataplaneProps): void {
+    this.monitoring = new MRMonitoring(this, "MRMonitoring", {
+      account: props.account,
+      imageRequestQueue: this.imageRequestQueue.queue,
+      regionRequestQueue: this.regionRequestQueue.queue,
+      imageRequestDlQueue: this.imageRequestQueue.dlQueue,
+      regionRequestDlQueue: this.regionRequestQueue.dlQueue,
+      service: this.fargateService,
+      mrDataplaneConfig: this.config
+    });
+  }
+
+  /**
+   * Sets up autoscaling management for the MR service.
+   *
+   * @param {MRDataplaneProps} props - The properties for configuring the MRDataplane Construct.
+   */
+  private buildAutoscaling(props: MRDataplaneProps): void {
+    if (props.account.isAdc) {
+      const regionQueueScalingAlarm = new Alarm(
+        this,
+        "RegionQueueScalingAlarm",
+        {
+          metric:
+            this.regionRequestQueue.queue.metricApproximateNumberOfMessagesVisible(),
+          evaluationPeriods: 1,
+          threshold: 3
+        }
+      );
+
+      NagSuppressions.addResourceSuppressions(
+        this,
+        [
+          {
+            id: "NIST.800.53.R5-CloudWatchAlarmAction",
+            reason:
+              "Lambda function monitors these alarms on a cron basis " +
+              "rather than an event trigger to help scaling smoothness."
+          }
+        ],
+        true
+      );
+
+      this.serviceAutoscaler = new EcsIsoServiceAutoscaler(
+        this,
+        "MRServiceAutoscaling",
+        {
+          role: this.taskRole,
+          ecsCluster: this.cluster,
+          ecsService: this.fargateService,
+          minimumTaskCount: this.config.MR_AUTOSCALING_TASK_MIN_COUNT,
+          maximumTaskCount: this.config.MR_AUTOSCALING_TASK_MAX_COUNT,
+          scaleAlarm: regionQueueScalingAlarm,
+          scaleOutIncrement: this.config.MR_AUTOSCALING_TASK_OUT_INCREMENT,
+          scaleInIncrement: this.config.MR_AUTOSCALING_TASK_IN_INCREMENT,
+          scaleOutCooldown: Duration.minutes(
+            this.config.MR_AUTOSCALING_TASK_OUT_COOLDOWN
+          ),
+          scaleInCooldown: Duration.minutes(
+            this.config.MR_AUTOSCALING_TASK_IN_COOLDOWN
+          )
+        }
+      );
+    } else {
+      const mrServiceScaling = this.fargateService.autoScaleTaskCount({
+        maxCapacity: this.config.MR_AUTOSCALING_TASK_MAX_COUNT,
+        minCapacity: this.config.MR_AUTOSCALING_TASK_MIN_COUNT
+      });
+
+      mrServiceScaling.scaleOnMetric("MRRegionQueueScaling", {
+        metric:
+          this.regionRequestQueue.queue.metricApproximateNumberOfMessagesVisible(),
+        scalingSteps: [
+          { change: +3, lower: 1 },
+          { change: +5, lower: 5 },
+          { change: +8, lower: 20 },
+          { change: +15, lower: 100 }
+        ]
+      });
+
+      mrServiceScaling.scaleOnMetric("MRImageQueueScaling", {
+        metric: this.imageRequestQueue.queue.metricNumberOfMessagesReceived({
+          period: Duration.minutes(5),
+          statistic: "sum"
+        }),
+        scalingSteps: [
+          { change: -1, upper: 0 },
+          { change: +1, lower: 1 }
+        ],
+        cooldown: Duration.minutes(1),
+        evaluationPeriods: 3
+      });
+    }
+  }
+
+  /**
+   * Sets up the initial configuration for the MRDataplane Construct.
+   *
+   * @param {MRDataplaneProps} props - The properties for configuring the MRDataplane Construct.
+   */
+  private setup(props: MRDataplaneProps): void {
+    if (props.config != undefined) {
+      this.config = props.config;
+    } else {
+      this.config = new MRDataplaneConfig();
+    }
+
+    this.removalPolicy = props.account.prodLike
+      ? RemovalPolicy.RETAIN
+      : RemovalPolicy.DESTROY;
+
+    this.regionalS3Endpoint = RegionalConfig.getConfig(
+      props.account.region
+    ).s3Endpoint;
+
+    this.workers = Math.ceil(
+      (this.config.MR_CONTAINER_CPU / 1024) * this.config.MR_WORKERS_PER_CPU
+    ).toString();
+
+    if (props.securityGroupId) {
+      this.securityGroups = [
+        SecurityGroup.fromSecurityGroupId(
+          this,
+          "MRImportSecurityGroup",
+          props.securityGroupId
+        )
+      ];
+    }
+
+    if (props.taskRole != undefined) {
+      this.taskRole = props.taskRole;
+    } else {
+      this.taskRole = new MRTaskRole(this, "MRTaskRole", {
+        account: props.account,
+        roleName: this.config.MR_TASK_ROLE_NAME
+      }).role;
+    }
+
+    if (props.executionRole != undefined) {
+      this.executionRole = props.executionRole;
+    } else {
+      this.executionRole = new MRExecutionRole(this, "MRExecutionRole", {
+        account: props.account,
+        roleName: this.config.MR_EXECUTION_ROLE_NAME
+      }).role;
+    }
   }
 }

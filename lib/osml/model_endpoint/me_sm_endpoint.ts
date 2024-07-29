@@ -9,6 +9,61 @@ import {
 } from "aws-cdk-lib/aws-sagemaker";
 import { Construct } from "constructs";
 
+import { BaseConfig, ConfigType } from "../utils/base_config";
+
+/**
+ * Configuration class for MESMEndpoint Construct.
+ */
+export class MESMEndpointConfig extends BaseConfig {
+  /**
+   * The initial number of instances to run for the endpoint.
+   * @default 1
+   */
+  public INITIAL_INSTANCE_COUNT: number;
+
+  /**
+   * The initial weight for the model variant when using traffic splitting.
+   * @default 1
+   */
+  public INITIAL_VARIANT_WEIGHT: number;
+
+  /**
+   * The name of the model variant.
+   * @default "AllTraffic"
+   */
+  public VARIANT_NAME: string;
+
+  /**
+   * The security group ID to associate with the endpoint.
+   */
+  public SECURITY_GROUP_ID: string;
+
+  /**
+   * The access mode for the model repository (e.g., "ReadWrite" or "ReadOnly").
+   */
+  public REPOSITORY_ACCESS_MODE: string;
+
+  /**
+   * A JSON object which includes ENV variables to be put into the model container.
+   */
+  public CONTAINER_ENV: Record<string, unknown>;
+
+  /**
+   * Creates an instance of MESMEndpointConfig.
+   * @param config - The configuration object for MESMEndpoint.
+   */
+  constructor(config: ConfigType = {}) {
+    super({
+      INITIAL_INSTANCE_TYPE: 1,
+      INITIAL_VARIANT_WEIGHT: 1,
+      INITIAL_INSTANCE_COUNT: 1,
+      VARIANT_NAME: "AllTraffic",
+      REPOSITORY_ACCESS_MODE: "Platform",
+      ...config
+    });
+  }
+}
+
 /**
  * Represents the properties required to configure an OSML model endpoint.
  *
@@ -37,27 +92,6 @@ export interface MESMEndpointProps {
   modelName: string;
 
   /**
-   * Whether to include segmentation masks in the model output.
-   *
-   * @type {string}
-   */
-  enableSegmentation: boolean;
-
-  /**
-   * The initial number of instances to run for the endpoint.
-   *
-   * @type {number}
-   */
-  initialInstanceCount: number;
-
-  /**
-   * The initial weight for the model variant when using traffic splitting.
-   *
-   * @type {number}
-   */
-  initialVariantWeight: number;
-
-  /**
    * The instance type for the endpoint.
    *
    * @type {string}
@@ -65,41 +99,43 @@ export interface MESMEndpointProps {
   instanceType: string;
 
   /**
-   * The name of the model variant.
+   * The instance type for the endpoint.
    *
    * @type {string}
-   */
-  variantName: string;
-
-  /**
-   * The security group ID to associate with the endpoint.
-   *
-   * @type {string}
-   */
-  securityGroupId: string;
-
-  /**
-   * An array of subnet IDs where the endpoint should be deployed.
-   *
-   * @type {string[]}
    */
   subnetIds: string[];
 
   /**
-   * The access mode for the model repository (e.g., "ReadWrite" or "ReadOnly").
+   * (Optional) Configuration settings for MESMEndpoint resources.
    *
-   * @type {string}
+   * @type {MESMEndpointConfig}
    */
-  repositoryAccessMode: string;
+  config?: MESMEndpointConfig;
 }
 
 /**
  * Represents an AWS SageMaker endpoint for a specified model.
  */
 export class MESMEndpoint extends Construct {
+  /**
+   * The SageMaker model configuration.
+   */
   public model: CfnModel;
+
+  /**
+   * The SageMaker endpoint configuration.
+   */
   public endpointConfig: CfnEndpointConfig;
+
+  /**
+   * The SageMaker endpoint.
+   */
   public endpoint: CfnEndpoint;
+
+  /**
+   * The configuration for the MESMEndpoint.
+   */
+  public config: MESMEndpointConfig;
 
   /**
    * Creates a SageMaker endpoint for the specified model.
@@ -107,10 +143,13 @@ export class MESMEndpoint extends Construct {
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
    * @param {MESMEndpointProps} props - The properties of this construct.
-   * @returns MESMEndpoint- The MESMEndpoint construct.
+   * @returns MESMEndpoint - The MESMEndpoint construct.
    */
   constructor(scope: Construct, id: string, props: MESMEndpointProps) {
     super(scope, id);
+
+    // Check if a custom configuration was provided for the model container
+    this.config = props.config ?? new MESMEndpointConfig();
 
     // Create a SageMaker model
     this.model = new CfnModel(this, id, {
@@ -118,18 +157,15 @@ export class MESMEndpoint extends Construct {
       containers: [
         {
           image: props.ecrContainerUri,
-          environment: {
-            MODEL_SELECTION: props.modelName,
-            ENABLE_SEGMENTATION: props.enableSegmentation ? "true" : "false"
-          },
+          environment: this.config.CONTAINER_ENV,
           imageConfig: {
-            repositoryAccessMode: props.repositoryAccessMode
+            repositoryAccessMode: this.config.REPOSITORY_ACCESS_MODE
           }
         }
       ],
       vpcConfig: {
         subnets: props.subnetIds,
-        securityGroupIds: [props.securityGroupId]
+        securityGroupIds: [this.config.SECURITY_GROUP_ID]
       }
     });
 
@@ -137,11 +173,11 @@ export class MESMEndpoint extends Construct {
     this.endpointConfig = new CfnEndpointConfig(this, `${id}-EndpointConfig`, {
       productionVariants: [
         {
-          initialInstanceCount: props.initialInstanceCount,
-          initialVariantWeight: props.initialVariantWeight,
+          initialInstanceCount: this.config.INITIAL_INSTANCE_COUNT,
+          initialVariantWeight: this.config.INITIAL_VARIANT_WEIGHT,
           instanceType: props.instanceType,
           modelName: this.model.attrModelName,
-          variantName: props.variantName
+          variantName: this.config.VARIANT_NAME
         }
       ],
       tags: [

@@ -12,12 +12,8 @@ import {
 } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
-import { MRContainerConfig } from "../../model_runner/mr_container";
 import { MRDataplaneConfig } from "../../model_runner/mr_dataplane";
-import { MRModelEndpointsConfig } from "../../model_runner/testing/mr_endpoints";
-import { MRSyncConfig } from "../../model_runner/testing/mr_sync";
 import { OSMLAccount } from "../../osml_account";
-import { MEContainerConfig } from "../me_container";
 
 /**
  * Represents the properties required to create a new SageMaker role.
@@ -50,26 +46,6 @@ export class MESMRole extends Construct {
    */
   public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
 
-  /**
-   * The Model Runner Sync Configuration values to be used for this MRTaskRole
-   */
-  public mrSyncConfig: MRSyncConfig = new MRSyncConfig();
-
-  /**
-   * The Model Runner Model Endpoints Configuration values to be used for this MRTaskRole
-   */
-  public mrModelEndpointsConfig: MRModelEndpointsConfig =
-    new MRModelEndpointsConfig();
-
-  /**
-   * The Model Runner Container Configuration values to be used for this MRTaskRole
-   */
-  public mrContainerConfig: MRContainerConfig = new MRContainerConfig();
-
-  /**
-   * The Model Endpoint Container Configuration values to be used for this MRTaskRole
-   */
-  public meContainerConfig: MEContainerConfig = new MEContainerConfig();
   /**
    * Creates a SageMaker execution role for hosting CV models at a SageMaker endpoint.
    * @constructor

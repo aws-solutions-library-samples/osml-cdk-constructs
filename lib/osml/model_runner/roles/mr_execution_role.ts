@@ -15,7 +15,6 @@ import {
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
-import { MRContainerConfig } from "../mr_container";
 import { MRDataplaneConfig } from "../mr_dataplane";
 
 /**
@@ -39,7 +38,14 @@ export interface MRExecutionRoleProps {
  * @property {string} partition - The AWS partition in which the role will operate.
  */
 export class MRExecutionRole extends Construct {
+  /**
+   * The AWS IAM role associated with this construct.
+   */
   public role: IRole;
+
+  /**
+   * The AWS partition in which the role will operate.
+   */
   public partition: string;
 
   /**
@@ -53,7 +59,7 @@ export class MRExecutionRole extends Construct {
   constructor(scope: Construct, id: string, props: MRExecutionRoleProps) {
     super(scope, id);
 
-    const containerRepositoryName = new MRContainerConfig()
+    const containerRepositoryName = new MRDataplaneConfig()
       .MR_CONTAINER_REPOSITORY;
     const firelensLogGroupName = `/aws/${
       new MRDataplaneConfig().METRICS_NAMESPACE

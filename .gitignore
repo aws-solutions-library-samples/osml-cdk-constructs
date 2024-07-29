@@ -1,51 +1,70 @@
-node_modules
-build
-.DS_Store
+# Node.js dependencies
+node_modules/
+
+# Build output directories
+build/
 dist/
-*.iml
-*.zip
-.idea
-.pytest_cache
-__pycache__/
-.attach*
-cdk.out/
-cdk.context.json
 dist-electron/
 release/
-get-pip.py
-*result.txt
-*results.txt
+dist-ssr/
 
+# macOS system files
+.DS_Store
 
-!**/glob-import/dir/node_modules
-*.cpuprofile
-*.local
-*.log
-/.vscode/
-/packages/vite/LICENSE
-dist
-dist-ssr
-explorations
-playground-temp
-temp
-TODOs.md
-.eslintcache
-*~
-*#
-*.swp
-*.DS_Store
-node_modules/
+# IDE files
+.idea/
+*.iml
+
+# Zip files
+*.zip
+
+# Python pytest cache
+.pytest_cache/
+
+# Python compiled files
+__pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
 
-/.coverage
-/.coverage.*
-/.cache
-/.pytest_cache
-/.mypy_cache
+# Temporary and generated files
+.attach*
+cdk.out/
+cdk.context.json
+get-pip.py
+*result.txt
+*results.txt
+*.cpuprofile
+*.local
+*.log
+.temp
+TODOs.md
+.eslintcache
 
+# Specific folders and files to exclude
+.vscode/
+/packages/vite/LICENSE
+explorations/
+playground-temp/
+
+# Exceptions for files in specific directories
+!**/glob-import/dir/node_modules
+
+# Coverage reports
+.coverage
+.coverage.*
+.cache
+.pytest_cache
+.mypy_cache
+
+# Documentation auto-generated files
 /doc/_apidoc/
 /build
 /docs
 coverage/
+
+# Editor temporary files
+*~
+*#
+*.swp
+*.DS_Store

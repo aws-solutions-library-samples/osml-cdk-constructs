@@ -5,7 +5,7 @@
 import { Duration, RemovalPolicy, Size } from "aws-cdk-lib";
 import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { IRole } from "aws-cdk-lib/aws-iam";
-import { DockerImageCode, DockerImageFunction } from "aws-cdk-lib/aws-lambda";
+import { DockerImageFunction } from "aws-cdk-lib/aws-lambda";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { ITopic, Topic } from "aws-cdk-lib/aws-sns";
 import { LambdaSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
@@ -13,38 +13,117 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
 import { OSMLBucket } from "../osml_bucket";
+import { OSMLContainer } from "../osml_container";
 import { OSMLVpc } from "../osml_vpc";
+import { BaseConfig, ConfigType } from "../utils/base_config";
 import { DILambdaRole } from "./roles/di_lambda_role";
 
 /**
  * Configuration class for DIDataplane Construct.
  */
-export class DIDataplaneConfig {
+export class DIDataplaneConfig extends BaseConfig {
+  /**
+   * The name of the DI Lambda execution role.
+   * @default "DILambdaRole"
+   */
+  public LAMBDA_ROLE_NAME: string;
+
+  /**
+   * The name of the Lambda for the Data Intake.
+   * @default "DILambda"
+   */
+  public LAMBDA_FUNCTION_NAME: string;
+
+  /**
+   * The memory in MB to give the lambda runtime.
+   * @default 1024
+   */
+  public LAMBDA_MEMORY_SIZE: number;
+
+  /**
+   * The size of the storage to assign lambda runtime in GB.
+   * @default 10
+   */
+  public LAMBDA_STORAGE_SIZE: number;
+
+  /**
+   * The timeout, in seconds, for the Lambda function.
+   * @default 900
+   */
+  public LAMBDA_TIMEOUT: number;
+
+  /**
+   * The name to give the input SNS topic.
+   * @default "osml-data-intake"
+   */
+  public SNS_INPUT_TOPIC_NAME: string;
+
+  /**
+   * The name to give the output SNS topic.
+   * @default "osml-stac-ingest"
+   */
+  public SNS_STAC_TOPIC_NAME: string;
+
+  /**
+   * The name to give the output bucket.
+   * @default "di-output-bucket"
+   */
+  public S3_OUTPUT_BUCKET_NAME: string;
+
+  /**
+   * The container image to use for the Data Intake lambda.
+   * @default "awsosml/osml-tile-server:latest"
+   */
+  public CONTAINER_SOURCE_URI: string;
+
+  /**
+   * The build path for the Data Intake.
+   * @default "lib/osml-data-intake"
+   */
+  public CONTAINER_BUILD_PATH: string;
+
+  /**
+   * The build target for the Data Intake.
+   * @default "intake"
+   */
+  public CONTAINER_BUILD_TARGET: string;
+
+  /**
+   * The relative Dockerfile to use to build the container.
+   * @default "docker/Dockerfile.intake"
+   */
+  public CONTAINER_DOCKERFILE: string;
+
+  /**
+   * The repository name for the TileServer.
+   * @default "data-intake"
+   */
+  public CONTAINER_REPOSITORY: string;
+
   /**
    * Constructor for DIDataplane Construct.
-   * @param {string} LAMBDA_ROLE_NAME - The name of the DI Lambda execution role.
-   * @param {string} LAMBDA_FUNCTION_NAME - The name of the Lambda for the Data Intake.
-   * @param {number} LAMBDA_MEMORY_SIZE - The memory in Mb to give the lambda runtime.
-   * @param {number} LAMBDA_RETRY_ATTEMPTS - The number of times to retry a failed function call.
-   * @param {number} LAMBDA_STORAGE_SIZE - The size of the storage to assign lambda runtime in GB.
-   * @param {number} LAMBDA_TIMEOUT - The timeout, in seconds, for the Lambda function.
-   * @param {string} SNS_INPUT_TOPIC_NAME - The name to give the input SNS topic.
-   * @param {string} SNS_STAC_TOPIC_NAME - The name to give the output SNS topic.
-   * @param {string} S3_INPUT_BUCKET_NAME - The name to give the input bucket.
-   * @param {string} S3_OUTPUT_BUCKET_NAME - The name to give the output bucket.
+   * @param config - The configuration object for DIDataplane.
    */
-  constructor(
-    public LAMBDA_ROLE_NAME: string = "DILambdaRole",
-    public LAMBDA_FUNCTION_NAME: string = "DILambda",
-    public LAMBDA_MEMORY_SIZE: number = 1024,
-    public LAMBDA_RETRY_ATTEMPTS: number = 3,
-    public LAMBDA_STORAGE_SIZE: number = 10,
-    public LAMBDA_TIMEOUT: number = 900,
-    public SNS_INPUT_TOPIC_NAME: string = "osml-data-intake",
-    public SNS_STAC_TOPIC_NAME: string = "osml-stac-ingest",
-    public S3_INPUT_BUCKET_NAME: string = "di-input-bucket",
-    public S3_OUTPUT_BUCKET_NAME: string = "di-output-bucket"
-  ) {}
+  constructor(config: ConfigType = {}) {
+    super({
+      LAMBDA_ROLE_NAME: "DILambdaRole",
+      LAMBDA_FUNCTION_NAME: "DILambda",
+      LAMBDA_MEMORY_SIZE: 1024,
+      LAMBDA_RETRY_ATTEMPTS: 3,
+      LAMBDA_STORAGE_SIZE: 10,
+      LAMBDA_TIMEOUT: 900,
+      SNS_INPUT_TOPIC_NAME: "osml-data-intake",
+      SNS_STAC_TOPIC_NAME: "osml-stac-ingest",
+      S3_INPUT_BUCKET_NAME: "di-input-bucket",
+      S3_OUTPUT_BUCKET_NAME: "di-output-bucket",
+      CONTAINER_SOURCE_URI: "awsosml/osml-data-intake-intake:latest",
+      CONTAINER_BUILD_PATH: "lib/osml-data-intake",
+      CONTAINER_BUILD_TARGET: "intake",
+      CONTAINER_DOCKERFILE: "docker/Dockerfile.intake",
+      CONTAINER_REPOSITORY: "data-intake",
+      ...config
+    });
+  }
 }
 
 /**
@@ -62,11 +141,6 @@ export interface DIDataplaneProps {
    * @type {OSMLVpc}
    */
   osmlVpc: OSMLVpc;
-
-  /**
-   * The Docker image code to use for the lambda function
-   */
-  intakeCode: DockerImageCode;
 
   /**
    * The security group ID to use for the Dataplane (optional).
@@ -93,6 +167,11 @@ export interface DIDataplaneProps {
   stacTopic?: ITopic;
 
   /**
+   * Optional flag to instruct building data intake container from source.
+   */
+  buildFromSource?: boolean;
+
+  /**
    * Custom configuration for the DIDataplane Construct (optional).
    * @type {DIDataplaneConfig | undefined}
    */
@@ -110,15 +189,51 @@ export interface DIDataplaneProps {
  * @returns {DIDataplane} - The DIDataplane construct.
  */
 export class DIDataplane extends Construct {
-  // Public properties
+  /**
+   * The configuration for the DIDataplane.
+   */
   public config: DIDataplaneConfig;
+
+  /**
+   * The Lambda function for data intake.
+   */
   public lambdaFunction: DockerImageFunction;
+
+  /**
+   * The SNS topic for input data.
+   */
   public inputTopic: ITopic;
+
+  /**
+   * The SNS topic for STAC item outputs.
+   */
   public stacTopic: ITopic;
+
+  /**
+   * The S3 bucket for output data.
+   */
   public outputBucket: Bucket;
+
+  /**
+   * The removal policy for resources created by this construct.
+   */
   public removalPolicy: RemovalPolicy;
+
+  /**
+   * The IAM role for the Lambda function.
+   */
   public lambdaRole: IRole;
+
+  /**
+   * The security group for the Lambda function.
+   */
   public securityGroup?: ISecurityGroup;
+
+  /**
+   * The container for the data intake process.
+   */
+  private diContainer: OSMLContainer;
+
   /**
    * Constructs an instance of DIDataplane.
    *
@@ -139,9 +254,23 @@ export class DIDataplane extends Construct {
       removalPolicy: this.removalPolicy
     }).bucket;
 
+    // Build the lambda container image
+    this.diContainer = new OSMLContainer(this, "DIContainer", {
+      account: props.account,
+      buildFromSource: props.buildFromSource,
+      osmlVpc: props.osmlVpc,
+      config: {
+        CONTAINER_URI: this.config.CONTAINER_SOURCE_URI,
+        CONTAINER_BUILD_PATH: this.config.CONTAINER_BUILD_PATH,
+        CONTAINER_BUILD_TARGET: this.config.CONTAINER_BUILD_TARGET,
+        CONTAINER_REPOSITORY: this.config.CONTAINER_REPOSITORY,
+        CONTAINER_DOCKERFILE: this.config.CONTAINER_DOCKERFILE
+      }
+    });
+
     // Define a Lambda function with a container image
     this.lambdaFunction = new DockerImageFunction(this, "DataIntakeFunction", {
-      code: props.intakeCode,
+      code: this.diContainer.dockerImageCode,
       timeout: Duration.seconds(this.config.LAMBDA_TIMEOUT),
       functionName: this.config.LAMBDA_FUNCTION_NAME,
       environment: {
@@ -155,6 +284,7 @@ export class DIDataplane extends Construct {
       vpcSubnets: props.osmlVpc.selectedSubnets,
       role: this.lambdaRole
     });
+    this.lambdaFunction.node.addDependency(this.diContainer);
 
     // Subscribe Lambda function to the SNS topic
     this.inputTopic.addSubscription(
@@ -171,7 +301,7 @@ export class DIDataplane extends Construct {
    * @param {DIDataplaneProps} props - The properties used to configure the Dataplane.
    *        Includes options for VPC configuration, IAM roles, security groups, and more.
    */
-  setup(props: DIDataplaneProps): void {
+  private setup(props: DIDataplaneProps): void {
     // Check if a custom configuration was provided
     if (props.config != undefined) {
       // Import existing passed-in DIDataplane configuration

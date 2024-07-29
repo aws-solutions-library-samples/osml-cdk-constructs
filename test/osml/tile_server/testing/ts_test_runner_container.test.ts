@@ -5,9 +5,9 @@
 import { App, RemovalPolicy, Stack } from "aws-cdk-lib";
 
 import {
+  OSMLTestImagery,
+  OSMLTestImageryConfig,
   OSMLVpc,
-  TSImagery,
-  TSImageryConfig,
   TSTestRunnerContainer
 } from "../../../../lib";
 import { test_account } from "../../../test_account";
@@ -17,8 +17,8 @@ describe("TSDataplane constructor", () => {
   let stack: Stack;
   let osmlVpc: OSMLVpc;
   let tsTestRunnerContainer: TSTestRunnerContainer;
-  let config: TSImageryConfig;
-  let tsImagery: TSImagery;
+  let config: OSMLTestImageryConfig;
+  let tsImagery: OSMLTestImagery;
 
   beforeEach(() => {
     app = new App();
@@ -28,14 +28,14 @@ describe("TSDataplane constructor", () => {
       account: test_account
     });
 
-    config = new TSImageryConfig();
-    config.S3_IMAGE_BUCKET = "jest-buckets";
+    config = new OSMLTestImageryConfig();
+    config.S3_IMAGE_BUCKET_PREFIX = "jest-buckets";
     config.S3_TEST_IMAGES_PATH = "lib/";
 
-    tsImagery = new TSImagery(stack, "TSImagery", {
+    tsImagery = new OSMLTestImagery(stack, "TSImagery", {
       account: test_account,
       vpc: osmlVpc.vpc,
-      tsImageryConfig: config
+      config: config
     });
 
     tsTestRunnerContainer = new TSTestRunnerContainer(

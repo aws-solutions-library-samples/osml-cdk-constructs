@@ -4,29 +4,29 @@
 
 import { App, RemovalPolicy, Stack } from "aws-cdk-lib";
 
-import { MRImagery, MRImageryConfig, OSMLVpc } from "../../../../lib";
-import { test_account } from "../../../test_account";
+import { OSMLTestImagery, OSMLTestImageryConfig, OSMLVpc } from "../../lib";
+import { test_account } from "../test_account";
 
-describe("MRImagery constructor", () => {
+describe("OSMLTestImagery constructor", () => {
   let app: App;
   let stack: Stack;
   let osmlVpc: OSMLVpc;
-  let mrImagery: MRImagery;
-  let config: MRImageryConfig;
-  describe("MRImagery", () => {
+  let mrImagery: OSMLTestImagery;
+  let config: OSMLTestImageryConfig;
+  describe("OSMLTestImagery", () => {
     beforeEach(() => {
       app = new App();
-      stack = new Stack(app, "MRImageryStack");
+      stack = new Stack(app, "TestImageryStack");
 
       osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
         account: test_account
       });
 
-      config = new MRImageryConfig();
-      config.S3_IMAGE_BUCKET = "jest-buckets";
+      config = new OSMLTestImageryConfig();
+      config.S3_IMAGE_BUCKET_PREFIX = "jest-buckets";
       config.S3_TEST_IMAGES_PATH = "lib/"; // just used for replicating object(s)
 
-      mrImagery = new MRImagery(stack, "MRImagery", {
+      mrImagery = new OSMLTestImagery(stack, "TestImagery", {
         account: test_account,
         vpc: osmlVpc.vpc,
         config: config

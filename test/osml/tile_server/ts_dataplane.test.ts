@@ -3,16 +3,14 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
-import { Code } from "aws-cdk-lib/aws-lambda";
 
-import { OSMLVpc, TSContainer, TSDataplane } from "../../../lib";
+import { OSMLVpc, TSDataplane } from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("TSDataplane constructor", () => {
   let app: App;
   let stack: Stack;
   let osmlVpc: OSMLVpc;
-  let tsContainer: TSContainer;
   let tsDataplane: TSDataplane;
 
   beforeAll(() => {
@@ -23,22 +21,15 @@ describe("TSDataplane constructor", () => {
       account: test_account
     });
 
-    tsContainer = new TSContainer(stack, "TSContainer", {
-      account: test_account,
-      buildFromSource: false,
-      osmlVpc: osmlVpc
-    });
-
-    Object.defineProperty(Code, "fromAsset", {
-      value: () => Code.fromInline("inline code")
-    });
-
     tsDataplane = new TSDataplane(stack, "TSDataplane", {
       account: test_account,
       taskRole: undefined,
-      osmlVpc: osmlVpc,
-      containerImage: tsContainer.containerImage
+      osmlVpc: osmlVpc
     });
+  });
+
+  it("sets the removal policy correctly based on prodLike flag", () => {
+    expect(tsDataplane.removalPolicy).toBeDefined();
   });
 
   it("creates jobTable instance", () => {

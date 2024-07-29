@@ -13,8 +13,9 @@ import {
 } from "aws-cdk-lib/aws-apigateway";
 import { Construct } from "constructs";
 
+import { OSMLAuthorizer } from "./authorizer/authorizor_function";
 import { OSMLAccount } from "./osml_account";
-import { OSMLAuthorizer } from "./osml_authorizer/osml_authorizer";
+import { OSMLAuth } from "./osml_auth";
 
 /**
  * Represents the properties required to configure the OSMLRestApi Construct.
@@ -48,6 +49,13 @@ export interface OSMLRestApiProps {
    * @type {Integration}
    */
   integration: Integration;
+
+  /**
+   * The configuration for the authentication.
+   *
+   * @type {OSMLAuth}
+   */
+  auth: OSMLAuth;
 }
 
 /**
@@ -67,7 +75,7 @@ export class OSMLRestApi extends Construct {
     super(scope, id);
 
     const osmlAuthorizer = new OSMLAuthorizer(this, `Authorizer${id}`, {
-      account: props.account,
+      auth: props.auth,
       name: props.name
     });
 
