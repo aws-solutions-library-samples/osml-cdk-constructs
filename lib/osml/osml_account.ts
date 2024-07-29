@@ -1,9 +1,6 @@
 /*
  * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
  */
-
-import { OSMLAuth } from "./osml_auth";
-
 /**
  * Represents an OSML (OversightML) deployment account configuration.
  *
@@ -17,14 +14,6 @@ export interface OSMLAccount {
    * @memberof OSMLAccount
    */
   id: string;
-
-  /**
-   * The name of the OSML account.
-   *
-   * @type {string}
-   * @memberof OSMLAccount
-   */
-  name: string;
 
   /**
    * The region where the OSML account is deployed.
@@ -43,66 +32,10 @@ export interface OSMLAccount {
   prodLike: boolean;
 
   /**
-   * Indicates whether to deploy the model runner application
+   * Indicates whether the OSML account is configured as an ADC region
    *
    * @type {boolean}
-   * @memberof OSMLAccount
-   */
-  deployModelRunner: boolean;
-
-  /**
-   * Indicates whether to deploy the tile server application
-   *
-   * @type {boolean}
-   * @memberof OSMLAccount
-   */
-  deployTileServer: boolean;
-
-  /**
-   * Indicates whether to deploy the data intake application
-   *
-   * @type {boolean}
-   * @memberof OSMLAccount
-   */
-  deployDataIntake: boolean;
-
-  /**
-   * Indicates whether to deploy the key cloak application
-   *
-   * @type {boolean}
-   * @memberof OSMLAccount
-   */
-  deployKeyCloakServer?: boolean;
-
-  /**
-   * Indicates whether to deploy the data catalog application
-   *
-   * @type {boolean}
-   * @memberof OSMLAccount
-   */
-  deployDataCatalog?: boolean;
-
-  /**
-   * Optional: Indicates whether the account is configured as an ADC (Application Development Cloud).
-   *
-   * @type {boolean|undefined}
    * @memberof OSMLAccount
    */
   isAdc?: boolean;
-
-  /**
-   * Optional: The unique identifier of the Virtual Private Cloud (VPC) associated with the account.
-   *
-   * @type {string|undefined}
-   * @memberof OSMLAccount
-   */
-  vpcId?: string;
-
-  /**
-   * Optional: Specifies and authentication configuration for the auth server to deploy.
-   *
-   * @type {boolean|undefined}
-   * @memberof OSMLAccount
-   */
-  auth?: OSMLAuth;
 }

@@ -16,11 +16,54 @@ import {
   SubnetType,
   Vpc
 } from "aws-cdk-lib/aws-ec2";
+import { IRole, Role } from "aws-cdk-lib/aws-iam";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "./osml_account";
+import { BaseConfig, ConfigType } from "./utils/base_config";
 import { RegionalConfig } from "./utils/regional_config";
+
+export class OSMLVpcConfig extends BaseConfig {
+  /**
+   * The name to assign the creation of the VPC.
+   * @default "OSML-VPC"
+   */
+  public VPC_NAME: string;
+
+  /**
+   * Unique identifier to import/use an existing VPC instead of creating a new one.
+   */
+  public VPC_ID?: string;
+
+  /**
+   * Specifies an optional list of subnet IDs to specifically target within the VPC.
+   */
+  public TARGET_SUBNETS?: [string];
+
+  /**
+   * Define the maximum number of AZs for the VPC.
+   */
+  public MAX_AZS?: number;
+
+  /**
+   * Specify role to provide when creating CW flow logs.
+   */
+  public IAM_FLOW_LOG_ROLE?: string;
+
+  /**
+   * Constructor for MRDataplaneConfig.
+   * @param config - The configuration object for the VPC.
+   */
+
+  constructor(config: ConfigType = {}) {
+    super({
+      // Set default values here
+      VPC_NAME: "OSML-VPC",
+      ...config
+    });
+  }
+}
 
 /**
  * Configuration properties for the OSMLVpc Construct, defining how the VPC should be setup.
@@ -36,32 +79,11 @@ export interface OSMLVpcProps {
   account: OSMLAccount;
 
   /**
-   * An optional custom name to identify the VPC.
+   * The custom configuration to be used when deploying this VPC.
    *
-   * @type {string | undefined}
+   * @type {OSMLVpcConfig | undefined}
    */
-  vpcName?: string;
-
-  /**
-   * Optional unique identifier to import/use an existing VPC instead of creating a new one.
-   *
-   * @type {string | undefined}
-   */
-  vpcId?: string;
-
-  /**
-   * Specifies an optional list of subnet IDs to specifically target within the VPC.
-   *
-   * @type {string[] | undefined}
-   */
-  targetSubnets?: string[];
-
-  /**
-   * Define the maximum number of AZs for the VPC
-   *
-   * @type {number[] | undefined}
-   */
-  maxAzs?: number;
+  config?: OSMLVpcConfig;
 }
 
 /**
@@ -91,7 +113,17 @@ export class OSMLVpc extends Construct {
   /**
    * Determines the lifecycle of VPC resources upon stack deletion.
    */
-  public removalPolicy: RemovalPolicy;
+  public readonly removalPolicy: RemovalPolicy;
+
+  /**
+   * The configuration of this construct.
+   */
+  public readonly config: OSMLVpcConfig;
+
+  /**
+   * The flow log Role used for the VPC.
+   */
+  public flowLogRole?: IRole;
 
   /**
    * Constructor for OSMLVpc. Sets up a VPC with or without custom configurations based on the provided properties.
@@ -102,30 +134,39 @@ export class OSMLVpc extends Construct {
   constructor(scope: Construct, id: string, props: OSMLVpcProps) {
     super(scope, id);
 
+    // Check if a custom configuration was provided
+    if (props.config) {
+      // Import existing passed-in MR configuration
+      this.config = props.config;
+    } else {
+      // Create a new default configuration
+      this.config = new OSMLVpcConfig();
+    }
+
     const regionConfig = RegionalConfig.getConfig(props.account.region);
 
     this.removalPolicy = props.account.prodLike
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
-    if (props.vpcId) {
+    if (this.config.VPC_ID) {
       this.vpc = Vpc.fromLookup(this, "OSMLImportVPC", {
-        vpcId: props.vpcId,
+        vpcId: this.config.VPC_ID,
         isDefault: false
       });
     } else {
       const vpc = new Vpc(this, "OSMLVPC", {
-        vpcName: props.vpcName,
-        maxAzs: props.maxAzs ?? regionConfig.maxVpcAzs,
+        vpcName: this.config.VPC_NAME,
+        maxAzs: this.config.MAX_AZS ?? regionConfig.maxVpcAzs,
         subnetConfiguration: [
           {
             cidrMask: 23,
-            name: "OSML-Public",
+            name: `${this.config.VPC_NAME}-Public`,
             subnetType: SubnetType.PUBLIC
           },
           {
             cidrMask: 23,
-            name: "OSML-Private",
+            name: `${this.config.VPC_NAME}-Private`,
             subnetType: SubnetType.PRIVATE_WITH_EGRESS
           }
         ]
@@ -136,7 +177,7 @@ export class OSMLVpc extends Construct {
       this.setupVpcEndpoints(props);
     }
 
-    this.selectSubnets(props);
+    this.selectSubnets();
 
     if (props.account.prodLike) {
       this.setupFlowLogs();
@@ -204,9 +245,22 @@ export class OSMLVpc extends Construct {
       removalPolicy: this.removalPolicy
     });
 
+    // Check if a custom flow log role was provided
+    if (this.config.IAM_FLOW_LOG_ROLE) {
+      this.flowLogRole = Role.fromRoleName(
+        this,
+        "ImportFlowLog",
+        this.config.IAM_FLOW_LOG_ROLE
+      );
+    }
+
+    // Creat the Flow Logs for the VPC
     this.flowLog = new FlowLog(this, "OSMLVpcFlowLogs", {
       resourceType: FlowLogResourceType.fromVpc(this.vpc),
-      destination: FlowLogDestination.toCloudWatchLogs(flowLogGroup)
+      destination: FlowLogDestination.toCloudWatchLogs(
+        flowLogGroup,
+        this.flowLogRole
+      )
     });
   }
 
@@ -215,13 +269,12 @@ export class OSMLVpc extends Construct {
    * If target subnets are provided, those are selected; otherwise,
    * it defaults to selecting all private subnets with egress.
    *
-   * @param props - The object containing the target subnet IDs and VPC configurations.
-   */
-  private selectSubnets(props: OSMLVpcProps): void {
+   * */
+  private selectSubnets(): void {
     // If specified subnets are provided, use them
-    if (props.targetSubnets) {
+    if (this.config.TARGET_SUBNETS) {
       this.selectedSubnets = this.vpc.selectSubnets({
-        subnetFilters: [SubnetFilter.byIds(props.targetSubnets)]
+        subnetFilters: [SubnetFilter.byIds(this.config.TARGET_SUBNETS)]
       });
     } else {
       // Otherwise, select all private subnets

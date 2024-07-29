@@ -4,8 +4,7 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { MESMRole, MRTaskRole } from "../../lib";
-import { MEHTTPRole } from "../../lib/osml/model_endpoint/roles/me_http_role";
+import { MEHTTPRole, MESMRole, MRTaskRole } from "../../lib";
 import { test_account } from "../test_account";
 
 describe("OSMLRolesStack", () => {

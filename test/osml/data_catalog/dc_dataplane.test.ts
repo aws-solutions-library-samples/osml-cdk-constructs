@@ -3,14 +3,8 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
-import { Code } from "aws-cdk-lib/aws-lambda";
 
-import {
-  DCDataplane,
-  DCIngestContainer,
-  DCStacContainer,
-  OSMLVpc
-} from "../../../lib";
+import { DCDataplane, OSMLVpc } from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("DCDataplane constructor", () => {
@@ -18,8 +12,6 @@ describe("DCDataplane constructor", () => {
   let stack: Stack;
   let osmlVpc: OSMLVpc;
   let dcDataplane: DCDataplane;
-  let dcStacContainer: DCStacContainer;
-  let dcIngestContainer: DCIngestContainer;
 
   describe("DCDataplane", () => {
     beforeAll(() => {
@@ -30,28 +22,10 @@ describe("DCDataplane constructor", () => {
         account: test_account
       });
 
-      dcIngestContainer = new DCIngestContainer(stack, "DCIngestContainer", {
-        account: test_account,
-        buildFromSource: false,
-        osmlVpc: osmlVpc
-      });
-
-      dcStacContainer = new DCStacContainer(stack, "DCStacContainer", {
-        account: test_account,
-        buildFromSource: false,
-        osmlVpc: osmlVpc
-      });
-
-      Object.defineProperty(Code, "fromAsset", {
-        value: () => Code.fromInline("inline code")
-      });
-
       dcDataplane = new DCDataplane(stack, "DCDataplane", {
         account: test_account,
-        lambdaRole: undefined,
         osmlVpc: osmlVpc,
-        stacCode: dcStacContainer.dockerImageCode,
-        ingestCode: dcIngestContainer.dockerImageCode
+        lambdaRole: undefined
       });
     });
 
@@ -60,6 +34,8 @@ describe("DCDataplane constructor", () => {
     });
 
     it("check if resources are created", () => {
+      expect(dcDataplane.stacFunction).toBeDefined();
+      expect(dcDataplane.ingestFunction).toBeDefined();
       expect(dcDataplane.config).toBeDefined();
     });
   });

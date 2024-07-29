@@ -15,7 +15,6 @@ import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
 import { MRDataplaneConfig } from "../mr_dataplane";
-import { MRSyncConfig } from "../testing/mr_sync";
 
 /**
  * Represents the properties required to define a model runner ECS task role.
@@ -56,11 +55,6 @@ export class MRTaskRole extends Construct {
    * The Model Runner Dataplane Configuration values to be used for this MRTaskRole
    */
   public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
-
-  /**
-   * The Model Runner Sync Configuration values to be used for this MRTaskRole
-   */
-  public mrSyncConfig: MRSyncConfig = new MRSyncConfig();
 
   /**
    * Creates an MRTaskRole construct.

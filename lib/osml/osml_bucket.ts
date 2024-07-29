@@ -60,7 +60,7 @@ export class OSMLBucket extends Construct {
   public bucket: Bucket;
 
   /**
-   * An optional access logging bucket for storing access logs.
+   * Optional access logging bucket for storing access logs.
    */
   public accessLogsBucket?: IBucket;
 

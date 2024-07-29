@@ -14,9 +14,7 @@ import {
 import { Construct } from "constructs";
 
 import { MRDataplaneConfig } from "../../model_runner/mr_dataplane";
-import { MRModelEndpointsConfig } from "../../model_runner/testing/mr_endpoints";
 import { OSMLAccount } from "../../osml_account";
-import { MEContainerConfig } from "../me_container";
 
 /**
  * Represents the properties required for a HTTP model task role.
@@ -56,16 +54,6 @@ export class MEHTTPRole extends Construct {
    */
   public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
 
-  /**
-   * The Model Runner Model Endpoints Configuration values to be used for this MRTaskRole
-   */
-  public mrModelEndpointsConfig: MRModelEndpointsConfig =
-    new MRModelEndpointsConfig();
-
-  /**
-   * The Model Endpoint Container Configuration values to be used for this MRTaskRole
-   */
-  public meContainerConfig: MEContainerConfig = new MEContainerConfig();
   /**
    * Creates an OSMLHTTPEndpointRole construct.
    *

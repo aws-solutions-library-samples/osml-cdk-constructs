@@ -4,14 +4,13 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { MRContainer, MRDataplane, OSMLVpc } from "../../../lib";
+import { MRDataplane, OSMLVpc } from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("MRDataplane constructor", () => {
   let app: App;
   let stack: Stack;
   let osmlVpc: OSMLVpc;
-  let mrContainer: MRContainer;
   let mrDataplane: MRDataplane;
 
   describe("MRDataplane", () => {
@@ -23,17 +22,10 @@ describe("MRDataplane constructor", () => {
         account: test_account
       });
 
-      mrContainer = new MRContainer(stack, "MRContainer", {
-        account: test_account,
-        buildFromSource: false,
-        osmlVpc: osmlVpc
-      });
-
       mrDataplane = new MRDataplane(stack, "MRDataplane", {
         account: test_account,
         taskRole: undefined,
-        osmlVpc: osmlVpc,
-        mrContainerImage: mrContainer.containerImage
+        osmlVpc: osmlVpc
       });
     });
 
@@ -46,6 +38,7 @@ describe("MRDataplane constructor", () => {
       expect(mrDataplane.jobStatusTable).toBeDefined();
       expect(mrDataplane.regionRequestTable).toBeDefined();
       expect(mrDataplane.endpointStatisticsTable).toBeDefined();
+      expect(mrDataplane.config).toBeDefined();
     });
   });
 });

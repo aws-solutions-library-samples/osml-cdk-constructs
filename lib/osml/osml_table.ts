@@ -57,6 +57,9 @@ export interface OSMLTableProps {
  * Represents an OSML DynamoDB Table construct.
  */
 export class OSMLTable extends Construct {
+  /**
+   * The DynamoDB Table instance associated with this OSMLTable.
+   */
   public table: Table;
 
   /**
@@ -65,14 +68,13 @@ export class OSMLTable extends Construct {
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The ID of this construct within the current scope.
    * @param {OSMLTableProps} props - The properties of this construct.
-   * @returns OSMLTable - The OSMLTable construct.
+   * @returns {OSMLTable} - The OSMLTable construct.
    */
   constructor(scope: Construct, id: string, props: OSMLTableProps) {
     super(scope, id);
 
     /**
-     * The DynamoDB Table instance associated with this OSMLTable.
-     * @type {Table}
+     * Initializes a new instance of the Table class with the provided properties.
      */
     this.table = new Table(this, id, {
       tableName: props.tableName,

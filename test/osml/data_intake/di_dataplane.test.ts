@@ -3,16 +3,14 @@
  */
 
 import { App, Stack } from "aws-cdk-lib";
-import { Code } from "aws-cdk-lib/aws-lambda";
 
-import { DIContainer, DIDataplane, OSMLVpc } from "../../../lib";
+import { DIDataplane, OSMLVpc } from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("DIDataplane constructor", () => {
   let app: App;
   let stack: Stack;
   let osmlVpc: OSMLVpc;
-  let diContainer: DIContainer;
   let diDataplane: DIDataplane;
 
   describe("DIDataplane", () => {
@@ -24,21 +22,10 @@ describe("DIDataplane constructor", () => {
         account: test_account
       });
 
-      diContainer = new DIContainer(stack, "DIContainer", {
-        account: test_account,
-        buildFromSource: false,
-        osmlVpc: osmlVpc
-      });
-
-      Object.defineProperty(Code, "fromAsset", {
-        value: () => Code.fromInline("test code")
-      });
-
       diDataplane = new DIDataplane(stack, "DIDataplane", {
         account: test_account,
-        lambdaRole: undefined,
         osmlVpc: osmlVpc,
-        intakeCode: diContainer.dockerImageCode
+        lambdaRole: undefined
       });
     });
 

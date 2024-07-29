@@ -81,21 +81,45 @@ export interface OSMLECRDeploymentProps {
  * Represents an AWS CDK construct for deploying a Docker container to Amazon Elastic Container Registry (ECR).
  */
 export class OSMLECRDeployment extends Construct {
+  /**
+   * The tag of the Docker image.
+   */
   public tag: string;
+
+  /**
+   * The ECR repository where the Docker image is stored.
+   */
   public ecrRepository: Repository;
+
+  /**
+   * The ECR image object.
+   */
   public ecrImage: EcrImage;
+
+  /**
+   * The ECR deployment object responsible for copying the Docker image asset to the repository.
+   */
   public ecrDeployment: ECRDeployment;
+
+  /**
+   * The container image object created from the ECR repository.
+   */
   public containerImage: EcrImage;
+
+  /**
+   * The URI of the Docker image in the ECR repository with the specified tag.
+   */
   public ecrContainerUri: string;
+
   /**
    * Creates a new OSMLECRDeployment construct.
-   * This construct takes a docker repositories and copies it to a Docker image asset
+   * This construct takes a Docker repository and copies it to a Docker image asset
    * and deploys it to an ECR repository with the specified tag if a repository is provided.
    *
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The ID of this construct within the current scope.
    * @param {OSMLECRDeploymentProps} props - The properties of this construct.
-   * @returns OSMLECRDeployment The OSMLECRDeployment construct.
+   * @returns {OSMLECRDeployment} The OSMLECRDeployment construct.
    */
   constructor(scope: Construct, id: string, props: OSMLECRDeploymentProps) {
     super(scope, id);

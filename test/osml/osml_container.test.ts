@@ -4,29 +4,32 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { MRContainer, OSMLVpc } from "../../../lib";
-import { test_account } from "../../test_account";
+import { OSMLContainer, OSMLVpc } from "../../lib";
+import { test_account } from "../test_account";
 
-describe("MRContainer", () => {
+describe("MEContainer", () => {
   let app: App;
   let stack: Stack;
   let osmlVpc: OSMLVpc;
-
-  let container: MRContainer;
+  let container: OSMLContainer;
 
   beforeEach(() => {
     app = new App();
-    stack = new Stack(app, "MRContainerStack");
+    stack = new Stack(app, "MEContainerStack");
 
     osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
       account: test_account
     });
 
     // Mock dependencies
-    container = new MRContainer(stack, "MRContainer", {
+    container = new OSMLContainer(stack, "OSMLContainer", {
       account: test_account,
       buildFromSource: false,
-      osmlVpc: osmlVpc
+      osmlVpc: osmlVpc,
+      config: {
+        CONTAINER_REPOSITORY: "test-repository",
+        CONTAINER_URI: "test-uri"
+      }
     });
   });
 
@@ -35,10 +38,11 @@ describe("MRContainer", () => {
   });
 
   it("creates config if not provided", () => {
-    expect(container.mrAppContainerConfig).toBeDefined();
+    expect(container.config).toBeDefined();
   });
 
   it("sets container image", () => {
+    expect(container.containerUri).toContain("ecr");
     expect(container.containerImage).toBeDefined();
   });
 });

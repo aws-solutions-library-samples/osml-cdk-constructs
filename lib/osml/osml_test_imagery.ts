@@ -12,34 +12,49 @@ import {
 } from "aws-cdk-lib/aws-s3-deployment";
 import { Construct } from "constructs";
 
-import { OSMLAccount } from "../../osml_account";
-import { OSMLBucket } from "../../osml_bucket";
+import { OSMLAccount } from "./osml_account";
+import { OSMLBucket } from "./osml_bucket";
+import { BaseConfig, ConfigType } from "./utils/base_config";
 
 /**
- * Configuration class for DIImagery Construct.
+ * Configuration class for OSMLTestImagery Construct.
  */
-export class DIImageryConfig {
+export class OSMLTestImageryConfig extends BaseConfig {
   /**
-   * Creates an instance of DIImageryConfig.
-   * @param {string} S3_IMAGE_BUCKET - The name of the S3 bucket where images will be stored.
-   * @param {string} S3_TEST_IMAGES_PATH - The local path to the test imager to deploy.
+   * The name of the S3 bucket where images will be stored.
+   * @default "osml-test-images"
    */
-  constructor(
-    public S3_IMAGE_BUCKET: string = "di-test-images",
-    public S3_TEST_IMAGES_PATH: string = "assets/images/data-intake"
-  ) {}
+  public S3_IMAGE_BUCKET_PREFIX: string;
+
+  /**
+   * The local path to the test images to deploy.
+   * @default "assets/images/"
+   */
+  public S3_TEST_IMAGES_PATH: string;
+
+  /**
+   * Creates an instance of OSMLTestImageryConfig.
+   * @param config - The configuration object for OSMLTestImagery.
+   */
+  constructor(config: ConfigType = {}) {
+    super({
+      S3_IMAGE_BUCKET_PREFIX: "osml-test-images",
+      S3_TEST_IMAGES_PATH: "assets/images/",
+      ...config
+    });
+  }
 }
 
 /**
- * Represents the properties for configuring the DIImagery Construct.
+ * Represents the properties for configuring the OSMLTestImagery Construct.
  *
- * @interface DIImageryProps
+ * @interface OSMLTestImageryProps
  * @property {OSMLAccount} account - The OSML account to use.
  * @property {IVpc} vpc - The Model Runner VPC configuration.
- * @property {DIImageryConfig|undefined} [config] - Optional configuration for DIImagery.
+ * @property {OSMLTestImageryConfig|undefined} [config] - Optional custom resource configuration.
  * @property {string|undefined} [securityGroupId] - Optional security group ID to apply to the VPC config for SM endpoints.
  */
-export interface DIImageryProps {
+export interface OSMLTestImageryProps {
   /**
    * The OSML account to use.
    *
@@ -55,11 +70,11 @@ export interface DIImageryProps {
   vpc: IVpc;
 
   /**
-   * Optional custom configuration for DIImagery.
+   * Optional custom configuration for OSMLTestImagery.
    *
-   * @type {DIImageryConfig|undefined}
+   * @type {OSMLTestImageryConfig|undefined}
    */
-  config?: DIImageryConfig;
+  config?: OSMLTestImageryConfig;
 
   /**
    * Optional security group ID to apply to the VPC config for SM endpoints.
@@ -70,41 +85,40 @@ export interface DIImageryProps {
 }
 
 /**
- * Represents a DIImagery construct for managing data intake imagery resources.
+ * Represents an OSMLTestImagery construct for managing test imagery resources.
  */
-export class DIImagery extends Construct {
+export class OSMLTestImagery extends Construct {
   /**
-   * The image bucket where Data Intake imagery data is stored.
+   * The image bucket where OSML imagery data is stored.
    */
   public imageBucket: OSMLBucket;
 
   /**
-   * The removal policy for this DIImagery resource.
+   * The removal policy for this resource.
    * @default RemovalPolicy.DESTROY
    */
   public removalPolicy: RemovalPolicy;
 
   /**
-   * Configuration options for DIImagery.
+   * Configuration options for MRImagery.
    */
-  public config: DIImageryConfig;
+  public config: OSMLTestImageryConfig;
 
   /**
-   * Creates a DIImagery cdk construct.
+   * Creates an OSMLTestImagery cdk construct.
    * @param scope The scope/stack in which to define this construct.
    * @param id The id of this construct within the current scope.
    * @param props The properties of this construct.
    */
-  constructor(scope: Construct, id: string, props: DIImageryProps) {
+  constructor(scope: Construct, id: string, props: OSMLTestImageryProps) {
     super(scope, id);
 
     // Check if a custom configuration was provided
     if (props.config != undefined) {
-      // Import existing DIImagery configuration
       this.config = props.config;
     } else {
       // Create a new default configuration
-      this.config = new DIImageryConfig();
+      this.config = new OSMLTestImageryConfig();
     }
 
     // Set up a removal policy based on the 'prodLike' property
@@ -112,15 +126,15 @@ export class DIImagery extends Construct {
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
-    // Create an image bucket to store Data Intake imagery data
-    this.imageBucket = new OSMLBucket(this, `DITestImageBucket`, {
-      bucketName: `${this.config.S3_IMAGE_BUCKET}-${props.account.id}`,
+    // Create an image bucket to store OSML test imagery
+    this.imageBucket = new OSMLBucket(this, `OSMLTestImageBucket`, {
+      bucketName: `${this.config.S3_IMAGE_BUCKET_PREFIX}-${props.account.id}`,
       prodLike: props.account.prodLike,
       removalPolicy: this.removalPolicy
     });
 
     // Deploy test images into the bucket
-    new BucketDeployment(this, "DITestImageDeployment", {
+    new BucketDeployment(this, "OSMLTestImageDeployment", {
       sources: [Source.asset(this.config.S3_TEST_IMAGES_PATH)],
       destinationBucket: this.imageBucket.bucket,
       accessControl: BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
