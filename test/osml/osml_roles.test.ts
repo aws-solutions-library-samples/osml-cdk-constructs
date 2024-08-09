@@ -14,7 +14,7 @@ describe("OSMLRolesStack", () => {
   let meSMRole: MESMRole;
   let meHTTPRole: MEHTTPRole;
 
-  beforeEach(() => {
+  beforeAll(() => {
     app = new App();
     stack = new Stack(app, "OSMLRolesStack");
 

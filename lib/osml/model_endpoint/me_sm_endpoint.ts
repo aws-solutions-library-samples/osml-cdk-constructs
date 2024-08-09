@@ -39,15 +39,14 @@ export class MESMEndpointConfig extends BaseConfig {
   public SECURITY_GROUP_ID: string;
 
   /**
-   * The access mode for the model repository (e.g., "ReadWrite" or "ReadOnly").
-   */
-  public REPOSITORY_ACCESS_MODE: string;
-
-  /**
    * A JSON object which includes ENV variables to be put into the model container.
    */
   public CONTAINER_ENV: Record<string, unknown>;
 
+  /**
+   * The repository access mode to use for the SageMaker endpoint container.
+   */
+  public REPOSITORY_ACCESS_MODE: string;
   /**
    * Creates an instance of MESMEndpointConfig.
    * @param config - The configuration object for MESMEndpoint.
@@ -82,7 +81,7 @@ export interface MESMEndpointProps {
    *
    * @type {string}
    */
-  ecrContainerUri: string;
+  containerImageUri: string;
 
   /**
    * The name of the machine learning model.
@@ -156,7 +155,7 @@ export class MESMEndpoint extends Construct {
       executionRoleArn: props.roleArn,
       containers: [
         {
-          image: props.ecrContainerUri,
+          image: props.containerImageUri,
           environment: this.config.CONTAINER_ENV,
           imageConfig: {
             repositoryAccessMode: this.config.REPOSITORY_ACCESS_MODE

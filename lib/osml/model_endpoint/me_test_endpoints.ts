@@ -151,15 +151,15 @@ export class METestEndpointsConfig extends BaseConfig {
   public CONTAINER_BUILD_TARGET: string;
 
   /**
-   * The repository name for the container.
-   * @default "model-container"
-   */
-  public CONTAINER_REPOSITORY: string;
-
-  /**
    * The Dockerfile to build the container.
    */
   public CONTAINER_DOCKERFILE?: string;
+
+  /**
+   * Whether to build container resources from source.
+   * @default "false"
+   */
+  public BUILD_FROM_SOURCE: false;
 
   /**
    * Constructor for METestEndpointsConfig.
@@ -192,8 +192,8 @@ export class METestEndpointsConfig extends BaseConfig {
       CONTAINER_URI: "awsosml/osml-models:latest",
       CONTAINER_BUILD_PATH: "lib/osml-models",
       CONTAINER_BUILD_TARGET: "osml_model",
-      CONTAINER_REPOSITORY: "model-container",
       CONTAINER_DOCKERFILE: "Dockerfile",
+      BUILD_FROM_SOURCE: false,
       ...config
     });
   }
@@ -232,13 +232,6 @@ export interface METestEndpointsProps {
    * @type {IRole}
    */
   smRole?: IRole;
-
-  /**
-   * Optional flag to instruct building model container from source.
-   *
-   * @type {boolean}
-   */
-  buildFromSource?: boolean;
 
   /**
    * (Optional) Configuration settings for test model endpoints.
@@ -342,13 +335,11 @@ export class METestEndpoints extends Construct {
     ) {
       this.modelContainer = new OSMLContainer(this, "MEContainer", {
         account: props.account,
-        osmlVpc: props.osmlVpc,
-        buildFromSource: props.buildFromSource,
+        buildFromSource: this.config.BUILD_FROM_SOURCE,
         config: new OSMLContainerConfig({
           CONTAINER_URI: this.config.CONTAINER_URI,
           CONTAINER_BUILD_PATH: this.config.CONTAINER_BUILD_PATH,
           CONTAINER_BUILD_TARGET: this.config.CONTAINER_BUILD_TARGET,
-          CONTAINER_REPOSITORY: this.config.CONTAINER_REPOSITORY,
           CONTAINER_DOCKERFILE: this.config.CONTAINER_DOCKERFILE
         })
       });
@@ -405,7 +396,7 @@ export class METestEndpoints extends Construct {
         this,
         "OSMLCenterPointModelEndpoint",
         {
-          ecrContainerUri: this.modelContainer.containerUri,
+          containerImageUri: this.modelContainer.containerUri,
           modelName: this.config.SM_CENTER_POINT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.config.SM_CPU_INSTANCE_TYPE,
@@ -414,7 +405,8 @@ export class METestEndpoints extends Construct {
             CONTAINER_ENV: {
               MODEL_SELECTION: this.config.SM_CENTER_POINT_MODEL
             },
-            SECURITY_GROUP_ID: this.securityGroupId
+            SECURITY_GROUP_ID: this.securityGroupId,
+            REPOSITORY_ACCESS_MODE: this.modelContainer.repositoryAccessMode
           })
         }
       );
@@ -427,7 +419,7 @@ export class METestEndpoints extends Construct {
         this,
         "OSMLFloodModelEndpoint",
         {
-          ecrContainerUri: this.modelContainer.containerUri,
+          containerImageUri: this.modelContainer.containerUri,
           modelName: this.config.SM_FLOOD_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType: this.config.SM_CPU_INSTANCE_TYPE,
@@ -436,7 +428,8 @@ export class METestEndpoints extends Construct {
             CONTAINER_ENV: {
               MODEL_SELECTION: this.config.SM_FLOOD_MODEL
             },
-            SECURITY_GROUP_ID: this.securityGroupId
+            SECURITY_GROUP_ID: this.securityGroupId,
+            REPOSITORY_ACCESS_MODE: this.modelContainer.repositoryAccessMode
           })
         }
       );
@@ -449,7 +442,7 @@ export class METestEndpoints extends Construct {
         this,
         "OSMLAircraftModelEndpoint",
         {
-          ecrContainerUri: this.modelContainer.containerUri,
+          containerImageUri: this.modelContainer.containerUri,
           modelName: this.config.SM_AIRCRAFT_MODEL,
           roleArn: this.smRole.roleArn,
           instanceType:
@@ -461,7 +454,8 @@ export class METestEndpoints extends Construct {
               ENABLE_SEGMENTATION: "true",
               MODEL_SELECTION: this.config.SM_AIRCRAFT_MODEL
             },
-            SECURITY_GROUP_ID: this.securityGroupId
+            SECURITY_GROUP_ID: this.securityGroupId,
+            REPOSITORY_ACCESS_MODE: this.modelContainer.repositoryAccessMode
           })
         }
       );

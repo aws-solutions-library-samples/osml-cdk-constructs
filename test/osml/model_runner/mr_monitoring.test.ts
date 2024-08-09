@@ -15,7 +15,7 @@ describe("OSMLMonitoring constructor", () => {
   let mrMonitoring: MRMonitoring;
 
   describe("MRMonitoring", () => {
-    beforeEach(() => {
+    beforeAll(() => {
       app = new App();
       stack = new Stack(app, "MRMonitoringStack");
 

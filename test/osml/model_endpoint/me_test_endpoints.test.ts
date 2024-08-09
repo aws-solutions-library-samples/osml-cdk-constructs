@@ -14,7 +14,7 @@ describe("METestEndpoints constructor", () => {
   let testEndpoints: METestEndpoints;
 
   describe("METestEndpoints", () => {
-    beforeEach(() => {
+    beforeAll(() => {
       app = new App();
       stack = new Stack(app, "METestEndpointsStack");
 

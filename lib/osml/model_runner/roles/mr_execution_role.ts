@@ -59,8 +59,6 @@ export class MRExecutionRole extends Construct {
   constructor(scope: Construct, id: string, props: MRExecutionRoleProps) {
     super(scope, id);
 
-    const containerRepositoryName = new MRDataplaneConfig()
-      .MR_CONTAINER_REPOSITORY;
     const firelensLogGroupName = `/aws/${
       new MRDataplaneConfig().METRICS_NAMESPACE
     }/MRFireLens`;
@@ -90,18 +88,6 @@ export class MRExecutionRole extends Construct {
         effect: Effect.ALLOW,
         actions: ["ecr:GetAuthorizationToken"],
         resources: ["*"]
-      }),
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage",
-          "ecr:DescribeRepositories"
-        ],
-        resources: [
-          `arn:${this.partition}:ecr:${props.account.region}:${props.account.id}:repository/${containerRepositoryName}`
-        ]
       }),
       new PolicyStatement({
         effect: Effect.ALLOW,

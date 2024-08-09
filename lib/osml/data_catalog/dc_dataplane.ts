@@ -174,7 +174,7 @@ export class DCDataplaneConfig extends BaseConfig {
   public STAC_CONTAINER_BUILD_TARGET: string;
 
   /**
-   * The relative Dockerfile to use to build the STAC API Lambda container.
+   * The relative Dockerfile.stac to use to build the STAC API Lambda container.
    * @default "docker/Dockerfile.stac"
    */
   public STAC_CONTAINER_DOCKERFILE: string;
@@ -184,6 +184,12 @@ export class DCDataplaneConfig extends BaseConfig {
    * @default "data-intake-stac"
    */
   public STAC_CONTAINER_REPOSITORY: string;
+
+  /**
+   * Whether to build container resources from source.
+   * @default "false"
+   */
+  public BUILD_FROM_SOURCE: boolean;
 
   /**
    * Creates an instance of DCDataplaneConfig.
@@ -213,12 +219,11 @@ export class DCDataplaneConfig extends BaseConfig {
       CONTAINER_BUILD_PATH: "lib/osml-data-intake/",
       INGEST_CONTAINER_URI: "awsosml/osml-data-intake-ingest:latest",
       INGEST_CONTAINER_BUILD_TARGET: "ingest",
-      INGEST_CONTAINER_REPOSITORY: "data-intake-ingest",
       INGEST_CONTAINER_DOCKERFILE: "docker/Dockerfile.ingest",
       STAC_CONTAINER_URI: "awsosml/osml-data-intake-stac:latest",
       STAC_CONTAINER_BUILD_TARGET: "stac",
-      STAC_CONTAINER_REPOSITORY: "data-intake-stac",
       STAC_CONTAINER_DOCKERFILE: "docker/Dockerfile.stac",
+      BUILD_FROM_SOURCE: false,
       ...config
     });
   }
@@ -262,11 +267,6 @@ export interface DCDataplaneProps {
    * @type {OSMLAuth | undefined}
    */
   auth?: OSMLAuth;
-
-  /**
-   * Optional flag to instruct building data intake container from source.
-   */
-  buildFromSource?: boolean;
 
   /**
    * Custom configuration for the DCDataplane Construct (optional).
@@ -354,13 +354,12 @@ export class DCDataplane extends Construct {
     // Build the ingest Lambda container
     this.ingestContainer = new OSMLContainer(this, "DCIngestContainer", {
       account: props.account,
-      buildFromSource: props.buildFromSource,
-      osmlVpc: props.osmlVpc,
+      buildDockerImageCode: true,
+      buildFromSource: this.config.BUILD_FROM_SOURCE,
       config: {
         CONTAINER_URI: this.config.INGEST_CONTAINER_URI,
         CONTAINER_BUILD_PATH: this.config.CONTAINER_BUILD_PATH,
         CONTAINER_BUILD_TARGET: this.config.INGEST_CONTAINER_BUILD_TARGET,
-        CONTAINER_REPOSITORY: this.config.INGEST_CONTAINER_REPOSITORY,
         CONTAINER_DOCKERFILE: this.config.INGEST_CONTAINER_DOCKERFILE
       }
     });
@@ -368,13 +367,12 @@ export class DCDataplane extends Construct {
     // Build the STAC API Lambda container
     this.stacContainer = new OSMLContainer(this, "DCSTACContainer", {
       account: props.account,
-      buildFromSource: props.buildFromSource,
-      osmlVpc: props.osmlVpc,
+      buildDockerImageCode: true,
+      buildFromSource: this.config.BUILD_FROM_SOURCE,
       config: {
         CONTAINER_URI: this.config.STAC_CONTAINER_URI,
         CONTAINER_BUILD_PATH: this.config.CONTAINER_BUILD_PATH,
         CONTAINER_BUILD_TARGET: this.config.STAC_CONTAINER_BUILD_TARGET,
-        CONTAINER_REPOSITORY: this.config.STAC_CONTAINER_REPOSITORY,
         CONTAINER_DOCKERFILE: this.config.STAC_CONTAINER_DOCKERFILE
       }
     });
@@ -448,7 +446,9 @@ export class DCDataplane extends Construct {
         name: this.config.SERVICE_NAME_ABBREVIATION,
         apiStageName: this.config.STAC_FASTAPI_ROOT_PATH,
         integration: new LambdaIntegration(this.stacFunction),
-        auth: props.auth
+        auth: props.auth,
+        osmlVpc: props.osmlVpc,
+        lambdaRole: this.lambdaRole
       });
     }
 
