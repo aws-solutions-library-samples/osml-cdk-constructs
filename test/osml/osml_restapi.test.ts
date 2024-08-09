@@ -6,7 +6,7 @@ import { App, Stack } from "aws-cdk-lib";
 import { Integration, LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
 import { Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
 
-import { OSMLRestApi } from "../../lib";
+import { OSMLRestApi, OSMLVpc } from "../../lib";
 import { test_account } from "../test_account";
 
 describe("OSMLRestApi constructor", () => {
@@ -16,12 +16,15 @@ describe("OSMLRestApi constructor", () => {
   // eslint-disable-next-line @typescript-eslint/ban-types
   let mockHandler: Function;
   let restApi: OSMLRestApi;
+  let osmlVpc: OSMLVpc;
 
   describe("OSMLRestApi", () => {
     beforeAll(() => {
       app = new App();
       stack = new Stack(app, "OSMLRestApiStack");
-
+      osmlVpc = new OSMLVpc(stack, "OSMLVpc", {
+        account: test_account
+      });
       mockHandler = new Function(stack, "MockHandler", {
         runtime: Runtime.NODEJS_LATEST,
         handler: "index.handler",
@@ -38,7 +41,8 @@ describe("OSMLRestApi constructor", () => {
           audience: "example-audience"
         },
         integration: mockIntegration,
-        name: "test-api"
+        name: "test-api",
+        osmlVpc: osmlVpc
       });
     });
 

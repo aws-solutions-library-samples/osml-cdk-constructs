@@ -4,7 +4,7 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { MRDataplane, OSMLVpc } from "../../../lib";
+import { MRDataplane, MRDataplaneConfig, OSMLVpc } from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("MRDataplane constructor", () => {
@@ -25,7 +25,10 @@ describe("MRDataplane constructor", () => {
       mrDataplane = new MRDataplane(stack, "MRDataplane", {
         account: test_account,
         taskRole: undefined,
-        osmlVpc: osmlVpc
+        osmlVpc: osmlVpc,
+        config: new MRDataplaneConfig({
+          ENABLE_REGION_STATUS: true
+        })
       });
     });
 

@@ -39,6 +39,7 @@ import {
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { AlbTarget } from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
 import { AnyPrincipal, IRole, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { DockerImageFunction } from "aws-cdk-lib/aws-lambda";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
@@ -60,7 +61,7 @@ import { TSTaskRole } from "./roles/ts_task_role";
  */
 export class TSDataplaneConfig extends BaseConfig {
   /**
-   * The name of the SQS queue for image status.
+   * The name of the SQS queues for image status.
    * @default "TSJobQueue"
    */
   public SQS_JOB_QUEUE: string;
@@ -187,21 +188,63 @@ export class TSDataplaneConfig extends BaseConfig {
 
   /**
    * The build target for the TileServer.
-   * @default "osml_tile_server"
+   * @default "tile_server"
    */
   public CONTAINER_BUILD_TARGET: string;
 
   /**
-   * The repository name for the TileServer.
-   * @default "tile-server-container"
+   * The path to Dockerfile.tile_server to use to build the container.
+   * @default "docker/Dockerfile.tile_server"
    */
-  public CONTAINER_REPOSITORY: string;
+  public CONTAINER_DOCKERFILE: string;
 
   /**
    * The default API path to use if auth was configured.
    * @default "latest/viewpoints"
    */
   public API_DEFAULT_PATH: string;
+
+  /**
+   * Flag to determine whether to deploy the test-related components.
+   * @default false
+   */
+  public DEPLOY_TEST_COMPONENTS: boolean;
+
+  /**
+   * The Docker image to use for the test container.
+   * @default "awsosml/osml-tile-server-test:latest"
+   */
+  public TEST_CONTAINER_URI: string;
+
+  /**
+   * The build path for the test container.
+   * @default "lib/osml-tile-server-test"
+   */
+  public TEST_CONTAINER_BUILD_PATH: string;
+
+  /**
+   * The build target for the test container.
+   * @default "osml_tile_server_test"
+   */
+  public TEST_CONTAINER_BUILD_TARGET: string;
+
+  /**
+   * The repository name for the test container.
+   * @default "tile-server-test-container"
+   */
+  public TEST_CONTAINER_REPOSITORY: string;
+
+  /**
+   * The path to Dockerfile.ts to use to build the container.
+   * @default "docker/Dockerfile.integ"
+   */
+  public TEST_CONTAINER_DOCKERFILE: string;
+
+  /**
+   * Whether to build container resources from source.
+   * @default "false"
+   */
+  public BUILD_FROM_SOURCE: boolean;
 
   /**
    * Constructor for TSDataplaneConfig.
@@ -229,9 +272,17 @@ export class TSDataplaneConfig extends BaseConfig {
       NETWORK_LOAD_BALANCER_PORT: 80,
       CONTAINER_URI: "awsosml/osml-tile-server:latest",
       CONTAINER_BUILD_PATH: "lib/osml-tile-server",
-      CONTAINER_BUILD_TARGET: "osml_tile_server",
+      CONTAINER_BUILD_TARGET: "tile_server",
       CONTAINER_REPOSITORY: "tile-server-container",
+      CONTAINER_DOCKERFILE: "docker/Dockerfile.tile_server",
       API_DEFAULT_PATH: "latest/viewpoints",
+      DEPLOY_TEST_COMPONENTS: false,
+      TEST_CONTAINER_URI: "awsosml/osml-tile-server-test:latest",
+      TEST_CONTAINER_BUILD_PATH: "lib/osml-tile-server-test",
+      TEST_CONTAINER_BUILD_TARGET: "integ",
+      TEST_CONTAINER_REPOSITORY: "tile-server-test",
+      TEST_CONTAINER_DOCKERFILE: "docker/Dockerfile.integ",
+      BUILD_FROM_SOURCE: false,
       ...config
     });
   }
@@ -295,11 +346,6 @@ export interface TSDataplaneProps {
    * @type {OSMLAuth}
    */
   auth?: OSMLAuth;
-
-  /**
-   * Optional flag to instruct building model runner container from source.
-   */
-  buildFromSource?: boolean;
 }
 
 /**
@@ -396,7 +442,7 @@ export class TSDataplane extends Construct {
   /**
    * Container built to power the service.
    */
-  public container: OSMLContainer;
+  public tsContainer: OSMLContainer;
 
   /**
    * The Rest API constructed if auth was provided for this construct.
@@ -407,6 +453,16 @@ export class TSDataplane extends Construct {
    * The Network load balancer constructed if auth was provided for this construct.
    */
   public nlb: NetworkLoadBalancer;
+
+  /**
+   * The container to use for integration tests for this component.
+   */
+  public testContainer: OSMLContainer;
+
+  /**
+   * The Docker Lamda image to run the integration tests for this component.
+   */
+  public lambdaIntegRunner: DockerImageFunction;
 
   /**
    * Constructs an instance of TSDataplane.
@@ -499,16 +555,15 @@ export class TSDataplane extends Construct {
       }
     });
 
-    // Build the container for model runner
-    this.container = new OSMLContainer(this, "TSContainer", {
+    // Build the container for the tile server component
+    this.tsContainer = new OSMLContainer(this, "TSContainer", {
       account: props.account,
-      buildFromSource: props.buildFromSource,
-      osmlVpc: props.osmlVpc,
+      buildFromSource: this.config.BUILD_FROM_SOURCE,
       config: {
         CONTAINER_URI: this.config.CONTAINER_URI,
         CONTAINER_BUILD_PATH: this.config.CONTAINER_BUILD_PATH,
         CONTAINER_BUILD_TARGET: this.config.CONTAINER_BUILD_TARGET,
-        CONTAINER_REPOSITORY: this.config.CONTAINER_REPOSITORY
+        CONTAINER_DOCKERFILE: this.config.CONTAINER_DOCKERFILE
       }
     });
 
@@ -547,7 +602,7 @@ export class TSDataplane extends Construct {
       "TSContainerDefinition",
       {
         containerName: this.config.ECS_CONTAINER_NAME,
-        image: this.container.containerImage,
+        image: this.tsContainer.containerImage,
         memoryLimitMiB: this.config.ECS_CONTAINER_MEMORY,
         cpu: this.config.ECS_CONTAINER_CPU,
         environment: this.buildContainerEnv(props),
@@ -596,7 +651,7 @@ export class TSDataplane extends Construct {
         publicLoadBalancer: false
       }
     );
-    this.fargateService.node.addDependency(this.container);
+    this.fargateService.node.addDependency(this.tsContainer);
 
     // Allow access to EFS from Fargate ECS
     this.fileSystem.grantRootAccess(
@@ -608,8 +663,11 @@ export class TSDataplane extends Construct {
       this.fargateService.service.connections
     );
 
-    // If we have auth enabled deploy it
+    // If we have auth enabled, deploy it
     this.buildApi(props);
+
+    // If we have testing enabled, deploy it
+    this.buildTesting(props);
   }
 
   /**
@@ -699,8 +757,44 @@ export class TSDataplane extends Construct {
         name: this.config.SERVICE_NAME_ABBREVIATION,
         apiStageName: this.config.FASTAPI_ROOT_PATH,
         integration: proxyIntegration,
-        auth: props.auth
+        auth: props.auth,
+        osmlVpc: props.osmlVpc,
+        lambdaRole: this.lambdaRole
       });
+    }
+  }
+
+  /**
+   * Builds the configured integration testing resources the tile server.
+   *
+   * @param {TSDataplaneProps} props - The properties for configuring the MRDataplane Construct.
+   */
+  private buildTesting(props: TSDataplaneProps): void {
+    if (this.config.DEPLOY_TEST_COMPONENTS) {
+      this.testContainer = new OSMLContainer(this, "TSTestContainer", {
+        account: props.account,
+        buildDockerImageCode: true,
+        buildFromSource: this.config.BUILD_FROM_SOURCE,
+        config: {
+          CONTAINER_URI: this.config.TEST_CONTAINER_URI,
+          CONTAINER_BUILD_PATH: this.config.TEST_CONTAINER_BUILD_PATH,
+          CONTAINER_BUILD_TARGET: this.config.TEST_CONTAINER_BUILD_TARGET,
+          CONTAINER_DOCKERFILE: this.config.TEST_CONTAINER_DOCKERFILE
+        }
+      });
+
+      this.lambdaIntegRunner = new DockerImageFunction(this, "TSTestRunner", {
+        code: this.testContainer.dockerImageCode,
+        vpc: props.osmlVpc.vpc,
+        role: props.taskRole,
+        timeout: Duration.minutes(10),
+        memorySize: 1024,
+        functionName: "TSTestRunner",
+        environment: {
+          TS_ENDPOINT: `http://${this.fargateService.loadBalancer.loadBalancerDnsName}/latest`
+        }
+      });
+      this.lambdaIntegRunner.node.addDependency(this.testContainer);
     }
   }
 

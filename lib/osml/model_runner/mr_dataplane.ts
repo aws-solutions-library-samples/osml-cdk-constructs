@@ -209,7 +209,7 @@ export class MRDataplaneConfig extends BaseConfig {
 
   /**
    * Whether to deploy a kinesis output sink stream.
-   * @default false
+   * @default true
    */
   public MR_ENABLE_KINESIS_SINK: boolean;
 
@@ -286,16 +286,16 @@ export class MRDataplaneConfig extends BaseConfig {
   public MR_CONTAINER_BUILD_TARGET: string;
 
   /**
-   * The repository for the container image.
-   * @default "model-runner-container"
-   */
-  public MR_CONTAINER_REPOSITORY: string;
-
-  /**
    * The relative Dockerfile to use to build the container.
    * @default "Dockerfile"
    */
   public MR_CONTAINER_DOCKERFILE: string;
+
+  /**
+   * Whether to build container resources from source.
+   * @default "false"
+   */
+  public BUILD_FROM_SOURCE: boolean;
 
   /**
    * Constructor for MRDataplaneConfig.
@@ -329,7 +329,7 @@ export class MRDataplaneConfig extends BaseConfig {
       MR_ENABLE_IMAGE_STATUS: true,
       MR_ENABLE_REGION_STATUS: false,
       MR_ENABLE_MONITORING: true,
-      MR_ENABLE_KINESIS_SINK: false,
+      MR_ENABLE_KINESIS_SINK: true,
       MR_ENABLE_S3_SINK: true,
       MR_AUTOSCALING_TASK_MAX_COUNT: 40,
       MR_AUTOSCALING_TASK_MIN_COUNT: 3,
@@ -344,6 +344,7 @@ export class MRDataplaneConfig extends BaseConfig {
       MR_CONTAINER_BUILD_TARGET: "model_runner",
       MR_CONTAINER_REPOSITORY: "model-runner-container",
       MR_CONTAINER_DOCKERFILE: "Dockerfile",
+      BUILD_FROM_SOURCE: false,
       ...config
     });
   }
@@ -388,11 +389,6 @@ export interface MRDataplaneProps {
    * @type {IRole | undefined}
    */
   executionRole?: IRole;
-
-  /**
-   * Optional flag to instruct building model runner container from source.
-   */
-  buildFromSource?: boolean;
 
   /**
    * Custom configuration for the MRDataplane Construct (optional).
@@ -696,13 +692,11 @@ export class MRDataplane extends Construct {
     // Build the container for model runner
     this.mrContainer = new OSMLContainer(this, "MRContainer", {
       account: props.account,
-      buildFromSource: props.buildFromSource,
-      osmlVpc: props.osmlVpc,
+      buildFromSource: this.config.BUILD_FROM_SOURCE,
       config: {
         CONTAINER_URI: this.config.MR_DEFAULT_CONTAINER,
         CONTAINER_BUILD_PATH: this.config.MR_CONTAINER_BUILD_PATH,
         CONTAINER_BUILD_TARGET: this.config.MR_CONTAINER_BUILD_TARGET,
-        CONTAINER_REPOSITORY: this.config.MR_CONTAINER_REPOSITORY,
         CONTAINER_DOCKERFILE: this.config.MR_CONTAINER_DOCKERFILE
       }
     });

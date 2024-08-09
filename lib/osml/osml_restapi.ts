@@ -11,11 +11,13 @@ import {
   RequestAuthorizer,
   RestApi
 } from "aws-cdk-lib/aws-apigateway";
+import { IRole } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 import { OSMLAuthorizer } from "./authorizer/authorizor_function";
 import { OSMLAccount } from "./osml_account";
 import { OSMLAuth } from "./osml_auth";
+import { OSMLVpc } from "./osml_vpc";
 
 /**
  * Represents the properties required to configure the OSMLRestApi Construct.
@@ -56,6 +58,17 @@ export interface OSMLRestApiProps {
    * @type {OSMLAuth}
    */
   auth: OSMLAuth;
+
+  /**
+   * The OSML VPC (Virtual Private Cloud) configuration for the Dataplane.
+   * @type {OSMLVpc}
+   */
+  osmlVpc: OSMLVpc;
+
+  /**
+   * The IAM role for the Lambda function.
+   */
+  lambdaRole?: IRole;
 }
 
 /**
@@ -76,7 +89,9 @@ export class OSMLRestApi extends Construct {
 
     const osmlAuthorizer = new OSMLAuthorizer(this, `Authorizer${id}`, {
       auth: props.auth,
-      name: props.name
+      name: props.name,
+      osmlVpc: props.osmlVpc,
+      lambdaRole: props.lambdaRole
     });
 
     this.requestAuthorizer = new RequestAuthorizer(

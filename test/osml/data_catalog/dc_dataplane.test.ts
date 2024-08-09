@@ -14,7 +14,7 @@ describe("DCDataplane constructor", () => {
   let dcDataplane: DCDataplane;
 
   describe("DCDataplane", () => {
-    beforeAll(() => {
+    beforeEach(() => {
       app = new App();
       stack = new Stack(app, "DCDataplaneStack");
 

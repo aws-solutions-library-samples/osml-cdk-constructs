@@ -3,16 +3,15 @@
  */
 
 import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
-import { Repository } from "aws-cdk-lib/aws-ecr";
+import { IRepository, Repository } from "aws-cdk-lib/aws-ecr";
 import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
-import { ContainerImage, EcrImage } from "aws-cdk-lib/aws-ecs";
+import { ContainerImage } from "aws-cdk-lib/aws-ecs";
 import { DockerImageCode } from "aws-cdk-lib/aws-lambda";
-import { DockerImageName, ECRDeployment } from "cdk-ecr-deployment";
 import { Construct } from "constructs";
+import * as fs from "fs";
+import * as path from "path";
 
 import { OSMLAccount } from "./osml_account";
-import { OSMLRepository } from "./osml_repository";
-import { OSMLVpc } from "./osml_vpc";
 import { BaseConfig, ConfigType } from "./utils/base_config";
 import { RegionalConfig, RegionConfig } from "./utils/regional_config";
 
@@ -39,11 +38,6 @@ export class OSMLContainerConfig extends BaseConfig {
    * The build target for the container.
    */
   public CONTAINER_BUILD_TARGET?: string;
-
-  /**
-   * The repository name for the container.
-   */
-  public CONTAINER_REPOSITORY?: string;
 
   /**
    * The Dockerfile to build the container.
@@ -76,12 +70,12 @@ export interface OSMLContainerProps {
   account: OSMLAccount;
 
   /**
-   * The OSML VPC to deploy into.
+   * (Optional) Flag to instruct building the Docker image code for the container.
    */
-  osmlVpc: OSMLVpc;
+  buildDockerImageCode?: boolean;
 
   /**
-   * Optional flag to instruct building the model container from source.
+   * (Optional) Flag to instruct building the model container from source.
    */
   buildFromSource?: boolean;
 
@@ -119,17 +113,7 @@ export class OSMLContainer extends Construct {
   /**
    * The ECR repository for the container image.
    */
-  public repository: Repository;
-
-  /**
-   * The ECR image for the container.
-   */
-  public ecrImage: EcrImage;
-
-  /**
-   * The ECR deployment for the container image.
-   */
-  public ecrDeployment: ECRDeployment;
+  public repository: IRepository;
 
   /**
    * The Docker image code for Lambda functions.
@@ -147,6 +131,16 @@ export class OSMLContainer extends Construct {
   public regionConfig: RegionConfig;
 
   /**
+   * The repository access mode to assign when building model containers for SageMaker.
+   */
+  public repositoryAccessMode: string = "Platform";
+
+  /**
+   * The repository access mode to assign when building model containers for SageMaker.
+   */
+  public buildDockerImageCode?: boolean | undefined;
+
+  /**
    * Creates an instance of OSMLContainer.
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
@@ -161,6 +155,9 @@ export class OSMLContainer extends Construct {
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
+    // Set whether to build Docker image code for this resource
+    this.buildDockerImageCode = props.buildDockerImageCode;
+
     // Check if a custom configuration was provided
     this.config = props.config ?? new OSMLContainerConfig();
 
@@ -171,17 +168,18 @@ export class OSMLContainer extends Construct {
     if (props.buildFromSource) {
       this.buildFromSource();
     } else {
-      this.buildFromRepository(props.osmlVpc);
+      this.buildFromRepository();
     }
   }
 
   /**
-   * Builds the container from source using Dockerfile and build path specified in the config.
+   * Builds the container from source using the Dockerfile and build path specified in the config.
    * Validates the configuration to ensure that the necessary parameters are provided.
    *
    * @throws {Error} If CONTAINER_DOCKERFILE or CONTAINER_BUILD_PATH are not set in the configuration.
    */
   private buildFromSource(): void {
+    // Validate that both the Dockerfile and build path are provided in the configuration.
     if (
       !this.config.CONTAINER_DOCKERFILE ||
       !this.config.CONTAINER_BUILD_PATH
@@ -191,6 +189,7 @@ export class OSMLContainer extends Construct {
       );
     }
 
+    // Create a DockerImageAsset, which builds a Docker image from the specified Dockerfile and build path.
     this.dockerImageAsset = new DockerImageAsset(this, `DockerImageAsset`, {
       directory: this.config.CONTAINER_BUILD_PATH,
       file: this.config.CONTAINER_DOCKERFILE,
@@ -198,64 +197,95 @@ export class OSMLContainer extends Construct {
       target: this.config.CONTAINER_BUILD_TARGET
     });
 
+    // Create a ContainerImage object from the DockerImageAsset, which will be used by ECS services.
     this.containerImage = ContainerImage.fromDockerImageAsset(
       this.dockerImageAsset
     );
 
-    this.dockerImageCode = DockerImageCode.fromImageAsset(
-      this.config.CONTAINER_BUILD_PATH,
-      {
-        file: this.config.CONTAINER_DOCKERFILE,
-        followSymlinks: SymlinkFollowMode.ALWAYS,
-        target: this.config.CONTAINER_BUILD_TARGET
-      }
-    );
-
+    // Store the URI of the built Docker image in the containerUri property for later use.
     this.containerUri = this.dockerImageAsset.imageUri;
+
+    if (this.buildDockerImageCode) {
+      // Create a DockerImageCode object for Lambda using the same Docker image built from the source.
+      this.dockerImageCode = DockerImageCode.fromImageAsset(
+        this.config.CONTAINER_BUILD_PATH,
+        {
+          file: this.config.CONTAINER_DOCKERFILE,
+          followSymlinks: SymlinkFollowMode.ALWAYS,
+          target: this.config.CONTAINER_BUILD_TARGET
+        }
+      );
+    }
   }
 
   /**
-   * Builds the container from an existing repository using the specified repository name and URI in the config.
+   * Builds the container from an existing repository using the specified repository URI in the config.
    * Validates the configuration to ensure that the necessary parameters are provided.
    *
-   * @param {OSMLVpc} osmlVpc - The VPC to deploy the container in.
-   * @throws {Error} If CONTAINER_REPOSITORY or CONTAINER_URI are not set in the configuration.
+   * @throws {Error} If CONTAINER_URI is not set in the configuration.
    */
-  private buildFromRepository(osmlVpc: OSMLVpc): void {
-    if (!this.config.CONTAINER_REPOSITORY || !this.config.CONTAINER_URI) {
+  private buildFromRepository(): void {
+    // Validate that the CONTAINER_URI is provided in the configuration.
+    if (!this.config.CONTAINER_URI) {
       throw new Error(
-        "CONTAINER_REPOSITORY and CONTAINER_URI must be set in the configuration to build from a repository."
+        "CONTAINER_URI must be set in the configuration to use a pre-built container image."
       );
     }
 
-    this.repository = new OSMLRepository(this, `ECRRepository`, {
-      repositoryName: this.config.CONTAINER_REPOSITORY,
-      removalPolicy: this.removalPolicy
-    }).repository;
+    // Determine the tag to use for the container image, defaulting to "latest" if not provided.
+    const tag = this.config.CONTAINER_TAG ?? "latest";
 
-    this.ecrImage = new EcrImage(
-      this.repository,
-      <string>this.config.CONTAINER_TAG
-    );
+    // Check if the CONTAINER_URI indicates an Amazon ECR repository by checking the ARN format.
+    if (this.config.CONTAINER_URI.startsWith("arn:aws:ecr:")) {
+      // Import the existing ECR repository using the ARN provided in the CONTAINER_URI.
+      this.repository = Repository.fromRepositoryArn(
+        this,
+        "ImportedECRRepo",
+        this.config.CONTAINER_URI
+      );
 
-    this.ecrDeployment = new ECRDeployment(this, `ECRDeployment`, {
-      src: new DockerImageName(this.config.CONTAINER_URI),
-      dest: new DockerImageName(this.ecrImage.imageName),
-      memoryLimit: 10240,
-      vpc: osmlVpc.vpc,
-      vpcSubnets: osmlVpc.selectedSubnets,
-      lambdaRuntime: this.regionConfig.ecrCdkDeployRuntime
-    });
+      // Create a ContainerImage object from the imported ECR repository and specified tag.
+      this.containerImage = ContainerImage.fromEcrRepository(
+        this.repository,
+        tag
+      );
 
-    this.containerImage = ContainerImage.fromEcrRepository(
-      this.repository,
-      this.config.CONTAINER_TAG
-    );
+      // Set the containerUri to the full URI of the container image in ECR.
+      this.containerUri = this.repository.repositoryUriForTag(tag);
 
-    this.containerUri = this.repository.repositoryUriForTag(
-      this.config.CONTAINER_TAG
-    );
+      if (this.buildDockerImageCode) {
+        // Create a DockerImageCode object for Lambda using the imported ECR repository.
+        this.dockerImageCode = DockerImageCode.fromEcr(this.repository);
+      }
+    } else {
+      // If the CONTAINER_URI does not indicate an ECR repository, assume it is a public or private Docker registry.
+      this.repositoryAccessMode = "Vpc";
 
-    this.dockerImageCode = DockerImageCode.fromEcr(this.repository);
+      // Create a ContainerImage object from the provided Docker registry URI and tag.
+      this.containerImage = ContainerImage.fromRegistry(
+        this.config.CONTAINER_URI
+      );
+
+      // Set the containerUri to the full URI of the container image in the Docker registry.
+      this.containerUri = this.config.CONTAINER_URI;
+
+      if (this.buildDockerImageCode) {
+        // Define the Dockerfile content dynamically based on containerUri
+        const dockerfileContent = `FROM ${this.config.CONTAINER_URI}`;
+
+        // Create a temporary Dockerfile to build the Docker image with
+        const tmpDockerfile = "Dockerfile.tmp";
+
+        // Write the temp Dockerfile to the build directory
+        const dockerfilePath = path.join(__dirname, tmpDockerfile);
+        fs.writeFileSync(dockerfilePath, dockerfileContent);
+
+        // Create a DockerImageCode object for Lambda using the DockerImageAsset
+        this.dockerImageCode = DockerImageCode.fromImageAsset(__dirname, {
+          file: tmpDockerfile,
+          followSymlinks: SymlinkFollowMode.ALWAYS
+        });
+      }
+    }
   }
 }

@@ -4,7 +4,7 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { OSMLVpc, TSDataplane } from "../../../lib";
+import { OSMLVpc, TSDataplane, TSDataplaneConfig } from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("TSDataplane constructor", () => {
@@ -24,7 +24,10 @@ describe("TSDataplane constructor", () => {
     tsDataplane = new TSDataplane(stack, "TSDataplane", {
       account: test_account,
       taskRole: undefined,
-      osmlVpc: osmlVpc
+      osmlVpc: osmlVpc,
+      config: new TSDataplaneConfig({
+        DEPLOY_TEST_COMPONENTS: true
+      })
     });
   });
 

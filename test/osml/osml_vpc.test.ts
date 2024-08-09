@@ -13,7 +13,7 @@ describe("OSMLVpc", () => {
   let app: App;
   let stack: Stack;
 
-  beforeEach(() => {
+  beforeAll(() => {
     app = new App();
     stack = new Stack(app, "OSMLVpcStack");
 

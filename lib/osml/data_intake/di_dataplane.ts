@@ -95,10 +95,10 @@ export class DIDataplaneConfig extends BaseConfig {
   public CONTAINER_DOCKERFILE: string;
 
   /**
-   * The repository name for the TileServer.
-   * @default "data-intake"
+   * Whether to build container resources from source.
+   * @default "false"
    */
-  public CONTAINER_REPOSITORY: string;
+  public BUILD_FROM_SOURCE: boolean;
 
   /**
    * Constructor for DIDataplane Construct.
@@ -120,7 +120,7 @@ export class DIDataplaneConfig extends BaseConfig {
       CONTAINER_BUILD_PATH: "lib/osml-data-intake",
       CONTAINER_BUILD_TARGET: "intake",
       CONTAINER_DOCKERFILE: "docker/Dockerfile.intake",
-      CONTAINER_REPOSITORY: "data-intake",
+      BUILD_FROM_SOURCE: false,
       ...config
     });
   }
@@ -165,11 +165,6 @@ export interface DIDataplaneProps {
    * @type {Topic | undefined}
    */
   stacTopic?: ITopic;
-
-  /**
-   * Optional flag to instruct building data intake container from source.
-   */
-  buildFromSource?: boolean;
 
   /**
    * Custom configuration for the DIDataplane Construct (optional).
@@ -257,13 +252,12 @@ export class DIDataplane extends Construct {
     // Build the lambda container image
     this.diContainer = new OSMLContainer(this, "DIContainer", {
       account: props.account,
-      buildFromSource: props.buildFromSource,
-      osmlVpc: props.osmlVpc,
+      buildDockerImageCode: true,
+      buildFromSource: this.config.BUILD_FROM_SOURCE,
       config: {
         CONTAINER_URI: this.config.CONTAINER_SOURCE_URI,
         CONTAINER_BUILD_PATH: this.config.CONTAINER_BUILD_PATH,
         CONTAINER_BUILD_TARGET: this.config.CONTAINER_BUILD_TARGET,
-        CONTAINER_REPOSITORY: this.config.CONTAINER_REPOSITORY,
         CONTAINER_DOCKERFILE: this.config.CONTAINER_DOCKERFILE
       }
     });
