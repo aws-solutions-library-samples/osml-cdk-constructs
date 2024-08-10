@@ -10,7 +10,6 @@ export * from "./osml/model_runner/autoscaling/mr_autoscaling";
 export * from "./osml/model_runner/mr_dataplane";
 export * from "./osml/model_runner/mr_container";
 export * from "./osml/model_runner/monitoring/mr_monitoring";
-export * from "./osml/model_runner/monitoring/mr_fluentbit_log_driver";
 export * from "./osml/model_endpoint/roles/me_sm_role";
 export * from "./osml/model_endpoint/roles/me_http_role";
 export * from "./osml/model_runner/roles/mr_task_role";

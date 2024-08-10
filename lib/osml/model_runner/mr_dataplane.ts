@@ -12,13 +12,12 @@ import {
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
 import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import {
+  AwsLogDriver,
   Cluster,
   Compatibility,
   ContainerDefinition,
   ContainerImage,
   FargateService,
-  FirelensLogRouterType,
-  LogDriver,
   Protocol,
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
@@ -33,7 +32,6 @@ import { OSMLTable } from "../osml_table";
 import { OSMLTopic } from "../osml_topic";
 import { OSMLVpc } from "../osml_vpc";
 import { RegionalConfig } from "../utils/regional_config";
-import { MRFluentBitLogDriver } from "./monitoring/mr_fluentbit_log_driver";
 import { MRExecutionRole } from "./roles/mr_execution_role";
 import { MRTaskRole } from "./roles/mr_task_role";
 
@@ -423,40 +421,6 @@ export class MRDataplane extends Construct {
       desiredCount: this.mrDataplaneConfig.MR_DEFAULT_DESIRE_COUNT
     });
 
-    const loggingOptions = new MRFluentBitLogDriver(this, "MRLoggingOptions", {
-      account: props.account,
-      logGroup: this.logGroup,
-      taskDefinition: this.taskDefinition
-    });
-
-    // Build a fluent bit log router for the MR container
-    this.taskDefinition.addFirelensLogRouter("MRFireLensContainer", {
-      image: loggingOptions.fluentBitImage,
-      essential: true,
-      firelensConfig: {
-        type: FirelensLogRouterType.FLUENTBIT
-      },
-      cpu: this.mrDataplaneConfig.MR_LOGGING_CPU,
-      memoryLimitMiB: this.mrDataplaneConfig.MR_LOGGING_MEMORY,
-      environment: { LOG_REGION: props.account.region },
-      logging: LogDriver.awsLogs({
-        logGroup: new LogGroup(this, "MRFireLens", {
-          logGroupName: "/aws/OSML/MRFireLens",
-          retention: RetentionDays.TEN_YEARS,
-          removalPolicy: this.removalPolicy
-        }),
-        streamPrefix: "OSML"
-      }),
-      readonlyRootFilesystem: false,
-      healthCheck: {
-        command: [
-          "CMD-SHELL",
-          'echo \'{"health": "check"}\' | nc 127.0.0.1 8877 || exit 1'
-        ],
-        retries: 3
-      }
-    });
-
     // Build a container definition to run our service
     this.containerDefinition = this.taskDefinition.addContainer(
       "MRContainerDefinition",
@@ -469,33 +433,13 @@ export class MRDataplane extends Construct {
         startTimeout: Duration.minutes(1),
         stopTimeout: Duration.minutes(1),
         // Create a log group for console output (STDOUT)
-        logging: loggingOptions.logging,
+        logging: new AwsLogDriver({
+          logGroup: this.logGroup,
+          streamPrefix: "OSML"
+        }),
         disableNetworking: false
       }
     );
-
-    if (props.account.isAdc) {
-      const partition: string = region_info.Fact.find(
-        props.account.region,
-        region_info.FactName.PARTITION
-      )!;
-
-      // need to add permission to access fluent bit container
-      // within the account
-      this.taskDefinition.addToExecutionRolePolicy(
-        new PolicyStatement({
-          effect: Effect.ALLOW,
-          actions: [
-            "ecr:BatchCheckLayerAvailability",
-            "ecr:GetDownloadUrlForLayer",
-            "ecr:BatchGetImage"
-          ],
-          resources: [
-            `arn:${partition}:ecr:${props.account.region}:${props.account.id}:repository/aws-for-fluent-bit`
-          ]
-        })
-      );
-    }
   }
 
   buildContainerEnv(props: MRDataplaneProps) {
