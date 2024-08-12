@@ -208,16 +208,16 @@ export class MRDataplaneConfig extends BaseConfig {
   public MR_ENABLE_MONITORING: boolean;
 
   /**
-   * Whether to deploy a kinesis output sync stream.
+   * Whether to deploy a kinesis output sink stream.
    * @default false
    */
-  public MR_ENABLE_KINESIS_SYNC: boolean;
+  public MR_ENABLE_KINESIS_SINK: boolean;
 
   /**
-   * Whether to deploy a s3 output sync bucket.
+   * Whether to deploy a s3 output sink bucket.
    * @default true
    */
-  public MR_ENABLE_S3_SYNC: boolean;
+  public MR_ENABLE_S3_SINK: boolean;
 
   /**
    * The maximum number of tasks allowed in the cluster.
@@ -256,16 +256,16 @@ export class MRDataplaneConfig extends BaseConfig {
   public MR_AUTOSCALING_TASK_OUT_INCREMENT: number;
 
   /**
-   * The prefix to assign the deployed S3 bucket output sync.
-   * @default "mr-bucket-sync"
+   * The prefix to assign the deployed S3 bucket output sink.
+   * @default "mr-bucket-sink"
    */
-  public MR_S3_SYNC_BUCKET_PREFIX: string;
+  public MR_S3_SINK_BUCKET_PREFIX: string;
 
   /**
-   * The prefix to assign the deployed Kinesis stream output sync.
-   * @default "mr-stream-sync"
+   * The prefix to assign the deployed Kinesis stream output sink.
+   * @default "mr-stream-sink"
    */
-  public MR_KINESIS_SYNC_STREAM_PREFIX: string;
+  public MR_KINESIS_SINK_STREAM_PREFIX: string;
 
   /**
    * The default container image.
@@ -329,16 +329,16 @@ export class MRDataplaneConfig extends BaseConfig {
       MR_ENABLE_IMAGE_STATUS: true,
       MR_ENABLE_REGION_STATUS: false,
       MR_ENABLE_MONITORING: true,
-      MR_ENABLE_KINESIS_SYNC: false,
-      MR_ENABLE_S3_SYNC: true,
+      MR_ENABLE_KINESIS_SINK: false,
+      MR_ENABLE_S3_SINK: true,
       MR_AUTOSCALING_TASK_MAX_COUNT: 40,
       MR_AUTOSCALING_TASK_MIN_COUNT: 3,
       MR_AUTOSCALING_TASK_OUT_COOLDOWN: 3,
       MR_AUTOSCALING_TASK_IN_COOLDOWN: 1,
       MR_AUTOSCALING_TASK_IN_INCREMENT: 8,
       MR_AUTOSCALING_TASK_OUT_INCREMENT: 8,
-      MR_S3_SYNC_BUCKET_PREFIX: "mr-bucket-sync",
-      MR_KINESIS_SYNC_STREAM_PREFIX: "mr-stream-sync",
+      MR_S3_SINK_BUCKET_PREFIX: "mr-bucket-sink",
+      MR_KINESIS_SINK_STREAM_PREFIX: "mr-stream-sink",
       MR_DEFAULT_CONTAINER: "awsosml/osml-model-runner:latest",
       MR_CONTAINER_BUILD_PATH: "lib/osml-model-runner",
       MR_CONTAINER_BUILD_TARGET: "model_runner",
@@ -538,14 +538,14 @@ export class MRDataplane extends Construct {
   public serviceAutoscaler?: EcsIsoServiceAutoscaler;
 
   /**
-   * The S3 bucket for synchronization.
+   * The S3 bucket output sink
    */
-  public syncBucket?: OSMLBucket;
+  public sinkBucket?: OSMLBucket;
 
   /**
-   * The Kinesis stream for synchronization.
+   * The Kinesis stream output sink
    */
-  public syncStream?: Stream;
+  public sinkStream?: Stream;
 
   /**
    * The number of workers to assign to each Model Runner task.
@@ -790,8 +790,8 @@ export class MRDataplane extends Construct {
       this.buildMonitoring(props);
     }
 
-    // Build desired output syncs
-    this.buildSync(props);
+    // Build desired output sinks
+    this.buildSink(props);
   }
 
   /**
@@ -840,24 +840,24 @@ export class MRDataplane extends Construct {
   }
 
   /**
-   * Builds the configured output syncs for the MR service.
+   * Builds the configured output sinks for the MR service.
    *
    * @param {MRDataplaneProps} props - The properties for configuring the MRDataplane Construct.
    */
-  private buildSync(props: MRDataplaneProps): void {
-    // Create a bucket to store results if deploySyncBucket is not explicitly set to false
-    if (this.config.MR_ENABLE_S3_SYNC) {
-      this.syncBucket = new OSMLBucket(this, `MRSyncBucket`, {
-        bucketName: `${this.config.MR_S3_SYNC_BUCKET_PREFIX}-${props.account.id}`,
+  private buildSink(props: MRDataplaneProps): void {
+    // Create a bucket to store results if deploySinkBucket is not explicitly set to false
+    if (this.config.MR_ENABLE_S3_SINK) {
+      this.sinkBucket = new OSMLBucket(this, `MRSinkBucket`, {
+        bucketName: `${this.config.MR_S3_SINK_BUCKET_PREFIX}-${props.account.id}`,
         prodLike: props.account.prodLike,
         removalPolicy: this.removalPolicy
       });
     }
 
-    // Create a Kinesis stream to store results if deploySyncStream is not explicitly set to false
-    if (this.config.MR_ENABLE_KINESIS_SYNC) {
-      this.syncStream = new Stream(this, "MRSyncStream", {
-        streamName: `${this.config.MR_KINESIS_SYNC_STREAM_PREFIX}-${props.account.id}`,
+    // Create a Kinesis stream to store results if deploySinkStream is not explicitly set to false
+    if (this.config.MR_ENABLE_KINESIS_SINK) {
+      this.sinkStream = new Stream(this, "MRSinkStream", {
+        streamName: `${this.config.MR_KINESIS_SINK_STREAM_PREFIX}-${props.account.id}`,
         streamMode: StreamMode.PROVISIONED,
         shardCount: 1,
         encryption: StreamEncryption.MANAGED,
@@ -866,7 +866,7 @@ export class MRDataplane extends Construct {
 
       // https://github.com/aws/aws-cdk/issues/19652
       if (props.account.isAdc) {
-        const cfnStream = this.syncStream.node.defaultChild as CfnStream;
+        const cfnStream = this.sinkStream.node.defaultChild as CfnStream;
         cfnStream.addPropertyDeletionOverride("StreamModeDetails");
       }
     }
