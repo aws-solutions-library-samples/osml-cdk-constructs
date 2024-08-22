@@ -57,9 +57,8 @@ export class MESMRole extends Construct {
     super(scope, id);
 
     // Defining constants for better readability
-    const MR_FIRELENS_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens`;
-    const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService`;
-    const MR_HTTPENDPOINT_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint`;
+    const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/MRService`;
+    const MR_HTTPENDPOINT_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/HTTPEndpoint`;
 
     // Determine the AWS partition based on the provided AWS region
     this.partition = region_info.Fact.find(
@@ -71,18 +70,14 @@ export class MESMRole extends Construct {
      * The IAM Role associated with the SageMaker execution role.
      * @member {Role}
      */
-    const meSagemakerExecutionRole = new Role(
-      this,
-      "MESageMakerExecutionRole",
-      {
-        roleName: props.roleName,
-        assumedBy: new ServicePrincipal("sagemaker.amazonaws.com"),
-        description:
-          "Allows SageMaker to access necessary AWS services (S3, SQS, DynamoDB, ...)"
-      }
-    );
+    const role = new Role(this, "MESageMakerExecutionRole", {
+      roleName: props.roleName,
+      assumedBy: new ServicePrincipal("sagemaker.amazonaws.com"),
+      description:
+        "Allows SageMaker to access necessary AWS services (S3, SQS, DynamoDB, ...)"
+    });
 
-    const meSageMakerExecutionPolicy = new ManagedPolicy(
+    const smExecutionPolicy = new ManagedPolicy(
       this,
       "MESageMakerExecutionPolicy",
       {
@@ -146,22 +141,21 @@ export class MESMRole extends Construct {
         "logs:CreateLogGroup"
       ],
       resources: [
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_FIRELENS_LOG_GROUP_NAME}:*`,
         `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_HTTPENDPOINT_LOG_GROUP_NAME}:*`,
         `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_SERVICE_LOG_GROUP_NAME}:*`,
         `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/*`
       ]
     });
 
-    meSageMakerExecutionPolicy.addStatements(
+    smExecutionPolicy.addStatements(
       cwLogsPolicyStatement,
       ecrAuthPolicyStatement,
       ecrPolicyStatement,
       ec2NetworkPolicyStatement
     );
 
-    meSagemakerExecutionRole.addManagedPolicy(meSageMakerExecutionPolicy);
+    role.addManagedPolicy(smExecutionPolicy);
 
-    this.role = meSagemakerExecutionRole;
+    this.role = role;
   }
 }

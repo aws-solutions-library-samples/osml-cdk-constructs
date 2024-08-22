@@ -4,7 +4,7 @@
 
 import { Duration, RemovalPolicy, Size } from "aws-cdk-lib";
 import { ISecurityGroup, SecurityGroup } from "aws-cdk-lib/aws-ec2";
-import { IRole } from "aws-cdk-lib/aws-iam";
+import { IRole, Role } from "aws-cdk-lib/aws-iam";
 import { DockerImageFunction } from "aws-cdk-lib/aws-lambda";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { ITopic, Topic } from "aws-cdk-lib/aws-sns";
@@ -23,58 +23,10 @@ import { DILambdaRole } from "./roles/di_lambda_role";
  */
 export class DIDataplaneConfig extends BaseConfig {
   /**
-   * The name of the DI Lambda execution role.
-   * @default "DILambdaRole"
+   * Whether to build container resources from source.
+   * @default "false"
    */
-  public LAMBDA_ROLE_NAME: string;
-
-  /**
-   * The name of the Lambda for the Data Intake.
-   * @default "DILambda"
-   */
-  public LAMBDA_FUNCTION_NAME: string;
-
-  /**
-   * The memory in MB to give the lambda runtime.
-   * @default 1024
-   */
-  public LAMBDA_MEMORY_SIZE: number;
-
-  /**
-   * The size of the storage to assign lambda runtime in GB.
-   * @default 10
-   */
-  public LAMBDA_STORAGE_SIZE: number;
-
-  /**
-   * The timeout, in seconds, for the Lambda function.
-   * @default 900
-   */
-  public LAMBDA_TIMEOUT: number;
-
-  /**
-   * The name to give the input SNS topic.
-   * @default "osml-data-intake"
-   */
-  public SNS_INPUT_TOPIC_NAME: string;
-
-  /**
-   * The name to give the output SNS topic.
-   * @default "osml-stac-ingest"
-   */
-  public SNS_STAC_TOPIC_NAME: string;
-
-  /**
-   * The name to give the output bucket.
-   * @default "di-output-bucket"
-   */
-  public S3_OUTPUT_BUCKET_NAME: string;
-
-  /**
-   * The container image to use for the Data Intake lambda.
-   * @default "awsosml/osml-tile-server:latest"
-   */
-  public CONTAINER_SOURCE_URI: string;
+  public BUILD_FROM_SOURCE: boolean;
 
   /**
    * The build path for the Data Intake.
@@ -95,10 +47,64 @@ export class DIDataplaneConfig extends BaseConfig {
   public CONTAINER_DOCKERFILE: string;
 
   /**
-   * Whether to build container resources from source.
-   * @default "false"
+   * The container image to use for the Data Intake lambda.
+   * @default "awsosml/osml-tile-server:latest"
    */
-  public BUILD_FROM_SOURCE: boolean;
+  public CONTAINER_SOURCE_URI: string;
+
+  /**
+   * The name of the Lambda for the Data Intake.
+   * @default "DILambda"
+   */
+  public LAMBDA_FUNCTION_NAME: string;
+
+  /**
+   * The memory in MB to give the lambda runtime.
+   * @default 1024
+   */
+  public LAMBDA_MEMORY_SIZE: number;
+
+  /**
+   * The name of the DI Lambda execution role.
+   * @default undefined
+   */
+  public LAMBDA_ROLE_NAME?: string | undefined;
+
+  /**
+   * The security group ID to use for the Lambda container.
+   * @default undefined
+   */
+  public LAMBDA_SECURITY_GROUP_ID?: string | undefined;
+
+  /**
+   * The size of the storage to assign lambda runtime in GB.
+   * @default 10
+   */
+  public LAMBDA_STORAGE_SIZE: number;
+
+  /**
+   * The timeout, in seconds, for the Lambda function.
+   * @default 900
+   */
+  public LAMBDA_TIMEOUT: number;
+
+  /**
+   * The name to give the output bucket.
+   * @default "di-output-bucket"
+   */
+  public S3_OUTPUT_BUCKET_NAME: string;
+
+  /**
+   * The name to give the input SNS topic.
+   * @default "osml-data-intake"
+   */
+  public SNS_INPUT_TOPIC_NAME: string;
+
+  /**
+   * The name to give the output SNS topic.
+   * @default "osml-stac-ingest"
+   */
+  public SNS_STAC_TOPIC_NAME: string;
 
   /**
    * Constructor for DIDataplane Construct.
@@ -106,21 +112,18 @@ export class DIDataplaneConfig extends BaseConfig {
    */
   constructor(config: ConfigType = {}) {
     super({
-      LAMBDA_ROLE_NAME: "DILambdaRole",
-      LAMBDA_FUNCTION_NAME: "DILambda",
-      LAMBDA_MEMORY_SIZE: 1024,
-      LAMBDA_RETRY_ATTEMPTS: 3,
-      LAMBDA_STORAGE_SIZE: 10,
-      LAMBDA_TIMEOUT: 900,
-      SNS_INPUT_TOPIC_NAME: "osml-data-intake",
-      SNS_STAC_TOPIC_NAME: "osml-stac-ingest",
-      S3_INPUT_BUCKET_NAME: "di-input-bucket",
-      S3_OUTPUT_BUCKET_NAME: "di-output-bucket",
-      CONTAINER_SOURCE_URI: "awsosml/osml-data-intake-intake:latest",
+      BUILD_FROM_SOURCE: false,
       CONTAINER_BUILD_PATH: "lib/osml-data-intake",
       CONTAINER_BUILD_TARGET: "intake",
       CONTAINER_DOCKERFILE: "docker/Dockerfile.intake",
-      BUILD_FROM_SOURCE: false,
+      CONTAINER_SOURCE_URI: "awsosml/osml-data-intake-intake:latest",
+      LAMBDA_FUNCTION_NAME: "DILambda",
+      LAMBDA_MEMORY_SIZE: 1024,
+      LAMBDA_STORAGE_SIZE: 10,
+      LAMBDA_TIMEOUT: 900,
+      S3_OUTPUT_BUCKET_NAME: "di-output-bucket",
+      SNS_INPUT_TOPIC_NAME: "osml-data-intake",
+      SNS_STAC_TOPIC_NAME: "osml-stac-ingest",
       ...config
     });
   }
@@ -141,18 +144,6 @@ export interface DIDataplaneProps {
    * @type {OSMLVpc}
    */
   osmlVpc: OSMLVpc;
-
-  /**
-   * The security group ID to use for the Dataplane (optional).
-   * @type {string | undefined}
-   */
-  securityGroupId?: string;
-
-  /**
-   * The IAM (Identity and Access Management) role to be used for Lambda (optional).
-   * @type {IRole | undefined}
-   */
-  lambdaRole?: IRole;
 
   /**
    * The input topic to receive Data Intake requests (optional).
@@ -329,21 +320,25 @@ export class DIDataplane extends Construct {
     }
 
     // If a custom security group was provided
-    if (props.securityGroupId) {
+    if (this.config.LAMBDA_SECURITY_GROUP_ID) {
       this.securityGroup = SecurityGroup.fromSecurityGroupId(
         this,
         "DIImportSecurityGroup",
-        props.securityGroupId
+        this.config.LAMBDA_SECURITY_GROUP_ID
       );
     }
 
     // Create a lambda role if needed
-    if (props.lambdaRole != undefined) {
-      this.lambdaRole = props.lambdaRole;
+    if (this.config.LAMBDA_ROLE_NAME != undefined) {
+      this.lambdaRole = Role.fromRoleName(
+        this,
+        "ImportedDILambdaRole",
+        this.config.LAMBDA_ROLE_NAME
+      );
     } else {
       this.lambdaRole = new DILambdaRole(this, "DILambdaRole", {
         account: props.account,
-        roleName: this.config.LAMBDA_ROLE_NAME
+        roleName: "ImportedDILambdaRole"
       }).role;
     }
   }

@@ -25,7 +25,6 @@ describe("OSMLMonitoring constructor", () => {
 
       mrDataplane = new MRDataplane(stack, "MRDataplane", {
         account: test_account,
-        taskRole: undefined,
         osmlVpc: osmlVpc
       });
 

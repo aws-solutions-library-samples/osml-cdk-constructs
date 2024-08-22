@@ -5,7 +5,7 @@
 import { Duration, RemovalPolicy, Size } from "aws-cdk-lib";
 import { LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
 import { ISecurityGroup, Port, SecurityGroup } from "aws-cdk-lib/aws-ec2";
-import { AnyPrincipal, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { AnyPrincipal, PolicyStatement, Role } from "aws-cdk-lib/aws-iam";
 import { IRole } from "aws-cdk-lib/aws-iam/lib/role";
 import {
   DockerImageFunction,
@@ -30,16 +30,58 @@ import { DCLambdaRole } from "./roles/dc_lambda_role";
  */
 export class DCDataplaneConfig extends BaseConfig {
   /**
-   * The name of the Lambda role.
-   * @default "DCLambdaRole"
+   * The name of the service in abbreviation to use for the API.
+   * @default "DC"
    */
-  public LAMBDA_ROLE_NAME: string;
+  public API_SERVICE_NAME_ABBREVIATION: string;
+
+  /**
+   * Whether to build container resources from source.
+   * @default "false"
+   */
+  public BUILD_FROM_SOURCE: boolean;
+
+  /**
+   * The build path for the Data Intake container.
+   * @default "lib/osml-data-intake"
+   */
+  public CONTAINER_BUILD_PATH: string;
+
+  /**
+   * The build target for the Data Intake ingest Lambda container Dockerfile.
+   * @default "ingest"
+   */
+  public INGEST_CONTAINER_BUILD_TARGET: string;
+
+  /**
+   * The relative Dockerfile to use to build the Data Intake ingest Lambda container.
+   * @default "docker/Dockerfile.ingest"
+   */
+  public INGEST_CONTAINER_DOCKERFILE: string;
+
+  /**
+   * The container image to use for the Data Intake ingest Lambda.
+   * @default "awsosml/osml-data-intake-ingest:latest"
+   */
+  public INGEST_CONTAINER_URI: string;
 
   /**
    * The memory size of the Lambda function (MB).
    * @default 4096
    */
   public LAMBDA_MEMORY_SIZE: number;
+
+  /**
+   * The security group ID to use for the Lambda container.
+   * @default undefined
+   */
+  public LAMBDA_SECURITY_GROUP_ID?: string | undefined;
+
+  /**
+   * The name of the Lambda role.
+   * @default "DCLambdaRole"
+   */
+  public LAMBDA_ROLE_NAME: string;
 
   /**
    * The storage size of the Lambda function (GB).
@@ -60,118 +102,10 @@ export class DCDataplaneConfig extends BaseConfig {
   public OS_DATA_NODES: number;
 
   /**
-   * The title of the STAC FastAPI application.
-   * @default "stac-fastapi-opensearch"
-   */
-  public STAC_FASTAPI_TITLE: string;
-
-  /**
-   * The description of the STAC FastAPI application.
-   * @default "A STAC FastAPI with an OpenSearch backend"
-   */
-  public STAC_FASTAPI_DESCRIPTION: string;
-
-  /**
-   * The version of the STAC FastAPI application.
-   * @default "2.4.1"
-   */
-  public STAC_FASTAPI_VERSION: string;
-
-  /**
-   * The root path for FASTAPI that is set by APIGateway.
-   * @default "data-catalog"
-   */
-  public STAC_FASTAPI_ROOT_PATH: string;
-
-  /**
-   * A boolean indicating whether to reload the application.
-   * @default "true"
-   */
-  public RELOAD: string;
-
-  /**
-   * The environment of the application.
-   * @default "local"
-   */
-  public ENVIRONMENT: string;
-
-  /**
-   * The web concurrency of the application.
-   * @default "10"
-   */
-  public WEB_CONCURRENCY: string;
-
-  /**
-   * The port of the OpenSearch cluster.
-   * @default "443"
-   */
-  public ES_PORT: string;
-
-  /**
-   * A boolean to use SSL.
-   * @default "true"
-   */
-  public ES_USE_SSL: string;
-
-  /**
-   * Whether to verify traffic with SSL certs.
-   * @default "true"
-   */
-  public ES_VERIFY_CERTS: string;
-
-  /**
-   * The name of the service in abbreviation.
-   * @default "DC"
-   */
-  public SERVICE_NAME_ABBREVIATION: string;
-
-  /**
    * The name to give a generated ingest SNS topic.
    * @default "osml-stac-ingest"
    */
   public SNS_INGEST_TOPIC_NAME: string;
-
-  /**
-   * The build path for the Data Intake container.
-   * @default "lib/osml-data-intake"
-   */
-  public CONTAINER_BUILD_PATH: string;
-
-  /**
-   * The container image to use for the Data Intake ingest Lambda.
-   * @default "awsosml/osml-data-intake-ingest:latest"
-   */
-  public INGEST_CONTAINER_URI: string;
-
-  /**
-   * The build target for the Data Intake ingest Lambda container Dockerfile.
-   * @default "ingest"
-   */
-  public INGEST_CONTAINER_BUILD_TARGET: string;
-
-  /**
-   * The relative Dockerfile to use to build the Data Intake ingest Lambda container.
-   * @default "docker/Dockerfile.ingest"
-   */
-  public INGEST_CONTAINER_DOCKERFILE: string;
-
-  /**
-   * The repository name for the Data Intake ingests Lambda container.
-   * @default "data-intake-ingest"
-   */
-  public INGEST_CONTAINER_REPOSITORY: string;
-
-  /**
-   * The container image to use for the Data Intake STAC API lambda.
-   * @default "awsosml/osml-data-intake-stac:latest"
-   */
-  public STAC_CONTAINER_URI: string;
-
-  /**
-   * The build target for the Data Intake STAC API container Dockerfile.
-   * @default "stac"
-   */
-  public STAC_CONTAINER_BUILD_TARGET: string;
 
   /**
    * The relative Dockerfile.stac to use to build the STAC API Lambda container.
@@ -180,16 +114,76 @@ export class DCDataplaneConfig extends BaseConfig {
   public STAC_CONTAINER_DOCKERFILE: string;
 
   /**
-   * The repository name for the Data Intake STAC API ECR repository.
-   * @default "data-intake-stac"
+   * The build target for the Data Intake STAC API container Dockerfile.
+   * @default "stac"
    */
-  public STAC_CONTAINER_REPOSITORY: string;
+  public STAC_CONTAINER_BUILD_TARGET: string;
 
   /**
-   * Whether to build container resources from source.
-   * @default "false"
+   * The container image to use for the Data Intake STAC API lambda.
+   * @default "awsosml/osml-data-intake-stac:latest"
    */
-  public BUILD_FROM_SOURCE: boolean;
+  public STAC_CONTAINER_URI: string;
+
+  /**
+   * The description of the STAC FastAPI application.
+   * @default "A STAC FastAPI with an OpenSearch backend"
+   */
+  public STAC_FASTAPI_DESCRIPTION: string;
+
+  /**
+   * The root path for FASTAPI that is set by APIGateway.
+   * @default "data-catalog"
+   */
+  public STAC_FASTAPI_ROOT_PATH: string;
+
+  /**
+   * The title of the STAC FastAPI application.
+   * @default "stac-fastapi-opensearch"
+   */
+  public STAC_FASTAPI_TITLE: string;
+
+  /**
+   * The version of the STAC FastAPI application.
+   * @default "2.4.1"
+   */
+  public STAC_FASTAPI_VERSION: string;
+
+  /**
+   * The environment of the application.
+   * @default "local"
+   */
+  public STAC_ENVIRONMENT: string;
+
+  /**
+   * The port of the OpenSearch cluster.
+   * @default "443"
+   */
+  public STAC_ES_PORT: string;
+
+  /**
+   * A boolean to use SSL.
+   * @default "true"
+   */
+  public STAC_ES_USE_SSL: string;
+
+  /**
+   * Whether to verify traffic with SSL certs.
+   * @default "true"
+   */
+  public STAC_ES_VERIFY_CERTS: string;
+
+  /**
+   * A boolean indicating whether to reload the application.
+   * @default "true"
+   */
+  public STAC_RELOAD: string;
+
+  /**
+   * The web concurrency of the application.
+   * @default "10"
+   */
+  public STAC_WEB_CONCURRENCY: string;
 
   /**
    * Creates an instance of DCDataplaneConfig.
@@ -197,33 +191,29 @@ export class DCDataplaneConfig extends BaseConfig {
    */
   constructor(config: ConfigType = {}) {
     super({
-      LAMBDA_ROLE_NAME: "DCLambdaRole",
+      API_SERVICE_NAME_ABBREVIATION: "DC",
+      CONTAINER_BUILD_PATH: "lib/osml-data-intake/",
+      INGEST_CONTAINER_BUILD_TARGET: "ingest",
+      INGEST_CONTAINER_DOCKERFILE: "docker/Dockerfile.ingest",
+      INGEST_CONTAINER_URI: "awsosml/osml-data-intake-ingest:latest",
       LAMBDA_MEMORY_SIZE: 4096,
       LAMBDA_STORAGE_SIZE: 10,
       LAMBDA_TIMEOUT: 300,
       OS_DATA_NODES: 4,
-      OS_EBS_SIZE: 10,
-      STAC_FASTAPI_BACKEND: "opensearch",
-      STAC_FASTAPI_TITLE: "stac-fastapi-opensearch",
-      STAC_FASTAPI_DESCRIPTION: "A STAC FastAPI with an OpenSearch backend",
-      STAC_FASTAPI_VERSION: "2.4.1",
-      STAC_FASTAPI_ROOT_PATH: "data-catalog",
-      RELOAD: "true",
-      ENVIRONMENT: "local",
-      WEB_CONCURRENCY: "10",
-      ES_PORT: "443",
-      ES_USE_SSL: "true",
-      ES_VERIFY_CERTS: "true",
-      SERVICE_NAME_ABBREVIATION: "DC",
       SNS_INGEST_TOPIC_NAME: "osml-stac-ingest",
-      CONTAINER_BUILD_PATH: "lib/osml-data-intake/",
-      INGEST_CONTAINER_URI: "awsosml/osml-data-intake-ingest:latest",
-      INGEST_CONTAINER_BUILD_TARGET: "ingest",
-      INGEST_CONTAINER_DOCKERFILE: "docker/Dockerfile.ingest",
-      STAC_CONTAINER_URI: "awsosml/osml-data-intake-stac:latest",
-      STAC_CONTAINER_BUILD_TARGET: "stac",
       STAC_CONTAINER_DOCKERFILE: "docker/Dockerfile.stac",
-      BUILD_FROM_SOURCE: false,
+      STAC_CONTAINER_BUILD_TARGET: "stac",
+      STAC_CONTAINER_URI: "awsosml/osml-data-intake-stac:latest",
+      STAC_FASTAPI_DESCRIPTION: "A STAC FastAPI with an OpenSearch backend",
+      STAC_FASTAPI_ROOT_PATH: "data-catalog",
+      STAC_FASTAPI_TITLE: "stac-fastapi-opensearch",
+      STAC_FASTAPI_VERSION: "2.4.1",
+      STAC_ENVIRONMENT: "local",
+      STAC_ES_PORT: "443",
+      STAC_ES_USE_SSL: "true",
+      STAC_ES_VERIFY_CERTS: "true",
+      STAC_RELOAD: "true",
+      STAC_WEB_CONCURRENCY: "10",
       ...config
     });
   }
@@ -249,18 +239,6 @@ export interface DCDataplaneProps {
    * The topic to subscribe to for ingesting STAC items.
    */
   ingestTopic?: ITopic;
-
-  /**
-   * The security group ID to use for the data server (optional).
-   * @type {string | undefined}
-   */
-  securityGroupId?: string;
-
-  /**
-   * The IAM (Identity and Access Management) role to be used for Lambda (optional).
-   * @type {IRole | undefined}
-   */
-  lambdaRole?: IRole;
 
   /**
    * The auth configuration to use for the deployment (optional).
@@ -312,14 +290,12 @@ export class DCDataplane extends Construct {
    * Lambda function responsible for ingesting data into the system.
    * This function is created from a Docker image.
    */
-  // eslint-disable-next-line @typescript-eslint/ban-types
   public ingestFunction: Function;
 
   /**
    * Lambda function responsible for the STAC API.
    * This function is created from a Docker image.
    */
-  // eslint-disable-next-line @typescript-eslint/ban-types
   public stacFunction: Function;
 
   /**
@@ -413,13 +389,13 @@ export class DCDataplane extends Construct {
       STAC_FASTAPI_TITLE: this.config.STAC_FASTAPI_TITLE,
       STAC_FASTAPI_DESCRIPTION: this.config.STAC_FASTAPI_DESCRIPTION,
       STAC_FASTAPI_VERSION: this.config.STAC_FASTAPI_VERSION,
-      RELOAD: this.config.RELOAD,
-      ENVIRONMENT: this.config.ENVIRONMENT,
-      WEB_CONCURRENCY: this.config.WEB_CONCURRENCY,
+      RELOAD: this.config.STAC_RELOAD,
+      ENVIRONMENT: this.config.STAC_ENVIRONMENT,
+      WEB_CONCURRENCY: this.config.STAC_WEB_CONCURRENCY,
       ES_HOST: this.osDomain.domainEndpoint,
-      ES_PORT: this.config.ES_PORT,
-      ES_USE_SSL: this.config.ES_USE_SSL,
-      ES_VERIFY_CERTS: this.config.ES_VERIFY_CERTS,
+      ES_PORT: this.config.STAC_ES_PORT,
+      ES_USE_SSL: this.config.STAC_ES_USE_SSL,
+      ES_VERIFY_CERTS: this.config.STAC_ES_VERIFY_CERTS,
       STAC_FASTAPI_ROOT_PATH: `/${this.config.STAC_FASTAPI_ROOT_PATH}`
     };
 
@@ -443,7 +419,7 @@ export class DCDataplane extends Construct {
     if (props.auth) {
       new OSMLRestApi(this, "DCRestApi", {
         account: props.account,
-        name: this.config.SERVICE_NAME_ABBREVIATION,
+        name: this.config.API_SERVICE_NAME_ABBREVIATION,
         apiStageName: this.config.STAC_FASTAPI_ROOT_PATH,
         integration: new LambdaIntegration(this.stacFunction),
         auth: props.auth,
@@ -493,11 +469,11 @@ export class DCDataplane extends Construct {
       : RemovalPolicy.DESTROY;
 
     // If a custom security group was provided
-    if (props.securityGroupId) {
+    if (this.config.LAMBDA_SECURITY_GROUP_ID) {
       this.securityGroup = SecurityGroup.fromSecurityGroupId(
         this,
         "DCImportSecurityGroup",
-        props.securityGroupId
+        this.config.LAMBDA_SECURITY_GROUP_ID
       );
     } else {
       // Set up a default security group for OpenSearch
@@ -516,12 +492,16 @@ export class DCDataplane extends Construct {
     }
 
     // Create a lambda role and service linked role if needed
-    if (props.lambdaRole != undefined) {
-      this.lambdaRole = props.lambdaRole;
+    if (this.config.LAMBDA_ROLE_NAME != undefined) {
+      this.lambdaRole = Role.fromRoleName(
+        this,
+        "ImportedDCLambdaRole",
+        this.config.LAMBDA_ROLE_NAME
+      );
     } else {
       this.lambdaRole = new DCLambdaRole(this, "DCLambdaRole", {
         account: props.account,
-        roleName: this.config.LAMBDA_ROLE_NAME
+        roleName: "DCLambdaRole"
       }).role;
     }
   }

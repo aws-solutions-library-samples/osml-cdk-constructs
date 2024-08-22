@@ -13,7 +13,6 @@ describe("OSMLRestApi constructor", () => {
   let app: App;
   let stack: Stack;
   let mockIntegration: Integration;
-  // eslint-disable-next-line @typescript-eslint/ban-types
   let mockHandler: Function;
   let restApi: OSMLRestApi;
   let osmlVpc: OSMLVpc;

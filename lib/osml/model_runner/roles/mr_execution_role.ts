@@ -60,10 +60,10 @@ export class MRExecutionRole extends Construct {
     super(scope, id);
 
     const firelensLogGroupName = `/aws/${
-      new MRDataplaneConfig().METRICS_NAMESPACE
+      new MRDataplaneConfig().CW_METRICS_NAMESPACE
     }/MRFireLens`;
     const serviceLogGroupName = `/aws/${
-      new MRDataplaneConfig().METRICS_NAMESPACE
+      new MRDataplaneConfig().CW_METRICS_NAMESPACE
     }/MRService`;
 
     this.partition = region_info.Fact.find(

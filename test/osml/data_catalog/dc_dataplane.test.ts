@@ -4,7 +4,7 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { DCDataplane, OSMLVpc } from "../../../lib";
+import { DCDataplane, DCDataplaneConfig, OSMLVpc } from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("DCDataplane constructor", () => {
@@ -25,7 +25,9 @@ describe("DCDataplane constructor", () => {
       dcDataplane = new DCDataplane(stack, "DCDataplane", {
         account: test_account,
         osmlVpc: osmlVpc,
-        lambdaRole: undefined
+        config: new DCDataplaneConfig({
+          LAMBDA_SECURITY_GROUP_ID: "test-security-group-id"
+        })
       });
     });
 
