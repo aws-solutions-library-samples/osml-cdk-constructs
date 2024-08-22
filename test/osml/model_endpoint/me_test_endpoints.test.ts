@@ -4,7 +4,7 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { METestEndpoints, OSMLVpc } from "../../../lib";
+import { METestEndpoints, METestEndpointsConfig, OSMLVpc } from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("METestEndpoints constructor", () => {
@@ -24,7 +24,10 @@ describe("METestEndpoints constructor", () => {
 
       testEndpoints = new METestEndpoints(stack, "METestEndpoints", {
         account: test_account,
-        osmlVpc: osmlVpc
+        osmlVpc: osmlVpc,
+        config: new METestEndpointsConfig({
+          SECURITY_GROUP_ID: "test-security-group-id"
+        })
       });
     });
 

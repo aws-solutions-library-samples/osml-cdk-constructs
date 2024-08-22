@@ -23,10 +23,10 @@ describe("TSDataplane constructor", () => {
 
     tsDataplane = new TSDataplane(stack, "TSDataplane", {
       account: test_account,
-      taskRole: undefined,
       osmlVpc: osmlVpc,
       config: new TSDataplaneConfig({
-        DEPLOY_TEST_COMPONENTS: true
+        DEPLOY_TEST_COMPONENTS: true,
+        SECURITY_GROUP_ID: "test-security-group-id"
       })
     });
   });

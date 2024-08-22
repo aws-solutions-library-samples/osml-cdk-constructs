@@ -4,7 +4,7 @@
 
 import { App, Stack } from "aws-cdk-lib";
 
-import { DIDataplane, OSMLVpc } from "../../../lib";
+import { DIDataplane, DIDataplaneConfig, OSMLVpc } from "../../../lib";
 import { test_account } from "../../test_account";
 
 describe("DIDataplane constructor", () => {
@@ -25,15 +25,14 @@ describe("DIDataplane constructor", () => {
       diDataplane = new DIDataplane(stack, "DIDataplane", {
         account: test_account,
         osmlVpc: osmlVpc,
-        lambdaRole: undefined
+        config: new DIDataplaneConfig({
+          LAMBDA_SECURITY_GROUP_ID: "test-security-group-id"
+        })
       });
     });
 
-    it("sets the removal policy correctly based on prodLike flag", () => {
-      expect(diDataplane.removalPolicy).toBeDefined();
-    });
-
     it("check if resources are created", () => {
+      expect(diDataplane.removalPolicy).toBeDefined();
       expect(diDataplane.lambdaFunction).toBeDefined();
       expect(diDataplane.inputTopic).toBeDefined();
       expect(diDataplane.stacTopic).toBeDefined();

@@ -84,7 +84,7 @@ export class MRTaskRole extends Construct {
     const SNS_TOPIC_IMAGE_NAME = this.mrDataplaneConfig.SNS_IMAGE_STATUS_TOPIC;
     const SNS_TOPIC_REGION_NAME =
       this.mrDataplaneConfig.SNS_REGION_STATUS_TOPIC;
-    const ECS_CLUSTER_NAME = this.mrDataplaneConfig.MR_CLUSTER_NAME;
+    const ECS_CLUSTER_NAME = this.mrDataplaneConfig.ECS_CLUSTER_NAME;
     const DDB_JOB_STATUS_TABLE_NAME =
       this.mrDataplaneConfig.DDB_JOB_STATUS_TABLE;
     const DDB_FEATURES_TABLE_NAME = this.mrDataplaneConfig.DDB_FEATURES_TABLE;
@@ -92,9 +92,9 @@ export class MRTaskRole extends Construct {
       this.mrDataplaneConfig.DDB_ENDPOINT_PROCESSING_TABLE;
     const DDB_REGION_REQUEST_TABLE_NAME =
       this.mrDataplaneConfig.DDB_REGION_REQUEST_TABLE;
-    const MR_FIRELENS_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRFireLens`;
-    const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/MRService`;
-    const MR_HTTPENDPOINT_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.METRICS_NAMESPACE}/HTTPEndpoint`;
+    const MR_FIRELENS_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/MRFireLens`;
+    const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/MRService`;
+    const MR_HTTPENDPOINT_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/HTTPEndpoint`;
 
     // Create an AWS IAM role for the Model Runner Fargate ECS task
     const mrTaskRole = new Role(this, "MRTaskRole", {

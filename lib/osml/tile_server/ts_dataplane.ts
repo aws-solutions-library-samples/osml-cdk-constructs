@@ -38,7 +38,12 @@ import {
   Protocol as elbv2_protocol
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { AlbTarget } from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
-import { AnyPrincipal, IRole, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import {
+  AnyPrincipal,
+  IRole,
+  PolicyStatement,
+  Role
+} from "aws-cdk-lib/aws-iam";
 import { DockerImageFunction } from "aws-cdk-lib/aws-lambda";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
@@ -61,124 +66,28 @@ import { TSTaskRole } from "./roles/ts_task_role";
  */
 export class TSDataplaneConfig extends BaseConfig {
   /**
-   * The name of the SQS queues for image status.
-   * @default "TSJobQueue"
+   * The default API path to use if auth was configured.
+   * @default "latest/viewpoints"
    */
-  public SQS_JOB_QUEUE: string;
-
-  /**
-   * The name of the DynamoDB table for job status.
-   * @default "TSJobTable"
-   */
-  public DDB_JOB_TABLE: string;
-
-  /**
-   * The attribute name for expiration time in DynamoDB.
-   * @default "expire_time"
-   */
-  public DDB_TTL_ATTRIBUTE: string;
-
-  /**
-   * The namespace for metrics.
-   * @default "OSML"
-   */
-  public ECS_METRICS_NAMESPACE: string;
-
-  /**
-   * The name of the TS cluster.
-   * @default "TSCluster"
-   */
-  public ECS_CLUSTER_NAME: string;
-
-  /**
-   * The name of the TS task execution role.
-   * @default "TSTaskRole"
-   */
-  public ECS_TASK_ROLE_NAME: string;
-
-  /**
-   * The name of the TS container.
-   * @default "TSContainer"
-   */
-  public ECS_CONTAINER_NAME: string;
-
-  /**
-   * The memory configuration for TS tasks.
-   * @default 16384
-   */
-  public ECS_TASK_MEMORY: number;
-
-  /**
-   * The CPU configuration for TS tasks.
-   * @default 8192
-   */
-  public ECS_TASK_CPU: number;
-
-  /**
-   * The memory configuration for TS containers.
-   * @default 10240
-   */
-  public ECS_CONTAINER_MEMORY: number;
-
-  /**
-   * The CPU configuration for TS containers.
-   * @default 7168
-   */
-  public ECS_CONTAINER_CPU: number;
-
-  /**
-   * The port to use for the TS service.
-   * @default 8080
-   */
-  public ECS_CONTAINER_PORT: number;
-
-  /**
-   * The name of the EFS volume to give tasks.
-   * @default "ts-efs-volume"
-   */
-  public EFS_MOUNT_NAME: string;
-
-  /**
-   * The name of the TS Lambda execution role.
-   * @default "TSLambdaRole"
-   */
-  public LAMBDA_ROLE_NAME: string;
-
-  /**
-   * The name of the TS ECS execution role.
-   * @default "TSExecutionRole"
-   */
-  public EXECUTION_ROLE_NAME: string;
-
-  /**
-   * The name of the TS Log Group.
-   * @default "TSService"
-   */
-  public CW_LOGGROUP_NAME: string;
-
-  /**
-   * The abbreviation of TS service.
-   * @default "TS"
-   */
-  public SERVICE_NAME_ABBREVIATION: string;
+  public API_DEFAULT_PATH: string;
 
   /**
    * The FastAPI root path for viewpoints.
    * @default "viewpoints"
    */
-  public FASTAPI_ROOT_PATH: string;
+  public API_ROOT_PATH: string;
 
   /**
-   * The port to use in Network Load Balancer.
-   * @default 80
+   * The abbreviation of TS service.
+   * @default "TS"
    */
-  public NETWORK_LOAD_BALANCER_PORT: number;
+  public API_SERVICE_NAME_ABBREVIATION: string;
 
   /**
-   * The container image to use for the TileServer.
-   * @default "awsosml/osml-tile-server:latest"
+   * Whether to build container resources from source.
+   * @default "false"
    */
-  public CONTAINER_URI: string;
+  public BUILD_FROM_SOURCE: boolean;
 
   /**
    * The build path for the TileServer.
@@ -199,10 +108,28 @@ export class TSDataplaneConfig extends BaseConfig {
   public CONTAINER_DOCKERFILE: string;
 
   /**
-   * The default API path to use if auth was configured.
-   * @default "latest/viewpoints"
+   * The container image to use for the TileServer.
+   * @default "awsosml/osml-tile-server:latest"
    */
-  public API_DEFAULT_PATH: string;
+  public CONTAINER_URI: string;
+
+  /**
+   * The name of the TS Log Group.
+   * @default "TSService"
+   */
+  public CW_LOGGROUP_NAME: string;
+
+  /**
+   * The name of the DynamoDB table for job status.
+   * @default "TSJobTable"
+   */
+  public DDB_JOB_TABLE: string;
+
+  /**
+   * The attribute name for expiration time in DynamoDB.
+   * @default "expire_time"
+   */
+  public DDB_TTL_ATTRIBUTE: string;
 
   /**
    * Flag to determine whether to deploy the test-related components.
@@ -211,10 +138,94 @@ export class TSDataplaneConfig extends BaseConfig {
   public DEPLOY_TEST_COMPONENTS: boolean;
 
   /**
-   * The Docker image to use for the test container.
-   * @default "awsosml/osml-tile-server-test:latest"
+   * The name of the EFS volume to give tasks.
+   * @default "ts-efs-volume"
    */
-  public TEST_CONTAINER_URI: string;
+  public EFS_MOUNT_NAME: string;
+
+  /**
+   * The CPU configuration for TS containers.
+   * @default 7168
+   */
+  public ECS_CONTAINER_CPU: number;
+
+  /**
+   * The memory configuration for TS containers.
+   * @default 10240
+   */
+  public ECS_CONTAINER_MEMORY: number;
+
+  /**
+   * The name of the TS container.
+   * @default "TSContainer"
+   */
+  public ECS_CONTAINER_NAME: string;
+
+  /**
+   * The port to use for the TS service.
+   * @default 8080
+   */
+  public ECS_CONTAINER_PORT: number;
+
+  /**
+   * The name of the TS cluster.
+   * @default "TSCluster"
+   */
+  public ECS_CLUSTER_NAME: string;
+
+  /**
+   * The name of the TS ECS execution role.
+   * @default undefined
+   */
+  public ECS_EXECUTION_ROLE_NAME?: string | undefined;
+
+  /**
+   * The namespace for metrics.
+   * @default "OSML"
+   */
+  public ECS_METRICS_NAMESPACE: string;
+
+  /**
+   * The port to use in Network Load Balancer.
+   * @default 80
+   */
+  public ECS_NETWORK_LOAD_BALANCER_PORT: number;
+
+  /**
+   * The security group ID to use for the Tile Server components.
+   * @default undefined
+   */
+  public SECURITY_GROUP_ID?: string | undefined;
+
+  /**
+   * The CPU configuration for TS tasks.
+   * @default 8192
+   */
+  public ECS_TASK_CPU: number;
+
+  /**
+   * The memory configuration for TS tasks.
+   * @default 16384
+   */
+  public ECS_TASK_MEMORY: number;
+
+  /**
+   * The name of the TS task execution role.
+   * @default undefined
+   */
+  public ECS_TASK_ROLE_NAME?: string | undefined;
+
+  /**
+   * The name of the TS Lambda execution role.
+   * @default undefined
+   */
+  public LAMBDA_ROLE_NAME?: string | undefined;
+
+  /**
+   * The name of the SQS queues for image status.
+   * @default "TSJobQueue"
+   */
+  public SQS_JOB_QUEUE: string;
 
   /**
    * The build path for the test container.
@@ -229,22 +240,16 @@ export class TSDataplaneConfig extends BaseConfig {
   public TEST_CONTAINER_BUILD_TARGET: string;
 
   /**
-   * The repository name for the test container.
-   * @default "tile-server-test-container"
-   */
-  public TEST_CONTAINER_REPOSITORY: string;
-
-  /**
    * The path to Dockerfile.ts to use to build the container.
    * @default "docker/Dockerfile.integ"
    */
   public TEST_CONTAINER_DOCKERFILE: string;
 
   /**
-   * Whether to build container resources from source.
-   * @default "false"
+   * The Docker image to use for the test container.
+   * @default "awsosml/osml-tile-server-test:latest"
    */
-  public BUILD_FROM_SOURCE: boolean;
+  public TEST_CONTAINER_URI: string;
 
   /**
    * Constructor for TSDataplaneConfig.
@@ -252,37 +257,33 @@ export class TSDataplaneConfig extends BaseConfig {
    */
   constructor(config: ConfigType = {}) {
     super({
-      SQS_JOB_QUEUE: "TSJobQueue",
-      DDB_JOB_TABLE: "TSJobTable",
-      ECS_METRICS_NAMESPACE: "OSML",
-      ECS_CLUSTER_NAME: "TSCluster",
-      ECS_TASK_ROLE_NAME: "TSTaskRole",
-      ECS_CONTAINER_NAME: "TSContainer",
-      ECS_TASK_MEMORY: 16384,
-      ECS_TASK_CPU: 8192,
-      ECS_CONTAINER_MEMORY: 10240,
-      ECS_CONTAINER_CPU: 7168,
-      ECS_CONTAINER_PORT: 8080,
-      EFS_MOUNT_NAME: "ts-efs-volume",
-      LAMBDA_ROLE_NAME: "TSLambdaRole",
-      EXECUTION_ROLE_NAME: "TSExecutionRole",
-      CW_LOGGROUP_NAME: "TSService",
-      SERVICE_NAME_ABBREVIATION: "TS",
-      FASTAPI_ROOT_PATH: "viewpoints",
-      NETWORK_LOAD_BALANCER_PORT: 80,
-      CONTAINER_URI: "awsosml/osml-tile-server:latest",
+      API_DEFAULT_PATH: "latest/viewpoints",
+      API_ROOT_PATH: "viewpoints",
+      API_SERVICE_NAME_ABBREVIATION: "TS",
+      BUILD_FROM_SOURCE: false,
       CONTAINER_BUILD_PATH: "lib/osml-tile-server",
       CONTAINER_BUILD_TARGET: "tile_server",
-      CONTAINER_REPOSITORY: "tile-server-container",
       CONTAINER_DOCKERFILE: "docker/Dockerfile.tile_server",
-      API_DEFAULT_PATH: "latest/viewpoints",
+      CONTAINER_URI: "awsosml/osml-tile-server:latest",
+      CW_LOGGROUP_NAME: "TSService",
+      DDB_JOB_TABLE: "TSJobTable",
+      DDB_TTL_ATTRIBUTE: "expire_time",
       DEPLOY_TEST_COMPONENTS: false,
-      TEST_CONTAINER_URI: "awsosml/osml-tile-server-test:latest",
+      EFS_MOUNT_NAME: "ts-efs-volume",
+      ECS_CONTAINER_CPU: 7168,
+      ECS_CONTAINER_MEMORY: 10240,
+      ECS_CONTAINER_NAME: "TSContainer",
+      ECS_CONTAINER_PORT: 8080,
+      ECS_CLUSTER_NAME: "TSCluster",
+      ECS_METRICS_NAMESPACE: "OSML",
+      ECS_NETWORK_LOAD_BALANCER_PORT: 80,
+      ECS_TASK_CPU: 8192,
+      ECS_TASK_MEMORY: 16384,
+      SQS_JOB_QUEUE: "TSJobQueue",
       TEST_CONTAINER_BUILD_PATH: "lib/osml-tile-server-test",
       TEST_CONTAINER_BUILD_TARGET: "integ",
-      TEST_CONTAINER_REPOSITORY: "tile-server-test",
       TEST_CONTAINER_DOCKERFILE: "docker/Dockerfile.integ",
-      BUILD_FROM_SOURCE: false,
+      TEST_CONTAINER_URI: "awsosml/osml-tile-server-test:latest",
       ...config
     });
   }
@@ -305,40 +306,10 @@ export interface TSDataplaneProps {
   osmlVpc: OSMLVpc;
 
   /**
-   * The security group ID to use for the Dataplane (optional).
-   * @type {string | undefined}
-   */
-  securityGroupId?: string;
-
-  /**
-   * The IAM (Identity and Access Management) role to be used for ECS tasks (optional).
-   * @type {IRole | undefined}
-   */
-  taskRole?: IRole;
-
-  /**
-   * The IAM (Identity and Access Management) role to be used for Lambda (optional).
-   * @type {IRole | undefined}
-   */
-  lambdaRole?: IRole;
-
-  /**
-   * The IAM (Identity and Access Management) role to be used for an ECS execution role (optional).
-   * @type {IRole | undefined}
-   */
-  executionRole?: IRole;
-
-  /**
    * Custom configuration for the TSDataplane Construct (optional).
    * @type {TSDataplaneConfig | undefined}
    */
   config?: TSDataplaneConfig;
-
-  /**
-   * An array of target subnets for the Dataplane.
-   * @type {string[] | undefined}
-   */
-  targetSubnets?: string[];
 
   /**
    * The configuration for the authentication.
@@ -711,11 +682,12 @@ export class TSDataplane extends Construct {
 
       this.nlb = new NetworkLoadBalancer(this, "TSNetworkLoadBalancer", {
         vpc: props.osmlVpc.vpc,
-        internetFacing: false
+        internetFacing: false,
+        securityGroups: this.securityGroup ? [this.securityGroup] : []
       });
 
       const nlbListener = this.nlb.addListener("TSNlbListener", {
-        port: this.config.NETWORK_LOAD_BALANCER_PORT,
+        port: this.config.ECS_NETWORK_LOAD_BALANCER_PORT,
         protocol: elbv2_protocol.TCP
       });
 
@@ -723,10 +695,10 @@ export class TSDataplane extends Construct {
         targets: [
           new AlbTarget(
             this.fargateService.loadBalancer,
-            this.config.NETWORK_LOAD_BALANCER_PORT
+            this.config.ECS_NETWORK_LOAD_BALANCER_PORT
           )
         ],
-        port: this.config.NETWORK_LOAD_BALANCER_PORT
+        port: this.config.ECS_NETWORK_LOAD_BALANCER_PORT
       });
 
       const vpcLink = new VpcLink(this, "TSVpcLink", {
@@ -754,8 +726,8 @@ export class TSDataplane extends Construct {
 
       this.api = new OSMLRestApi(this, "TileServerRestApi", {
         account: props.account,
-        name: this.config.SERVICE_NAME_ABBREVIATION,
-        apiStageName: this.config.FASTAPI_ROOT_PATH,
+        name: this.config.API_SERVICE_NAME_ABBREVIATION,
+        apiStageName: this.config.API_ROOT_PATH,
         integration: proxyIntegration,
         auth: props.auth,
         osmlVpc: props.osmlVpc,
@@ -786,10 +758,11 @@ export class TSDataplane extends Construct {
       this.lambdaIntegRunner = new DockerImageFunction(this, "TSTestRunner", {
         code: this.testContainer.dockerImageCode,
         vpc: props.osmlVpc.vpc,
-        role: props.taskRole,
+        role: this.lambdaRole,
         timeout: Duration.minutes(10),
         memorySize: 1024,
         functionName: "TSTestRunner",
+        securityGroups: this.securityGroup ? [this.securityGroup] : [],
         environment: {
           TS_ENDPOINT: `http://${this.fargateService.loadBalancer.loadBalancerDnsName}/latest`
         }
@@ -812,38 +785,50 @@ export class TSDataplane extends Construct {
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
-    if (props.securityGroupId) {
+    if (this.config.SECURITY_GROUP_ID) {
       this.securityGroup = SecurityGroup.fromSecurityGroupId(
         this,
         "TSImportSecurityGroup",
-        props.securityGroupId
+        this.config.SECURITY_GROUP_ID
       );
     }
 
-    if (props.taskRole != undefined) {
-      this.taskRole = props.taskRole;
+    if (this.config.ECS_TASK_ROLE_NAME != undefined) {
+      this.taskRole = Role.fromRoleName(
+        this,
+        "ImportedTSECSTaskRole",
+        this.config.ECS_TASK_ROLE_NAME
+      );
     } else {
-      this.taskRole = new TSTaskRole(this, "TSTaskRole", {
+      this.taskRole = new TSTaskRole(this, "TSECSTaskRole", {
         account: props.account,
-        roleName: this.config.ECS_TASK_ROLE_NAME
+        roleName: "TSECSTaskRole"
       }).role;
     }
 
-    if (props.lambdaRole != undefined) {
-      this.lambdaRole = props.lambdaRole;
+    if (this.config.LAMBDA_ROLE_NAME != undefined) {
+      this.lambdaRole = Role.fromRoleName(
+        this,
+        "ImportedTSLambdaRole",
+        this.config.LAMBDA_ROLE_NAME
+      );
     } else {
       this.lambdaRole = new TSLambdaRole(this, "TSLambdaRole", {
         account: props.account,
-        roleName: this.config.LAMBDA_ROLE_NAME
+        roleName: "TSLambdaRole"
       }).role;
     }
 
-    if (props.executionRole != undefined) {
-      this.executionRole = props.executionRole;
+    if (this.config.ECS_EXECUTION_ROLE_NAME != undefined) {
+      this.executionRole = Role.fromRoleName(
+        this,
+        "ImportedTSECSExecutionRole",
+        this.config.ECS_EXECUTION_ROLE_NAME
+      );
     } else {
-      this.executionRole = new TSExecutionRole(this, "TSExecutionRole", {
+      this.executionRole = new TSExecutionRole(this, "TSECSExecutionRole", {
         account: props.account,
-        roleName: this.config.EXECUTION_ROLE_NAME
+        roleName: "TSECSExecutionRole"
       }).role;
     }
 

@@ -3,7 +3,7 @@
  */
 
 import { RemovalPolicy } from "aws-cdk-lib";
-import { IRole } from "aws-cdk-lib/aws-iam";
+import { IRole, Role } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../osml_account";
@@ -21,122 +21,10 @@ import { MESMRole } from "./roles/me_sm_role";
  */
 export class METestEndpointsConfig extends BaseConfig {
   /**
-   * Whether to deploy the HTTP model endpoint.
-   * @default true
+   * Whether to build container resources from source.
+   * @default "false"
    */
-  public DEPLOY_HTTP_AIRCRAFT_ENDPOINT: boolean;
-
-  /**
-   * Whether to deploy the SageMaker aircraft model endpoint.
-   * @default true
-   */
-  public DEPLOY_SM_AIRCRAFT_ENDPOINT: boolean;
-
-  /**
-   * Whether to deploy the SageMaker flood model endpoint.
-   * @default true
-   */
-  public DEPLOY_SM_FLOOD_ENDPOINT: boolean;
-
-  /**
-   * Whether to deploy the SageMaker centerpoint model endpoint.
-   * @default true
-   */
-  public DEPLOY_SM_CENTERPOINT_ENDPOINT: boolean;
-
-  /**
-   * The name of the SageMaker endpoint for the centerpoint model.
-   * @default "centerpoint"
-   */
-  public SM_CENTER_POINT_MODEL: string;
-
-  /**
-   * The name of the SageMaker endpoint for the flood model.
-   * @default "flood"
-   */
-  public SM_FLOOD_MODEL: string;
-
-  /**
-   * The name of the SageMaker endpoint for the aircraft model.
-   * @default "aircraft"
-   */
-  public SM_AIRCRAFT_MODEL: string;
-
-  /**
-   * The name of the SageMaker execution role.
-   * @default "OSMLSageMakerRole"
-   */
-  public SM_ROLE_NAME: string;
-
-  /**
-   * The SageMaker CPU instance type.
-   * @default "ml.m5.xlarge"
-   */
-  public SM_CPU_INSTANCE_TYPE: string;
-
-  /**
-   * The SageMaker GPU instance type.
-   */
-  public SM_GPU_INSTANCE_TYPE?: string;
-
-  /**
-   * The name of the HTTP endpoint cluster.
-   * @default "HTTPModelCluster"
-   */
-  public HTTP_ENDPOINT_NAME: string;
-
-  /**
-   * The name of the HTTP endpoint execution role.
-   * @default "HTTPEndpointRole"
-   */
-  public HTTP_ENDPOINT_ROLE_NAME: string;
-
-  /**
-   * The host port for the HTTP endpoint.
-   * @default 8080
-   */
-  public HTTP_ENDPOINT_HOST_PORT: number;
-
-  /**
-   * The container port for the HTTP endpoint.
-   * @default 8080
-   */
-  public HTTP_ENDPOINT_CONTAINER_PORT: number;
-
-  /**
-   * The memory allocation for the HTTP endpoint.
-   * @default 16384
-   */
-  public HTTP_ENDPOINT_MEMORY: number;
-
-  /**
-   * The CPU allocation for the HTTP endpoint.
-   * @default 4096
-   */
-  public HTTP_ENDPOINT_CPU: number;
-
-  /**
-   * The health check path for the HTTP endpoint.
-   * @default "/ping"
-   */
-  public HTTP_ENDPOINT_HEALTHCHECK_PATH: string;
-
-  /**
-   * The domain name for the HTTP endpoint.
-   * @default "test-http-model-endpoint"
-   */
-  public HTTP_ENDPOINT_DOMAIN_NAME: string;
-
-  /**
-   * A security group to use for these resources.
-   */
-  public SECURITY_GROUP_ID: string;
-
-  /**
-   * The default container image.
-   * @default "awsosml/osml-models:latest"
-   */
-  public CONTAINER_URI: string;
+  public BUILD_FROM_SOURCE: false;
 
   /**
    * The build path for the container.
@@ -156,10 +44,122 @@ export class METestEndpointsConfig extends BaseConfig {
   public CONTAINER_DOCKERFILE?: string;
 
   /**
-   * Whether to build container resources from source.
-   * @default "false"
+   * The default container image.
+   * @default "awsosml/osml-models:latest"
    */
-  public BUILD_FROM_SOURCE: false;
+  public CONTAINER_URI: string;
+
+  /**
+   * Whether to deploy the HTTP model endpoint.
+   * @default true
+   */
+  public DEPLOY_HTTP_AIRCRAFT_ENDPOINT: boolean;
+
+  /**
+   * Whether to deploy the SageMaker aircraft model endpoint.
+   * @default true
+   */
+  public DEPLOY_SM_AIRCRAFT_ENDPOINT: boolean;
+
+  /**
+   * Whether to deploy the SageMaker centerpoint model endpoint.
+   * @default true
+   */
+  public DEPLOY_SM_CENTERPOINT_ENDPOINT: boolean;
+
+  /**
+   * Whether to deploy the SageMaker flood model endpoint.
+   * @default true
+   */
+  public DEPLOY_SM_FLOOD_ENDPOINT: boolean;
+
+  /**
+   * The CPU allocation for the HTTP endpoint.
+   * @default 4096
+   */
+  public HTTP_ENDPOINT_CPU: number;
+
+  /**
+   * The container port for the HTTP endpoint.
+   * @default 8080
+   */
+  public HTTP_ENDPOINT_CONTAINER_PORT: number;
+
+  /**
+   * The domain name for the HTTP endpoint.
+   * @default "test-http-model-endpoint"
+   */
+  public HTTP_ENDPOINT_DOMAIN_NAME: string;
+
+  /**
+   * The name of the HTTP endpoint cluster.
+   * @default "HTTPModelCluster"
+   */
+  public HTTP_ENDPOINT_NAME: string;
+
+  /**
+   * The host port for the HTTP endpoint.
+   * @default 8080
+   */
+  public HTTP_ENDPOINT_HOST_PORT: number;
+
+  /**
+   * The health check path for the HTTP endpoint.
+   * @default "/ping"
+   */
+  public HTTP_ENDPOINT_HEALTHCHECK_PATH: string;
+
+  /**
+   * The memory allocation for the HTTP endpoint.
+   * @default 16384
+   */
+  public HTTP_ENDPOINT_MEMORY: number;
+
+  /**
+   * The name of the HTTP endpoint execution role.
+   * @default undefined
+   */
+  public HTTP_ENDPOINT_ROLE_NAME?: string | undefined;
+
+  /**
+   * A security group to use for these resources.
+   */
+  public SECURITY_GROUP_ID?: string | undefined;
+
+  /**
+   * The name of the SageMaker endpoint for the aircraft model.
+   * @default "aircraft"
+   */
+  public SM_AIRCRAFT_MODEL: string;
+
+  /**
+   * The name of the SageMaker endpoint for the centerpoint model.
+   * @default "centerpoint"
+   */
+  public SM_CENTER_POINT_MODEL: string;
+
+  /**
+   * The SageMaker CPU instance type.
+   * @default "ml.m5.xlarge"
+   */
+  public SM_CPU_INSTANCE_TYPE: string;
+
+  /**
+   * The name of the SageMaker endpoint for the flood model.
+   * @default "flood"
+   */
+  public SM_FLOOD_MODEL: string;
+
+  /**
+   * The SageMaker GPU instance type.
+   */
+  public SM_GPU_INSTANCE_TYPE?: string;
+
+  /**
+   * The name of the SageMaker execution role.
+   * @default undefined
+   */
+  public SM_ROLE_NAME?: string | undefined;
 
   /**
    * Constructor for METestEndpointsConfig.
@@ -167,33 +167,26 @@ export class METestEndpointsConfig extends BaseConfig {
    */
   constructor(config: ConfigType = {}) {
     super({
-      DEPLOY_HTTP_AIRCRAFT_ENDPOINT: true,
-      DEPLOY_SM_AIRCRAFT_ENDPOINT: true,
-      DEPLOY_SM_FLOOD_ENDPOINT: true,
-      DEPLOY_SM_CENTERPOINT_ENDPOINT: true,
-      SM_CENTER_POINT_MODEL: "centerpoint",
-      SM_FLOOD_MODEL: "flood",
-      SM_AIRCRAFT_MODEL: "aircraft",
-      SM_ROLE_NAME: "OSMLSageMakerRole",
-      SM_INITIAL_INSTANCE_COUNT: 1,
-      SM_INITIAL_VARIANT_WEIGHT: 1,
-      SM_VARIANT_NAME: "AllTraffic",
-      SM_CPU_INSTANCE_TYPE: "ml.m5.xlarge",
-      SM_GPU_INSTANCE_TYPE: undefined,
-      SM_REPOSITORY_ACCESS_MODE: "Platform",
-      HTTP_ENDPOINT_NAME: "HTTPModelCluster",
-      HTTP_ENDPOINT_ROLE_NAME: "HTTPEndpointRole",
-      HTTP_ENDPOINT_HOST_PORT: 8080,
-      HTTP_ENDPOINT_CONTAINER_PORT: 8080,
-      HTTP_ENDPOINT_MEMORY: 16384,
-      HTTP_ENDPOINT_CPU: 4096,
-      HTTP_ENDPOINT_HEALTHCHECK_PATH: "/ping",
-      HTTP_ENDPOINT_DOMAIN_NAME: "test-http-model-endpoint",
-      CONTAINER_URI: "awsosml/osml-models:latest",
+      BUILD_FROM_SOURCE: false,
       CONTAINER_BUILD_PATH: "lib/osml-models",
       CONTAINER_BUILD_TARGET: "osml_model",
       CONTAINER_DOCKERFILE: "Dockerfile",
-      BUILD_FROM_SOURCE: false,
+      CONTAINER_URI: "awsosml/osml-models:latest",
+      DEPLOY_HTTP_AIRCRAFT_ENDPOINT: true,
+      DEPLOY_SM_AIRCRAFT_ENDPOINT: true,
+      DEPLOY_SM_CENTERPOINT_ENDPOINT: true,
+      DEPLOY_SM_FLOOD_ENDPOINT: true,
+      HTTP_ENDPOINT_CPU: 4096,
+      HTTP_ENDPOINT_CONTAINER_PORT: 8080,
+      HTTP_ENDPOINT_DOMAIN_NAME: "test-http-model-endpoint",
+      HTTP_ENDPOINT_NAME: "HTTPModelCluster",
+      HTTP_ENDPOINT_HOST_PORT: 8080,
+      HTTP_ENDPOINT_HEALTHCHECK_PATH: "/ping",
+      HTTP_ENDPOINT_MEMORY: 16384,
+      SM_AIRCRAFT_MODEL: "aircraft",
+      SM_CENTER_POINT_MODEL: "centerpoint",
+      SM_CPU_INSTANCE_TYPE: "ml.m5.xlarge",
+      SM_FLOOD_MODEL: "flood",
       ...config
     });
   }
@@ -220,25 +213,18 @@ export interface METestEndpointsProps {
   osmlVpc: OSMLVpc;
 
   /**
-   * (Optional) The IAM role to assume when making HTTP requests to the model endpoint.
-   *
-   * @type {IRole}
-   */
-  httpEndpointRole?: IRole;
-
-  /**
-   * (Optional) The IAM role to assume when deploying the model.
-   *
-   * @type {IRole}
-   */
-  smRole?: IRole;
-
-  /**
    * (Optional) Configuration settings for test model endpoints.
    *
    * @type {METestEndpointsConfig}
    */
   config?: METestEndpointsConfig;
+
+  /**
+   * (Optional) A Role to use for the SMEndpoints.
+   *
+   * @type {IRole}
+   */
+  smRole?: IRole;
 }
 
 /**
@@ -315,15 +301,21 @@ export class METestEndpoints extends Construct {
       ? RemovalPolicy.RETAIN
       : RemovalPolicy.DESTROY;
 
-    // Check if a SageMaker role was provided
-    if (props.smRole != undefined) {
-      // Import custom SageMaker endpoint role
+    // Check if a SageMaker role was provided via config
+    if (this.config.SM_ROLE_NAME != undefined) {
+      this.smRole = Role.fromRoleName(
+        this,
+        "ImportedMESageMakerRole",
+        this.config.SM_ROLE_NAME
+      );
+    } else if (props.smRole) {
+      // Check if a SageMaker role was provided via properties
       this.smRole = props.smRole;
     } else {
       // Create a new role
-      this.smRole = new MESMRole(this, "MRSMRole", {
+      this.smRole = new MESMRole(this, "MESageMakerRole", {
         account: props.account,
-        roleName: this.config.SM_ROLE_NAME
+        roleName: "MESageMakerRole"
       }).role;
     }
 
@@ -353,15 +345,17 @@ export class METestEndpoints extends Construct {
     }
     // EphemeralStorage is supported in most regions
     if (this.config.DEPLOY_HTTP_AIRCRAFT_ENDPOINT && !props.account.isAdc) {
-      // Check if a role was provided for the HTTP endpoint
-      if (props.httpEndpointRole != undefined) {
-        // Import passed custom role for the HTTP endpoint
-        this.httpEndpointRole = props.httpEndpointRole;
+      if (this.config.HTTP_ENDPOINT_ROLE_NAME != undefined) {
+        this.httpEndpointRole = Role.fromRoleName(
+          this,
+          "ImportedMEHTTPEndpointRole",
+          this.config.HTTP_ENDPOINT_ROLE_NAME
+        );
       } else {
         // Create a new role for the HTTP endpoint
-        this.httpEndpointRole = new MEHTTPRole(this, "HTTPEndpointTaskRole", {
+        this.httpEndpointRole = new MEHTTPRole(this, "MEHTTPEndpointRole", {
           account: props.account,
-          roleName: this.config.HTTP_ENDPOINT_ROLE_NAME
+          roleName: "MEHTTPEndpointRole"
         }).role;
       }
 

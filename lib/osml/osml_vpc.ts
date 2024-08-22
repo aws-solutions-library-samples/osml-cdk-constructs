@@ -49,7 +49,7 @@ export class OSMLVpcConfig extends BaseConfig {
   /**
    * Specify role to provide when creating CW flow logs.
    */
-  public IAM_FLOW_LOG_ROLE?: string;
+  public IAM_FLOW_LOG_ROLE_NAME?: string;
 
   /**
    * Constructor for MRDataplaneConfig.
@@ -246,11 +246,11 @@ export class OSMLVpc extends Construct {
     });
 
     // Check if a custom flow log role was provided
-    if (this.config.IAM_FLOW_LOG_ROLE) {
+    if (this.config.IAM_FLOW_LOG_ROLE_NAME) {
       this.flowLogRole = Role.fromRoleName(
         this,
         "ImportFlowLog",
-        this.config.IAM_FLOW_LOG_ROLE
+        this.config.IAM_FLOW_LOG_ROLE_NAME
       );
     }
 

@@ -54,7 +54,6 @@ export class OSMLAuthorizer extends Construct {
    * The Lambda function used as the Authorizer.
    * @type {Function}
    */
-  // eslint-disable-next-line @typescript-eslint/ban-types
   public authorizerFunction: Function;
 
   /**

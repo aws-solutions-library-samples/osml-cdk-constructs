@@ -24,23 +24,25 @@ describe("MRDataplane constructor", () => {
 
       mrDataplane = new MRDataplane(stack, "MRDataplane", {
         account: test_account,
-        taskRole: undefined,
         osmlVpc: osmlVpc,
         config: new MRDataplaneConfig({
-          ENABLE_REGION_STATUS: true
+          ECS_SECURITY_GROUP_ID: "test-security-group-id",
+          MR_ENABLE_REGION_STATUS: true,
+          MR_TERRAIN_URI: "test-terrain-uri"
         })
       });
     });
 
-    it("sets the removal policy correctly based on prodLike flag", () => {
+    it("check if correct resources are created", () => {
       expect(mrDataplane.removalPolicy).toBeDefined();
-    });
-
-    it("check if OSMLTable(s) are created", () => {
       expect(mrDataplane.featureTable).toBeDefined();
       expect(mrDataplane.jobStatusTable).toBeDefined();
       expect(mrDataplane.regionRequestTable).toBeDefined();
       expect(mrDataplane.endpointStatisticsTable).toBeDefined();
+      expect(mrDataplane.imageRequestQueue).toBeDefined();
+      expect(mrDataplane.regionRequestQueue).toBeDefined();
+      expect(mrDataplane.cluster).toBeDefined();
+      expect(mrDataplane.fargateService).toBeDefined();
       expect(mrDataplane.config).toBeDefined();
     });
   });
