@@ -59,9 +59,6 @@ export class MRExecutionRole extends Construct {
   constructor(scope: Construct, id: string, props: MRExecutionRoleProps) {
     super(scope, id);
 
-    const firelensLogGroupName = `/aws/${
-      new MRDataplaneConfig().CW_METRICS_NAMESPACE
-    }/MRFireLens`;
     const serviceLogGroupName = `/aws/${
       new MRDataplaneConfig().CW_METRICS_NAMESPACE
     }/MRService`;
@@ -100,7 +97,6 @@ export class MRExecutionRole extends Construct {
           "logs:CreateLogGroup"
         ],
         resources: [
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${firelensLogGroupName}:*`,
           `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${serviceLogGroupName}:*`
         ]
       })

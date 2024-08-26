@@ -92,7 +92,6 @@ export class MRTaskRole extends Construct {
       this.mrDataplaneConfig.DDB_ENDPOINT_PROCESSING_TABLE;
     const DDB_REGION_REQUEST_TABLE_NAME =
       this.mrDataplaneConfig.DDB_REGION_REQUEST_TABLE;
-    const MR_FIRELENS_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/MRFireLens`;
     const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/MRService`;
     const MR_HTTPENDPOINT_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/HTTPEndpoint`;
 
@@ -240,7 +239,6 @@ export class MRTaskRole extends Construct {
         "logs:CreateLogGroup"
       ],
       resources: [
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_FIRELENS_LOG_GROUP_NAME}:*`,
         `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_SERVICE_LOG_GROUP_NAME}:*`,
         `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_HTTPENDPOINT_LOG_GROUP_NAME}:*`,
         `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/*`
