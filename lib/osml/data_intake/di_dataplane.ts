@@ -333,7 +333,10 @@ export class DIDataplane extends Construct {
       this.lambdaRole = Role.fromRoleName(
         this,
         "ImportedDILambdaRole",
-        this.config.LAMBDA_ROLE_NAME
+        this.config.LAMBDA_ROLE_NAME,
+        {
+          mutable: false
+        }
       );
     } else {
       this.lambdaRole = new DILambdaRole(this, "DILambdaRole", {

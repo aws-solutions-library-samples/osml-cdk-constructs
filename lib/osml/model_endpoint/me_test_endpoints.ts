@@ -306,7 +306,10 @@ export class METestEndpoints extends Construct {
       this.smRole = Role.fromRoleName(
         this,
         "ImportedMESageMakerRole",
-        this.config.SM_ROLE_NAME
+        this.config.SM_ROLE_NAME,
+        {
+          mutable: false
+        }
       );
     } else if (props.smRole) {
       // Check if a SageMaker role was provided via properties

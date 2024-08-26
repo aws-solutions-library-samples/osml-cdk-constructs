@@ -3,7 +3,7 @@
  */
 
 import { EcsIsoServiceAutoscaler } from "@cdklabs/cdk-enterprise-iac";
-import { Duration, region_info, RemovalPolicy } from "aws-cdk-lib";
+import { Duration, RemovalPolicy } from "aws-cdk-lib";
 import {
   BackupPlan,
   BackupPlanRule,
@@ -22,7 +22,7 @@ import {
   Protocol,
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
-import { Effect, IRole, PolicyStatement, Role } from "aws-cdk-lib/aws-iam";
+import { IRole, Role } from "aws-cdk-lib/aws-iam";
 import {
   CfnStream,
   Stream,
@@ -734,28 +734,6 @@ export class MRDataplane extends Construct {
       }
     );
 
-    if (props.account.isAdc) {
-      const partition: string = region_info.Fact.find(
-        props.account.region,
-        region_info.FactName.PARTITION
-      )!;
-
-      // Add permission to access fluent bit container
-      this.taskDefinition.addToExecutionRolePolicy(
-        new PolicyStatement({
-          effect: Effect.ALLOW,
-          actions: [
-            "ecr:BatchCheckLayerAvailability",
-            "ecr:GetDownloadUrlForLayer",
-            "ecr:BatchGetImage"
-          ],
-          resources: [
-            `arn:${partition}:ecr:${props.account.region}:${props.account.id}:repository/aws-for-fluent-bit`
-          ]
-        })
-      );
-    }
-
     // Setup autoscaling management for model runner
     this.buildAutoscaling(props);
 
@@ -983,7 +961,10 @@ export class MRDataplane extends Construct {
       this.taskRole = Role.fromRoleName(
         this,
         "ImportedMRECSTaskRole",
-        this.config.ECS_TASK_ROLE_NAME
+        this.config.ECS_TASK_ROLE_NAME,
+        {
+          mutable: false
+        }
       );
     } else {
       this.taskRole = new MRTaskRole(this, "MRECSTaskRole", {
@@ -993,10 +974,13 @@ export class MRDataplane extends Construct {
     }
 
     if (this.config.ECS_EXECUTION_ROLE_NAME != undefined) {
-      this.taskRole = Role.fromRoleName(
+      this.executionRole = Role.fromRoleName(
         this,
         "ImportedMRECSExecutionRole",
-        this.config.ECS_EXECUTION_ROLE_NAME
+        this.config.ECS_EXECUTION_ROLE_NAME,
+        {
+          mutable: false
+        }
       );
     } else {
       this.executionRole = new MRExecutionRole(this, "MRECSExecutionRole", {
