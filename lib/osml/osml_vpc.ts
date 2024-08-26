@@ -250,7 +250,10 @@ export class OSMLVpc extends Construct {
       this.flowLogRole = Role.fromRoleName(
         this,
         "ImportFlowLog",
-        this.config.IAM_FLOW_LOG_ROLE_NAME
+        this.config.IAM_FLOW_LOG_ROLE_NAME,
+        {
+          mutable: false
+        }
       );
     }
 

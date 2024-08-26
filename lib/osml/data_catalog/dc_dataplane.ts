@@ -496,7 +496,10 @@ export class DCDataplane extends Construct {
       this.lambdaRole = Role.fromRoleName(
         this,
         "ImportedDCLambdaRole",
-        this.config.LAMBDA_ROLE_NAME
+        this.config.LAMBDA_ROLE_NAME,
+        {
+          mutable: false
+        }
       );
     } else {
       this.lambdaRole = new DCLambdaRole(this, "DCLambdaRole", {

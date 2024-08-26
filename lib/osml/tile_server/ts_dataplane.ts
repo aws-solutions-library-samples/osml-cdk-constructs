@@ -797,7 +797,10 @@ export class TSDataplane extends Construct {
       this.taskRole = Role.fromRoleName(
         this,
         "ImportedTSECSTaskRole",
-        this.config.ECS_TASK_ROLE_NAME
+        this.config.ECS_TASK_ROLE_NAME,
+        {
+          mutable: false
+        }
       );
     } else {
       this.taskRole = new TSTaskRole(this, "TSECSTaskRole", {
@@ -810,7 +813,10 @@ export class TSDataplane extends Construct {
       this.lambdaRole = Role.fromRoleName(
         this,
         "ImportedTSLambdaRole",
-        this.config.LAMBDA_ROLE_NAME
+        this.config.LAMBDA_ROLE_NAME,
+        {
+          mutable: false
+        }
       );
     } else {
       this.lambdaRole = new TSLambdaRole(this, "TSLambdaRole", {
@@ -823,7 +829,10 @@ export class TSDataplane extends Construct {
       this.executionRole = Role.fromRoleName(
         this,
         "ImportedTSECSExecutionRole",
-        this.config.ECS_EXECUTION_ROLE_NAME
+        this.config.ECS_EXECUTION_ROLE_NAME,
+        {
+          mutable: false
+        }
       );
     } else {
       this.executionRole = new TSExecutionRole(this, "TSECSExecutionRole", {
