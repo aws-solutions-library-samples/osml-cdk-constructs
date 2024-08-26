@@ -30,6 +30,7 @@ import {
   StreamMode
 } from "aws-cdk-lib/aws-kinesis";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { ITopic, Topic } from "aws-cdk-lib/aws-sns";
 import { SqsSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import { NagSuppressions } from "cdk-nag";
 import { Construct } from "constructs";
@@ -280,10 +281,22 @@ export class MRDataplaneConfig extends BaseConfig {
   public SNS_IMAGE_STATUS_TOPIC: string;
 
   /**
+   * The ARN of the Image Status Topic to be imported
+   * @default undefined
+   */
+  public SNS_IMAGE_STATUS_TOPIC_ARN?: string | undefined;
+
+  /**
    * The name of the SNS topic for region status.
    * @default "RegionStatusTopic"
    */
   public SNS_REGION_STATUS_TOPIC: string;
+
+  /**
+   * The ARN of the Image Region Topic to be imported
+   * @default undefined
+   */
+  public SNS_REGION_STATUS_TOPIC_ARN?: string | undefined;
 
   /**
    * The name of the SQS queue for image requests.
@@ -441,12 +454,12 @@ export class MRDataplane extends Construct {
   /**
    * The SNS topic for image status notifications.
    */
-  public imageStatusTopic: OSMLTopic;
+  public imageStatusTopic: ITopic;
 
   /**
    * The SNS topic for region status notifications.
    */
-  public regionStatusTopic: OSMLTopic;
+  public regionStatusTopic: ITopic;
 
   /**
    * The SQS queue for image processing requests.
@@ -616,42 +629,6 @@ export class MRDataplane extends Construct {
       });
     }
 
-    // If the region status tracking feature is enabled
-    if (this.config.MR_ENABLE_REGION_STATUS) {
-      // Create a topic for region request status notifications
-      this.regionStatusTopic = new OSMLTopic(this, "MRRegionStatusTopic", {
-        topicName: this.config.SNS_REGION_STATUS_TOPIC
-      });
-
-      // Create an SQS queue for region status processing updates
-      this.regionStatusQueue = new OSMLQueue(this, "MRRegionStatusQueue", {
-        queueName: this.config.SQS_REGION_STATUS_QUEUE
-      });
-
-      // Subscribe the region status topic to the queue
-      this.regionStatusTopic.topic.addSubscription(
-        new SqsSubscription(this.regionStatusQueue.queue)
-      );
-    }
-
-    // If the region image tracking feature is enabled
-    if (this.config.MR_ENABLE_IMAGE_STATUS) {
-      // Create a topic for image request status notifications
-      this.imageStatusTopic = new OSMLTopic(this, "MRImageStatusTopic", {
-        topicName: this.config.SNS_IMAGE_STATUS_TOPIC
-      });
-
-      // Create an SQS queue for image processing status updates
-      this.imageStatusQueue = new OSMLQueue(this, "MRImageStatusQueue", {
-        queueName: this.config.SQS_IMAGE_STATUS_QUEUE
-      });
-
-      // Subscribe the image status topic to the queue
-      this.imageStatusTopic.topic.addSubscription(
-        new SqsSubscription(this.imageStatusQueue.queue)
-      );
-    }
-
     // Create a SQS queue for the image processing jobs
     this.imageRequestQueue = new OSMLQueue(this, "MRImageRequestQueue", {
       queueName: this.config.SQS_IMAGE_REQUEST_QUEUE
@@ -777,13 +754,13 @@ export class MRDataplane extends Construct {
 
     if (this.imageStatusTopic != undefined) {
       containerEnv = Object.assign(containerEnv, {
-        IMAGE_STATUS_TOPIC: this.imageStatusTopic.topic.topicArn
+        IMAGE_STATUS_TOPIC: this.imageStatusTopic.topicArn
       });
     }
 
     if (this.regionStatusTopic != undefined) {
       containerEnv = Object.assign(containerEnv, {
-        REGION_STATUS_TOPIC: this.regionStatusTopic.topic.topicArn
+        REGION_STATUS_TOPIC: this.regionStatusTopic.topicArn
       });
     }
 
@@ -987,6 +964,58 @@ export class MRDataplane extends Construct {
         account: props.account,
         roleName: "MRECSExecutionRole"
       }).role;
+    }
+
+    // If the region status tracking feature is enabled
+    if (this.config.MR_ENABLE_REGION_STATUS) {
+      if (this.config.SNS_REGION_STATUS_TOPIC_ARN != undefined) {
+        this.regionStatusTopic = Topic.fromTopicArn(
+          this,
+          "ImportedMRRegionStatusTopic",
+          this.config.SNS_REGION_STATUS_TOPIC_ARN
+        );
+      } else {
+        // Create a topic for region request status notifications
+        this.regionStatusTopic = new OSMLTopic(this, "MRRegionStatusTopic", {
+          topicName: this.config.SNS_REGION_STATUS_TOPIC
+        }).topic;
+      }
+
+      // Create an SQS queue for region status processing updates
+      this.regionStatusQueue = new OSMLQueue(this, "MRRegionStatusQueue", {
+        queueName: this.config.SQS_REGION_STATUS_QUEUE
+      });
+
+      // Subscribe the region status topic to the queue
+      this.regionStatusTopic.addSubscription(
+        new SqsSubscription(this.regionStatusQueue.queue)
+      );
+    }
+
+    // If the image tracking feature is enabled
+    if (this.config.MR_ENABLE_IMAGE_STATUS) {
+      if (this.config.SNS_IMAGE_STATUS_TOPIC_ARN != undefined) {
+        this.imageStatusTopic = Topic.fromTopicArn(
+          this,
+          "ImportedMRImageStatusTopic",
+          this.config.SNS_IMAGE_STATUS_TOPIC_ARN
+        );
+      } else {
+        // Create a topic for image request status notifications
+        this.imageStatusTopic = new OSMLTopic(this, "MRImageStatusTopic", {
+          topicName: this.config.SNS_IMAGE_STATUS_TOPIC
+        }).topic;
+      }
+
+      // Create an SQS queue for image processing status updates
+      this.imageStatusQueue = new OSMLQueue(this, "MRImageStatusQueue", {
+        queueName: this.config.SQS_IMAGE_STATUS_QUEUE
+      });
+
+      // Subscribe the image status topic to the queue
+      this.imageStatusTopic.addSubscription(
+        new SqsSubscription(this.imageStatusQueue.queue)
+      );
     }
   }
 }
