@@ -15,7 +15,6 @@ import {
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
-import { MRDataplaneConfig } from "../mr_dataplane";
 
 /**
  * Defines the properties required for creating an `MRExecutionRole`.
@@ -59,10 +58,6 @@ export class MRExecutionRole extends Construct {
   constructor(scope: Construct, id: string, props: MRExecutionRoleProps) {
     super(scope, id);
 
-    const serviceLogGroupName = `/aws/${
-      new MRDataplaneConfig().CW_METRICS_NAMESPACE
-    }/MRService`;
-
     this.partition = region_info.Fact.find(
       props.account.region,
       region_info.FactName.PARTITION
@@ -97,7 +92,7 @@ export class MRExecutionRole extends Construct {
           "logs:CreateLogGroup"
         ],
         resources: [
-          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${serviceLogGroupName}:*`
+          `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:*`
         ]
       })
     );

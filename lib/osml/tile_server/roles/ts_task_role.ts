@@ -16,7 +16,6 @@ import {
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
-import { TSDataplaneConfig } from "../ts_dataplane";
 
 /**
  * Represents the properties required to define a model runner ECS task role.
@@ -54,11 +53,6 @@ export class TSTaskRole extends Construct {
   public partition: string;
 
   /**
-   * The TSDataplane Configuration class to be used for TSLambdaRole.
-   */
-  public tsDataplaneConfig: TSDataplaneConfig = new TSDataplaneConfig();
-
-  /**
    * Creates an TSTaskRole construct.
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
@@ -67,10 +61,6 @@ export class TSTaskRole extends Construct {
    */
   constructor(scope: Construct, id: string, props: TSTaskRoleProps) {
     super(scope, id);
-
-    // Defining constants for better readability
-    const DDB_JOB_TABLE_NAME = this.tsDataplaneConfig.DDB_JOB_TABLE;
-    const SQS_JOB_QUEUE_NAME = this.tsDataplaneConfig.SQS_JOB_QUEUE;
 
     // Determine the AWS partition based on the provided AWS region
     this.partition = region_info.Fact.find(
@@ -105,7 +95,7 @@ export class TSTaskRole extends Construct {
         "dynamodb:DescribeTable"
       ],
       resources: [
-        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_JOB_TABLE_NAME}`
+        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:*`
       ]
     });
 
@@ -120,8 +110,7 @@ export class TSTaskRole extends Construct {
         "sqs:ListQueues"
       ],
       resources: [
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_JOB_QUEUE_NAME}`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_JOB_QUEUE_NAME}DLQ`
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:*`
       ]
     });
 

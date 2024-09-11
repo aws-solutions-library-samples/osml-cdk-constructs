@@ -12,7 +12,6 @@ import {
 } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
-import { MRDataplaneConfig } from "../../model_runner/mr_dataplane";
 import { OSMLAccount } from "../../osml_account";
 
 /**
@@ -42,11 +41,6 @@ export class MESMRole extends Construct {
   public partition: string;
 
   /**
-   * The Model Runner Dataplane Configuration values to be used for this MRTaskRole
-   */
-  public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
-
-  /**
    * Creates a SageMaker execution role for hosting CV models at a SageMaker endpoint.
    * @constructor
    * @param {Construct} scope - The scope/stack in which to define this construct.
@@ -55,10 +49,6 @@ export class MESMRole extends Construct {
    */
   constructor(scope: Construct, id: string, props: MESMRoleProps) {
     super(scope, id);
-
-    // Defining constants for better readability
-    const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/MRService`;
-    const MR_HTTPENDPOINT_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/HTTPEndpoint`;
 
     // Determine the AWS partition based on the provided AWS region
     this.partition = region_info.Fact.find(
@@ -133,25 +123,36 @@ export class MESMRole extends Construct {
     const cwLogsPolicyStatement = new PolicyStatement({
       effect: Effect.ALLOW,
       actions: [
-        "logs:PutLogEvents",
-        "logs:GetLogEvents",
-        "logs:DescribeLogStreams",
-        "logs:DescribeLogGroups",
+        "logs:CreateLogDelivery",
+        "logs:CreateLogGroup",
         "logs:CreateLogStream",
-        "logs:CreateLogGroup"
+        "logs:DeleteLogDelivery",
+        "logs:Describe*",
+        "logs:GetLogEvents",
+        "logs:GetLogDelivery",
+        "logs:ListLogDeliveries",
+        "logs:PutLogEvents",
+        "logs:PutResourcePolicy",
+        "logs:UpdateLogDelivery"
       ],
       resources: [
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_HTTPENDPOINT_LOG_GROUP_NAME}:*`,
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_SERVICE_LOG_GROUP_NAME}:*`,
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/*`
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:*`
       ]
+    });
+
+    // Add permissions to assume roles
+    const stsPolicyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["sts:AssumeRole"],
+      resources: ["*"]
     });
 
     smExecutionPolicy.addStatements(
       cwLogsPolicyStatement,
       ecrAuthPolicyStatement,
       ecrPolicyStatement,
-      ec2NetworkPolicyStatement
+      ec2NetworkPolicyStatement,
+      stsPolicyStatement
     );
 
     role.addManagedPolicy(smExecutionPolicy);

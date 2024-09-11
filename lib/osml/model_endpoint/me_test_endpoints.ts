@@ -170,7 +170,7 @@ export class METestEndpointsConfig extends BaseConfig {
       BUILD_FROM_SOURCE: false,
       CONTAINER_BUILD_PATH: "lib/osml-models",
       CONTAINER_BUILD_TARGET: "osml_model",
-      CONTAINER_DOCKERFILE: "Dockerfile",
+      CONTAINER_DOCKERFILE: "docker/Dockerfile",
       CONTAINER_URI: "awsosml/osml-models:latest",
       DEPLOY_HTTP_AIRCRAFT_ENDPOINT: true,
       DEPLOY_SM_AIRCRAFT_ENDPOINT: true,
