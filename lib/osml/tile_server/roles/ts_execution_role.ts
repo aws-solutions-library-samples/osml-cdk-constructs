@@ -14,7 +14,6 @@ import {
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
-import { TSDataplaneConfig } from "../ts_dataplane";
 
 /**
  * Represents the properties required to define a Tile Server ECS execution role.
@@ -52,11 +51,6 @@ export class TSExecutionRole extends Construct {
   public partition: string;
 
   /**
-   * The Tile Server Container Configuration values to be used for this TSExecutionRole
-   */
-  public tsDataplaneConfig: TSDataplaneConfig = new TSDataplaneConfig();
-
-  /**
    * Creates an TSExecutionRole construct.
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
@@ -71,9 +65,6 @@ export class TSExecutionRole extends Construct {
       props.account.region,
       region_info.FactName.PARTITION
     )!;
-
-    // Defining constants for better readability
-    const TS_LOG_GROUP_NAME = `/aws/${this.tsDataplaneConfig.ECS_METRICS_NAMESPACE}/${this.tsDataplaneConfig.CW_LOGGROUP_NAME}`;
 
     // Create an AWS IAM role for the Tile Server Fargate ECS execution role
     const tsExecutionRole = new Role(this, "TSExecutionRole", {
@@ -122,7 +113,7 @@ export class TSExecutionRole extends Construct {
         "logs:CreateLogGroup"
       ],
       resources: [
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${TS_LOG_GROUP_NAME}*`
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:*`
       ]
     });
 

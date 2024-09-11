@@ -14,7 +14,6 @@ import {
 import { Construct } from "constructs";
 
 import { OSMLAccount } from "../../osml_account";
-import { MRDataplaneConfig } from "../mr_dataplane";
 
 /**
  * Represents the properties required to define a model runner ECS task role.
@@ -52,11 +51,6 @@ export class MRTaskRole extends Construct {
   public partition: string;
 
   /**
-   * The Model Runner Dataplane Configuration values to be used for this MRTaskRole
-   */
-  public mrDataplaneConfig: MRDataplaneConfig = new MRDataplaneConfig();
-
-  /**
    * Creates an MRTaskRole construct.
    * @param {Construct} scope - The scope/stack in which to define this construct.
    * @param {string} id - The id of this construct within the current scope.
@@ -71,29 +65,6 @@ export class MRTaskRole extends Construct {
       props.account.region,
       region_info.FactName.PARTITION
     )!;
-
-    // Defining constants for better readability
-    const SQS_IMAGE_REQUEST_QUEUE_NAME =
-      this.mrDataplaneConfig.SQS_IMAGE_REQUEST_QUEUE;
-    const SQS_REGION_REQUEST_QUEUE_NAME =
-      this.mrDataplaneConfig.SQS_REGION_REQUEST_QUEUE;
-    const SQS_IMAGE_STATUS_QUEUE_NAME =
-      this.mrDataplaneConfig.SQS_IMAGE_STATUS_QUEUE;
-    const SQS_REGION_STATUS_QUEUE_NAME =
-      this.mrDataplaneConfig.SQS_REGION_STATUS_QUEUE;
-    const SNS_TOPIC_IMAGE_NAME = this.mrDataplaneConfig.SNS_IMAGE_STATUS_TOPIC;
-    const SNS_TOPIC_REGION_NAME =
-      this.mrDataplaneConfig.SNS_REGION_STATUS_TOPIC;
-    const ECS_CLUSTER_NAME = this.mrDataplaneConfig.ECS_CLUSTER_NAME;
-    const DDB_JOB_STATUS_TABLE_NAME =
-      this.mrDataplaneConfig.DDB_JOB_STATUS_TABLE;
-    const DDB_FEATURES_TABLE_NAME = this.mrDataplaneConfig.DDB_FEATURES_TABLE;
-    const DDB_ENDPOINT_PROCESSING_TABLE_NAME =
-      this.mrDataplaneConfig.DDB_ENDPOINT_PROCESSING_TABLE;
-    const DDB_REGION_REQUEST_TABLE_NAME =
-      this.mrDataplaneConfig.DDB_REGION_REQUEST_TABLE;
-    const MR_SERVICE_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/MRService`;
-    const MR_HTTPENDPOINT_LOG_GROUP_NAME = `/aws/${this.mrDataplaneConfig.CW_METRICS_NAMESPACE}/HTTPEndpoint`;
 
     // Create an AWS IAM role for the Model Runner Fargate ECS task
     const mrTaskRole = new Role(this, "MRTaskRole", {
@@ -158,14 +129,7 @@ export class MRTaskRole extends Construct {
         "sqs:GetQueueAttributes"
       ],
       resources: [
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_IMAGE_REQUEST_QUEUE_NAME}`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_REGION_REQUEST_QUEUE_NAME}`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_IMAGE_STATUS_QUEUE_NAME}`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_REGION_STATUS_QUEUE_NAME}`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_IMAGE_REQUEST_QUEUE_NAME}DLQ`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_REGION_REQUEST_QUEUE_NAME}DLQ`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_IMAGE_STATUS_QUEUE_NAME}DLQ`,
-        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:${SQS_REGION_STATUS_QUEUE_NAME}DLQ`
+        `arn:${this.partition}:sqs:${props.account.region}:${props.account.id}:*`
       ]
     });
 
@@ -189,8 +153,7 @@ export class MRTaskRole extends Construct {
       effect: Effect.ALLOW,
       actions: ["sns:Publish"],
       resources: [
-        `arn:${this.partition}:sns:${props.account.region}:${props.account.id}:${SNS_TOPIC_IMAGE_NAME}`,
-        `arn:${this.partition}:sns:${props.account.region}:${props.account.id}:${SNS_TOPIC_REGION_NAME}`
+        `arn:${this.partition}:sns:${props.account.region}:${props.account.id}:*`
       ]
     });
 
@@ -210,10 +173,7 @@ export class MRTaskRole extends Construct {
         "dynamodb:UpdateTable"
       ],
       resources: [
-        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_JOB_STATUS_TABLE_NAME}`,
-        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_FEATURES_TABLE_NAME}`,
-        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_ENDPOINT_PROCESSING_TABLE_NAME}`,
-        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:table/${DDB_REGION_REQUEST_TABLE_NAME}`
+        `arn:${this.partition}:dynamodb:${props.account.region}:${props.account.id}:*`
       ]
     });
 
@@ -222,8 +182,7 @@ export class MRTaskRole extends Construct {
       effect: Effect.ALLOW,
       actions: ["ecs:DescribeServices", "ecs:UpdateService"],
       resources: [
-        `arn:${this.partition}:ecs:${props.account.region}:${props.account.id}:cluster/${ECS_CLUSTER_NAME}`,
-        `arn:${this.partition}:ecs:${props.account.region}:${props.account.id}:service/${ECS_CLUSTER_NAME}/*`
+        `arn:${this.partition}:ecs:${props.account.region}:${props.account.id}:*`
       ]
     });
 
@@ -239,9 +198,7 @@ export class MRTaskRole extends Construct {
         "logs:CreateLogGroup"
       ],
       resources: [
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_SERVICE_LOG_GROUP_NAME}:*`,
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:${MR_HTTPENDPOINT_LOG_GROUP_NAME}:*`,
-        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:/aws/sagemaker/Endpoints/*`
+        `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:*`
       ]
     });
 
@@ -258,7 +215,6 @@ export class MRTaskRole extends Construct {
       actions: [
         "sagemaker:ListEndpointConfigs",
         "sagemaker:DescribeEndpointConfig",
-        "sagemaker:UpdateEndpoint",
         "sagemaker:InvokeEndpoint",
         "sagemaker:DescribeEndpoint",
         "sagemaker:ListEndpoints",
@@ -269,13 +225,7 @@ export class MRTaskRole extends Construct {
         "sagemaker:DescribeModelPackageGroup",
         "sagemaker:BatchDescribeModelPackage",
         "sagemaker:ListModelMetadata",
-        "sagemaker:DeleteEndpoint",
-        "sagemaker:CreateModel",
-        "sagemaker:CreateEndpoint",
-        "sagemaker:CreateEndpointConfig",
         "sagemaker:BatchGetRecord",
-        "sagemaker:DeleteEndpointConfig",
-        "sagemaker:UpdateEndpoint",
         "sagemaker:BatchGetMetrics",
         "sagemaker:BatchPutMetrics"
       ],

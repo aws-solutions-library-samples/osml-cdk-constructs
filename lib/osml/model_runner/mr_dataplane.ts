@@ -156,13 +156,13 @@ export class MRDataplaneConfig extends BaseConfig {
 
   /**
    * The CPU configuration for MR containers.
-   * @default 7168
+   * @default 8192
    */
   public ECS_CONTAINER_CPU: number;
 
   /**
    * The memory configuration for MR containers.
-   * @default 10240
+   * @default 16384
    */
   public ECS_CONTAINER_MEMORY: number;
 
@@ -345,8 +345,8 @@ export class MRDataplaneConfig extends BaseConfig {
       ECS_AUTOSCALING_TASK_IN_INCREMENT: 8,
       ECS_AUTOSCALING_TASK_OUT_COOLDOWN: 3,
       ECS_AUTOSCALING_TASK_OUT_INCREMENT: 8,
-      ECS_CONTAINER_CPU: 7168,
-      ECS_CONTAINER_MEMORY: 10240,
+      ECS_CONTAINER_CPU: 8192,
+      ECS_CONTAINER_MEMORY: 16384,
       ECS_CONTAINER_NAME: "MRContainer",
       ECS_CLUSTER_NAME: "MRCluster",
       ECS_DEFAULT_DESIRE_COUNT: 1,
