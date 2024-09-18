@@ -221,7 +221,7 @@ export class MRMonitoring extends Construct {
           "fields job_id as Job, request.image_url as Image, request.model_name as Model, status as Status, ",
           '  concat(request.region_success, "/", request.region_count) as Regions, request.region_error as Failures,',
           "  fromMillis(request.start_time) as Start, fromMillis(request.end_time) as End",
-          'filter message = "StatusMonitorUpdate" and status in ["SUCCESS", "FAILED"]',
+          'filter message = "ImageStatusMonitorUpdate" and status in ["SUCCESS", "FAILED"]',
           "sort @timestamp desc",
           "limit 50"
         ]
