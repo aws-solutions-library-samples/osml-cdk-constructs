@@ -92,6 +92,7 @@ export class TSTaskRole extends Construct {
         "dynamodb:*GetItem",
         "dynamodb:*PutItem",
         "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
         "dynamodb:DescribeTable"
       ],
       resources: [
