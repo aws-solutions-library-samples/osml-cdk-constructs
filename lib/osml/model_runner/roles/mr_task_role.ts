@@ -195,7 +195,13 @@ export class MRTaskRole extends Construct {
         "logs:DescribeLogStreams",
         "logs:DescribeLogGroups",
         "logs:CreateLogStream",
-        "logs:CreateLogGroup"
+        "logs:CreateLogGroup",
+        "logs:StartQuery",
+        "logs:StopQuery",
+        "logs:DescribeQueries",
+        "logs:GetLogGroupFields",
+        "logs:GetLogRecord",
+        "logs:GetQueryResults"
       ],
       resources: [
         `arn:${this.partition}:logs:${props.account.region}:${props.account.id}:log-group:*`
