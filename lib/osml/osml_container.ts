@@ -20,11 +20,6 @@ import { RegionalConfig, RegionConfig } from "./utils/regional_config";
  */
 export class OSMLContainerConfig extends BaseConfig {
   /**
-   * The default container image tag.
-   */
-  public CONTAINER_TAG?: string;
-
-  /**
    * The default container image.
    */
   public CONTAINER_URI?: string;
@@ -50,8 +45,6 @@ export class OSMLContainerConfig extends BaseConfig {
    */
   constructor(config: ConfigType = {}) {
     super({
-      CONTAINER_DOCKERFILE: "Dockerfile",
-      CONTAINER_TAG: "latest",
       ...config
     });
   }
@@ -233,25 +226,45 @@ export class OSMLContainer extends Construct {
     }
 
     // Determine the tag to use for the container image, defaulting to "latest" if not provided.
-    const tag = this.config.CONTAINER_TAG ?? "latest";
+    const tag = "latest";
 
     // Check if the CONTAINER_URI indicates an Amazon ECR repository by checking the ARN format.
-    if (this.config.CONTAINER_URI.startsWith("arn:aws:ecr:")) {
+    const ecrArnRegex =
+      /^arn:([^:]+):ecr:([^:]+):[^:]+:repository\/[a-zA-Z0-9-._]+(:[a-zA-Z0-9-._]+)?$/;
+
+    if (ecrArnRegex.test(this.config.CONTAINER_URI)) {
+      let repositoryArn = this.config.CONTAINER_URI;
+      let extractedTag = tag;
+
+      // Extract tag if present
+      const tagSeparatorIndex = this.config.CONTAINER_URI.lastIndexOf(":");
+      if (
+        tagSeparatorIndex > this.config.CONTAINER_URI.indexOf("repository/")
+      ) {
+        repositoryArn = this.config.CONTAINER_URI.substring(
+          0,
+          tagSeparatorIndex
+        );
+        extractedTag = this.config.CONTAINER_URI.substring(
+          tagSeparatorIndex + 1
+        );
+      }
+
       // Import the existing ECR repository using the ARN provided in the CONTAINER_URI.
       this.repository = Repository.fromRepositoryArn(
         this,
         "ImportedECRRepo",
-        this.config.CONTAINER_URI
+        repositoryArn
       );
 
       // Create a ContainerImage object from the imported ECR repository and specified tag.
       this.containerImage = ContainerImage.fromEcrRepository(
         this.repository,
-        tag
+        extractedTag
       );
 
       // Set the containerUri to the full URI of the container image in ECR.
-      this.containerUri = this.repository.repositoryUriForTag(tag);
+      this.containerUri = this.repository.repositoryUriForTag(extractedTag);
 
       if (this.buildDockerImageCode) {
         // Create a DockerImageCode object for Lambda using the imported ECR repository.

@@ -48,9 +48,9 @@ export class DIDataplaneConfig extends BaseConfig {
 
   /**
    * The container image to use for the Data Intake lambda.
-   * @default "awsosml/osml-tile-server:latest"
+   * @default "awsosml/osml-data-intake-intake:latest"
    */
-  public CONTAINER_SOURCE_URI: string;
+  public CONTAINER_URI: string;
 
   /**
    * The name of the Lambda for the Data Intake.
@@ -116,7 +116,7 @@ export class DIDataplaneConfig extends BaseConfig {
       CONTAINER_BUILD_PATH: "lib/osml-data-intake",
       CONTAINER_BUILD_TARGET: "intake",
       CONTAINER_DOCKERFILE: "docker/Dockerfile.intake",
-      CONTAINER_SOURCE_URI: "awsosml/osml-data-intake-intake:latest",
+      CONTAINER_URI: "awsosml/osml-data-intake-intake:latest",
       LAMBDA_FUNCTION_NAME: "DILambda",
       LAMBDA_MEMORY_SIZE: 1024,
       LAMBDA_STORAGE_SIZE: 10,
@@ -246,7 +246,7 @@ export class DIDataplane extends Construct {
       buildDockerImageCode: true,
       buildFromSource: this.config.BUILD_FROM_SOURCE,
       config: {
-        CONTAINER_URI: this.config.CONTAINER_SOURCE_URI,
+        CONTAINER_URI: this.config.CONTAINER_URI,
         CONTAINER_BUILD_PATH: this.config.CONTAINER_BUILD_PATH,
         CONTAINER_BUILD_TARGET: this.config.CONTAINER_BUILD_TARGET,
         CONTAINER_DOCKERFILE: this.config.CONTAINER_DOCKERFILE
