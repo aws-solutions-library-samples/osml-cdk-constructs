@@ -268,7 +268,9 @@ export class OSMLContainer extends Construct {
 
       if (this.buildDockerImageCode) {
         // Create a DockerImageCode object for Lambda using the imported ECR repository.
-        this.dockerImageCode = DockerImageCode.fromEcr(this.repository);
+        this.dockerImageCode = DockerImageCode.fromEcr(this.repository, {
+          tagOrDigest: extractedTag
+        });
       }
     } else {
       // If the CONTAINER_URI does not indicate an ECR repository, assume it is a public or private Docker registry.
