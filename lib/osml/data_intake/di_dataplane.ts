@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
+ * Copyright 2023-2025 Amazon.com, Inc. or its affiliates.
  */
 
 import { Duration, RemovalPolicy, Size } from "aws-cdk-lib";
@@ -123,7 +123,7 @@ export class DIDataplaneConfig extends BaseConfig {
       LAMBDA_TIMEOUT: 900,
       S3_OUTPUT_BUCKET_NAME: "di-output-bucket",
       SNS_INPUT_TOPIC_NAME: "osml-data-intake",
-      SNS_STAC_TOPIC_NAME: "osml-stac-ingest",
+      SNS_STAC_TOPIC_NAME: "osml-di-ingest",
       ...config
     });
   }
