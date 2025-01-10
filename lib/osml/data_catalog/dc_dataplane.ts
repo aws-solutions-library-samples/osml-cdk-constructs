@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Amazon.com, Inc. or its affiliates.
+ * Copyright 2024-2025 Amazon.com, Inc. or its affiliates.
  */
 
 import { Duration, RemovalPolicy, Size } from "aws-cdk-lib";
@@ -200,7 +200,7 @@ export class DCDataplaneConfig extends BaseConfig {
       LAMBDA_STORAGE_SIZE: 10,
       LAMBDA_TIMEOUT: 300,
       OS_DATA_NODES: 4,
-      SNS_INGEST_TOPIC_NAME: "osml-stac-ingest",
+      SNS_INGEST_TOPIC_NAME: "osml-dc-ingest",
       STAC_CONTAINER_DOCKERFILE: "docker/Dockerfile.stac",
       STAC_CONTAINER_BUILD_TARGET: "stac",
       STAC_CONTAINER_URI: "awsosml/osml-data-intake-stac:latest",
