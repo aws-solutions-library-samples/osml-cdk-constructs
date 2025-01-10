@@ -17,7 +17,13 @@ jobs:
         run: |
           npm ci
           npm run build --if-present
-      - uses: pre-commit/action@v3.0.0
+      - name: Install Pre-commit
+        run: |
+          pip install pre-commit
+      - name: Run Pre-commit for Changed Files
+        run: |
+          git fetch origin main
+          git diff --name-only origin/main...HEAD | xargs pre-commit run --files
       - uses: ArtiomTr/jest-coverage-report-action@v2.3.0
         with:
           annotations: failed-tests
