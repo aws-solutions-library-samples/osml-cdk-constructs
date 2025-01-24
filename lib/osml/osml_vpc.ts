@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
+ * Copyright 2023-2025 Amazon.com, Inc. or its affiliates.
  */
 
 import { RemovalPolicy } from "aws-cdk-lib";
@@ -52,6 +52,11 @@ export class OSMLVpcConfig extends BaseConfig {
   public IAM_FLOW_LOG_ROLE_NAME?: string;
 
   /**
+   * Specify whether to disable creating VPC endpoints on the VPC.
+   */
+  public ENABLE_VPC_ENDPOINTS?: boolean;
+
+  /**
    * Constructor for MRDataplaneConfig.
    * @param config - The configuration object for the VPC.
    */
@@ -60,6 +65,7 @@ export class OSMLVpcConfig extends BaseConfig {
     super({
       // Set default values here
       VPC_NAME: "OSML-VPC",
+      ENABLE_VPC_ENDPOINTS: true,
       ...config
     });
   }
@@ -174,7 +180,9 @@ export class OSMLVpc extends Construct {
       this.vpc = vpc;
       this.vpcDefaultSecurityGroup = vpc.vpcDefaultSecurityGroup;
 
-      this.setupVpcEndpoints(props);
+      if (this.config.ENABLE_VPC_ENDPOINTS) {
+        this.setupVpcEndpoints(props);
+      }
     }
 
     this.selectSubnets();

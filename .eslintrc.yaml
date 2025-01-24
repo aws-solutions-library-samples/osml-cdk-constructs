@@ -30,6 +30,10 @@ rules:
   import/order: off
   simple-import-sort/imports: error
   require-await: off
+  "@typescript-eslint/no-unused-expressions":
+    - error
+    - allowShortCircuit: true
+    - allowTernary: true
   "@typescript-eslint/no-unsafe-assignment": warn
   "@typescript-eslint/interface-name-prefix": off
   "@typescript-eslint/no-empty-interface": off
