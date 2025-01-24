@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
+ * Copyright 2023-2025 Amazon.com, Inc. or its affiliates.
  */
 
 import { Duration, RemovalPolicy } from "aws-cdk-lib";
@@ -22,6 +22,7 @@ import {
   Cluster,
   Compatibility,
   ContainerDefinition,
+  ContainerInsights,
   Protocol as ecs_protocol,
   TaskDefinition
 } from "aws-cdk-lib/aws-ecs";
@@ -34,10 +35,11 @@ import {
   ThroughputMode
 } from "aws-cdk-lib/aws-efs";
 import {
+  ApplicationLoadBalancer,
   NetworkLoadBalancer,
   Protocol as elbv2_protocol
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
-import { AlbTarget } from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
+import { IpTarget } from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
 import {
   AnyPrincipal,
   IRole,
@@ -178,12 +180,6 @@ export class TSDataplaneConfig extends BaseConfig {
    * @default undefined
    */
   public ECS_EXECUTION_ROLE_NAME?: string | undefined;
-
-  /**
-   * The namespace for metrics.
-   * @default "OSML"
-   */
-  public ECS_METRICS_NAMESPACE: string;
 
   /**
    * The port to use in Network Load Balancer.
@@ -391,6 +387,11 @@ export class TSDataplane extends Construct {
   public containerDefinition: ContainerDefinition;
 
   /**
+   * The application load balancer to be used for the FargateService.
+   */
+  public alb: ApplicationLoadBalancer;
+
+  /**
    * The Fargate service for the TSDataplane container.
    */
   public fargateService: ApplicationLoadBalancedFargateService;
@@ -542,7 +543,9 @@ export class TSDataplane extends Construct {
     this.cluster = new Cluster(this, "TSCluster", {
       clusterName: this.config.ECS_CLUSTER_NAME,
       vpc: props.osmlVpc.vpc,
-      containerInsights: props.account.prodLike
+      containerInsightsV2: props.account.prodLike
+        ? ContainerInsights.ENABLED
+        : ContainerInsights.DISABLED
     });
 
     // Define our ECS task
@@ -608,6 +611,16 @@ export class TSDataplane extends Construct {
       protocol: ecs_protocol.TCP
     });
 
+    // Create the ALB
+    this.alb = new ApplicationLoadBalancer(
+      this,
+      "TSServiceApplicationLoadBalancer",
+      {
+        vpc: props.osmlVpc.vpc,
+        vpcSubnets: props.osmlVpc.selectedSubnets
+      }
+    );
+
     // Set up Fargate service
     this.fargateService = new ApplicationLoadBalancedFargateService(
       this,
@@ -619,10 +632,12 @@ export class TSDataplane extends Construct {
         securityGroups: this.securityGroup ? [this.securityGroup] : [],
         taskSubnets: props.osmlVpc.selectedSubnets,
         assignPublicIp: false,
-        publicLoadBalancer: false
+        publicLoadBalancer: false,
+        loadBalancer: this.alb
       }
     );
     this.fargateService.node.addDependency(this.tsContainer);
+    this.fargateService.node.addDependency(this.alb);
 
     // Allow access to EFS from Fargate ECS
     this.fileSystem.grantRootAccess(
@@ -693,12 +708,9 @@ export class TSDataplane extends Construct {
 
       nlbListener.addTargets("TSNlbTargetGroup", {
         targets: [
-          new AlbTarget(
-            this.fargateService.loadBalancer,
-            this.config.ECS_NETWORK_LOAD_BALANCER_PORT
-          )
+          new IpTarget(this.fargateService.loadBalancer.loadBalancerDnsName)
         ],
-        port: this.config.ECS_NETWORK_LOAD_BALANCER_PORT
+        port: this.config.ECS_NETWORK_LOAD_BALANCER_PORT // Target port
       });
 
       const vpcLink = new VpcLink(this, "TSVpcLink", {
