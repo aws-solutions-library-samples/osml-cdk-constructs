@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
+ * Copyright 2023-2025 Amazon.com, Inc. or its affiliates.
  */
 
 import { Duration, RemovalPolicy } from "aws-cdk-lib";
@@ -8,6 +8,7 @@ import {
   Cluster,
   Compatibility,
   ContainerImage,
+  ContainerInsights,
   LogDriver,
   Protocol,
   TaskDefinition
@@ -168,7 +169,9 @@ export class MEHTTPEndpoint extends Construct {
     const httpEndpointCluster = new Cluster(this, props.clusterName, {
       clusterName: props.clusterName,
       vpc: props.osmlVpc.vpc,
-      containerInsights: props.account.prodLike
+      containerInsightsV2: props.account.prodLike
+        ? ContainerInsights.ENABLED
+        : ContainerInsights.DISABLED
     });
 
     // Determine the removal policy based on the environment
