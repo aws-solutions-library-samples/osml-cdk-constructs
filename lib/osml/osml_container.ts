@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
+ * Copyright 2023-2025 Amazon.com, Inc. or its affiliates.
  */
 
 import { RemovalPolicy, SymlinkFollowMode } from "aws-cdk-lib";
@@ -21,6 +21,7 @@ import { RegionalConfig, RegionConfig } from "./utils/regional_config";
 export class OSMLContainerConfig extends BaseConfig {
   /**
    * The default container image.
+   * Can only be specified if REPOSITORY_ARN is not set.
    */
   public CONTAINER_URI?: string;
 
@@ -40,11 +41,24 @@ export class OSMLContainerConfig extends BaseConfig {
   public CONTAINER_DOCKERFILE?: string;
 
   /**
+   * (Optional) ARN of an existing container to be used.
+   * Can only be specified if CONTAINER_URI is not set.
+   */
+  public ECR_REPOSITORY_ARN?: string;
+
+  /**
+   * (Optional) ARN of an existing container to be used.
+   * Only used if REPOSITORY_ARN is set and will default to "latest".
+   */
+  public ECR_REPOSITORY_TAG?: string;
+
+  /**
    * Creates an instance of OSMLContainerConfig.
    * @param config - The configuration object for OSMLContainer.
    */
   constructor(config: ConfigType = {}) {
     super({
+      REPOSITORY_TAG: "latest",
       ...config
     });
   }
@@ -212,95 +226,158 @@ export class OSMLContainer extends Construct {
   }
 
   /**
-   * Builds the container from an existing repository using the specified repository URI in the config.
-   * Validates the configuration to ensure that the necessary parameters are provided.
+   * Builds the container from an existing repository using the specified repository URI or ARN in the config.
+   * Ensures that only one of `CONTAINER_URI` or `CONTAINER_ARN` is provided.
    *
-   * @throws {Error} If CONTAINER_URI is not set in the configuration.
+   * @throws {Error} If both `CONTAINER_URI` and `CONTAINER_ARN` are provided or neither is set.
    */
   private buildFromRepository(): void {
-    // Validate that the CONTAINER_URI is provided in the configuration.
-    if (!this.config.CONTAINER_URI) {
-      throw new Error(
-        "CONTAINER_URI must be set in the configuration to use a pre-built container image."
-      );
-    }
+    const { CONTAINER_URI, ECR_REPOSITORY_ARN } = this.config;
 
-    // Determine the tag to use for the container image, defaulting to "latest" if not provided.
-    const tag = "latest";
+    this.validateContainerConfig(CONTAINER_URI, ECR_REPOSITORY_ARN);
 
-    // Check if the CONTAINER_URI indicates an Amazon ECR repository by checking the ARN format.
-    const ecrArnRegex =
-      /^arn:([^:]+):ecr:([^:]+):[^:]+:repository\/[a-zA-Z0-9-._]+(:[a-zA-Z0-9-._]+)?$/;
-
-    if (ecrArnRegex.test(this.config.CONTAINER_URI)) {
-      let repositoryArn = this.config.CONTAINER_URI;
-      let extractedTag = tag;
-
-      // Extract tag if present
-      const tagSeparatorIndex = this.config.CONTAINER_URI.lastIndexOf(":");
-      if (
-        tagSeparatorIndex > this.config.CONTAINER_URI.indexOf("repository/")
-      ) {
-        repositoryArn = this.config.CONTAINER_URI.substring(
-          0,
-          tagSeparatorIndex
-        );
-        extractedTag = this.config.CONTAINER_URI.substring(
-          tagSeparatorIndex + 1
-        );
-      }
-
-      // Import the existing ECR repository using the ARN provided in the CONTAINER_URI.
-      this.repository = Repository.fromRepositoryArn(
-        this,
-        "ImportedECRRepo",
-        repositoryArn
-      );
-
-      // Create a ContainerImage object from the imported ECR repository and specified tag.
-      this.containerImage = ContainerImage.fromEcrRepository(
-        this.repository,
-        extractedTag
-      );
-
-      // Set the containerUri to the full URI of the container image in ECR.
-      this.containerUri = this.repository.repositoryUriForTag(extractedTag);
-
-      if (this.buildDockerImageCode) {
-        // Create a DockerImageCode object for Lambda using the imported ECR repository.
-        this.dockerImageCode = DockerImageCode.fromEcr(this.repository, {
-          tagOrDigest: extractedTag
-        });
-      }
+    if (ECR_REPOSITORY_ARN) {
+      this.importRepositoryByArn(ECR_REPOSITORY_ARN);
     } else {
-      // If the CONTAINER_URI does not indicate an ECR repository, assume it is a public or private Docker registry.
-      this.repositoryAccessMode = "Vpc";
-
-      // Create a ContainerImage object from the provided Docker registry URI and tag.
-      this.containerImage = ContainerImage.fromRegistry(
-        this.config.CONTAINER_URI
-      );
-
-      // Set the containerUri to the full URI of the container image in the Docker registry.
-      this.containerUri = this.config.CONTAINER_URI;
-
-      if (this.buildDockerImageCode) {
-        // Define the Dockerfile content dynamically based on containerUri
-        const dockerfileContent = `FROM ${this.config.CONTAINER_URI}`;
-
-        // Create a temporary Dockerfile to build the Docker image with
-        const tmpDockerfile = "Dockerfile.tmp";
-
-        // Write the temp Dockerfile to the build directory
-        const dockerfilePath = path.join(__dirname, tmpDockerfile);
-        fs.writeFileSync(dockerfilePath, dockerfileContent);
-
-        // Create a DockerImageCode object for Lambda using the DockerImageAsset
-        this.dockerImageCode = DockerImageCode.fromImageAsset(__dirname, {
-          file: tmpDockerfile,
-          followSymlinks: SymlinkFollowMode.ALWAYS
-        });
-      }
+      this.importContainerByUri(CONTAINER_URI!);
     }
+  }
+
+  /**
+   * Validates the configuration to ensure only one of CONTAINER_URI or CONTAINER_ARN is provided.
+   *
+   * @param {string | undefined} uri - The container URI.
+   * @param {string | undefined} arn - The container ARN.
+   * @throws {Error} If both or neither are provided.
+   */
+  private validateContainerConfig(uri?: string, arn?: string): void {
+    if (uri && arn) {
+      throw new Error(
+        "Only one of CONTAINER_URI or ECR_REPOSITORY_ARN can be set."
+      );
+    }
+    if (!uri && !arn) {
+      throw new Error(
+        "Either CONTAINER_URI or ECR_REPOSITORY_ARN must be set in the configuration."
+      );
+    }
+  }
+
+  /**
+   * Imports an ECR repository by ARN.
+   *
+   * @param {string} arn - The ECR repository ARN.
+   */
+  private importRepositoryByArn(arn: string): void {
+    this.repository = Repository.fromRepositoryArn(
+      this,
+      "ImportedECRRepo",
+      arn
+    );
+    this.containerImage = ContainerImage.fromEcrRepository(
+      this.repository,
+      this.config.ECR_REPOSITORY_TAG
+    );
+    this.containerUri = this.repository.repositoryUri;
+
+    if (this.buildDockerImageCode) {
+      this.dockerImageCode = DockerImageCode.fromEcr(this.repository);
+    }
+  }
+
+  /**
+   * Imports a container by URI, handling ECR repositories and external registries.
+   *
+   * @param {string} uri - The container URI.
+   */
+  private importContainerByUri(uri: string): void {
+    if (uri.includes("dkr.ecr")) {
+      this.importEcrContainer(uri);
+    } else {
+      this.importExternalContainer(uri);
+    }
+  }
+
+  /**
+   * Imports a container from an ECR repository.
+   *
+   * @param {string} uri - The container URI.
+   */
+  private importEcrContainer(uri: string): void {
+    // Extract the repository name and tag from the URI
+    const tag = this.extractTagFromUri(uri);
+    const repoName = uri.split("/").pop()?.split(":")[0] ?? "";
+
+    this.repository = Repository.fromRepositoryName(
+      this,
+      "ImportedECRRepo",
+      repoName
+    );
+    this.containerImage = ContainerImage.fromEcrRepository(
+      this.repository,
+      tag
+    );
+    this.containerUri = `${this.repository.repositoryUri}:${tag}`;
+
+    if (this.buildDockerImageCode) {
+      this.dockerImageCode = DockerImageCode.fromEcr(this.repository, {
+        tagOrDigest: tag
+      });
+    }
+  }
+
+  /**
+   * Imports a container from an external registry such as Docker Hub.
+   *
+   * @param {string} uri - The container URI.
+   */
+  private importExternalContainer(uri: string): void {
+    this.repositoryAccessMode = "Vpc";
+    this.containerImage = ContainerImage.fromRegistry(uri);
+    this.containerUri = uri;
+
+    if (this.buildDockerImageCode) {
+      this.createDockerImageFromRegistry(uri);
+    }
+  }
+
+  /**
+   * Creates a temporary Dockerfile to use an external registry image.
+   *
+   * @param {string} uri - The container URI.
+   */
+  private createDockerImageFromRegistry(uri: string): void {
+    const tmpDockerfile = path.join(__dirname, "Dockerfile.tmp");
+    fs.writeFileSync(tmpDockerfile, `FROM ${uri}`);
+
+    this.dockerImageCode = DockerImageCode.fromImageAsset(__dirname, {
+      file: "Dockerfile.tmp",
+      followSymlinks: SymlinkFollowMode.ALWAYS
+    });
+  }
+
+  /**
+   * Extracts the tag from a container URI.
+   * If no tag is found, returns `"latest"` as the default.
+   *
+   * @param {string} uri - The container URI.
+   * @returns {string} The extracted tag or `"latest"` if none is found.
+   */
+  private extractTagFromUri(uri: string): string {
+    if (!uri) {
+      throw new Error("Container URI is undefined or empty.");
+    }
+
+    // Find the last `:` in the URI to check for a tag
+    const tagSeparatorIndex = uri.lastIndexOf(":");
+    const lastSlashIndex = uri.lastIndexOf("/");
+
+    // Ensure the colon comes after the last slash (indicating a tag, not a protocol separator)
+    if (tagSeparatorIndex > lastSlashIndex) {
+      return uri.substring(tagSeparatorIndex + 1);
+    }
+
+    // Default if no tag is found
+    return "latest";
   }
 }

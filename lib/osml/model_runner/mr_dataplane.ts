@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
+ * Copyright 2023-2025 Amazon.com, Inc. or its affiliates.
  */
 
 import { EcsIsoServiceAutoscaler } from "@cdklabs/cdk-enterprise-iac";
@@ -18,6 +18,7 @@ import {
   Cluster,
   Compatibility,
   ContainerDefinition,
+  ContainerInsights,
   FargateService,
   Protocol,
   TaskDefinition
@@ -662,7 +663,9 @@ export class MRDataplane extends Construct {
     this.cluster = new Cluster(this, "MRCluster", {
       clusterName: this.config.ECS_CLUSTER_NAME,
       vpc: props.osmlVpc.vpc,
-      containerInsights: props.account.prodLike
+      containerInsightsV2: props.account.prodLike
+        ? ContainerInsights.ENABLED
+        : ContainerInsights.DISABLED
     });
 
     // Define our ECS task
