@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 Amazon.com, Inc. or its affiliates.
+ * Copyright 2023-2025 Amazon.com, Inc. or its affiliates.
  */
 
 export * from "./osml/utils/base_config";
@@ -29,3 +29,4 @@ export * from "./osml/data_catalog/dc_dataplane";
 export * from "./osml/data_catalog/roles/dc_lambda_role";
 export * from "./osml/tile_server/ts_dataplane";
 export * from "./osml/tile_server/roles/ts_task_role";
+export * from "./osml/utils/regional_config";
