@@ -37,6 +37,7 @@ describe("MRDataplane constructor", () => {
       expect(mrDataplane.removalPolicy).toBeDefined();
       expect(mrDataplane.featureTable).toBeDefined();
       expect(mrDataplane.jobStatusTable).toBeDefined();
+      expect(mrDataplane.outstandingImageJobsTable).toBeDefined();
       expect(mrDataplane.regionRequestTable).toBeDefined();
       expect(mrDataplane.endpointStatisticsTable).toBeDefined();
       expect(mrDataplane.imageRequestQueue).toBeDefined();
