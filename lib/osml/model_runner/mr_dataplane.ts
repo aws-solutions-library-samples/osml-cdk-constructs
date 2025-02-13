@@ -107,6 +107,12 @@ export class MRDataplaneConfig extends BaseConfig {
   public DDB_JOB_STATUS_TABLE: string;
 
   /**
+   * The name of the DynamoDB table for outstanding image jobs.
+   * @default "OutstandingImageProcessingJobs"
+   */
+  public DDB_OUTSTANDING_IMAGE_JOBS_TABLE: string
+
+  /**
    * The name of the DynamoDB table for region request status.
    * @default "RegionProcessingJobStatus"
    */
@@ -337,6 +343,7 @@ export class MRDataplaneConfig extends BaseConfig {
       DDB_ENDPOINT_PROCESSING_TABLE: "EndpointProcessingStatistics",
       DDB_FEATURES_TABLE: "ImageProcessingFeatures",
       DDB_JOB_STATUS_TABLE: "ImageProcessingJobStatus",
+      DDB_OUTSTANDING_IMAGE_JOBS_TABLE: "OutstandingImageProcessingJobs",
       DDB_REGION_REQUEST_TABLE: "RegionProcessingJobStatus",
       DDB_TTL_ATTRIBUTE: "expire_time",
       ECS_AUTOSCALING_TASK_MAX_COUNT: 40,
@@ -430,6 +437,11 @@ export class MRDataplane extends Construct {
    * The regional S3 endpoint.
    */
   public regionalS3Endpoint: string;
+
+  /**
+   * The DynamoDB table for outstanding image processing jobs.
+   */
+  public outstandingImageJobsTable: OSMLTable;
 
   /**
    * The DynamoDB table for job status.
@@ -554,6 +566,20 @@ export class MRDataplane extends Construct {
 
     // Configure the construct with passed params
     this.setup(props);
+
+    // Outstanding jobs currently being tracked by the scheduler
+    this.outstandingImageJobsTable = new OSMLTable(this, "MROutstandingImageJobsTable", {
+      tableName: this.config.DDB_OUTSTANDING_IMAGE_JOBS_TABLE,
+      partitionKey: {
+        name: "endpoint_id",
+        type: AttributeType.STRING
+      },
+      sortKey: {
+        name: "job_id",
+        type: AttributeType.STRING
+      },
+      removalPolicy: this.removalPolicy,
+    });
 
     // Job status table to store worker status info
     this.jobStatusTable = new OSMLTable(this, "MRJobStatusTable", {
@@ -735,6 +761,7 @@ export class MRDataplane extends Construct {
     let containerEnv = {
       AWS_DEFAULT_REGION: props.account.region,
       JOB_TABLE: this.jobStatusTable.table.tableName,
+      OUTSTANDING_JOBS_TABLE: this.outstandingImageJobsTable.table.tableName,
       FEATURE_TABLE: this.featureTable.table.tableName,
       ENDPOINT_TABLE: this.endpointStatisticsTable.table.tableName,
       REGION_REQUEST_TABLE: this.regionRequestTable.table.tableName,
