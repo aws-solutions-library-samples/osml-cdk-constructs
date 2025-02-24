@@ -39,7 +39,6 @@ import {
   NetworkLoadBalancer,
   Protocol as elbv2_protocol
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
-import { IpTarget } from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
 import {
   AnyPrincipal,
   IRole,
@@ -589,7 +588,9 @@ export class TSDataplane extends Construct {
         }),
         disableNetworking: false,
         healthCheck: {
-          command: ["curl --fail http://localhost:8080/ping || exit 1"],
+          command: [
+            `curl --fail http://localhost:${this.config.ECS_CONTAINER_PORT}/ping || exit 1`
+          ],
           interval: Duration.seconds(30),
           retries: 3,
           timeout: Duration.seconds(10)
@@ -617,7 +618,9 @@ export class TSDataplane extends Construct {
       "TSServiceApplicationLoadBalancer",
       {
         vpc: props.osmlVpc.vpc,
-        vpcSubnets: props.osmlVpc.selectedSubnets
+        vpcSubnets: props.osmlVpc.selectedSubnets,
+        securityGroup: this.securityGroup,
+        internetFacing: false
       }
     );
 
@@ -632,12 +635,10 @@ export class TSDataplane extends Construct {
         securityGroups: this.securityGroup ? [this.securityGroup] : [],
         taskSubnets: props.osmlVpc.selectedSubnets,
         assignPublicIp: false,
-        publicLoadBalancer: false,
         loadBalancer: this.alb
       }
     );
     this.fargateService.node.addDependency(this.tsContainer);
-    this.fargateService.node.addDependency(this.alb);
 
     // Allow access to EFS from Fargate ECS
     this.fileSystem.grantRootAccess(
@@ -707,10 +708,8 @@ export class TSDataplane extends Construct {
       });
 
       nlbListener.addTargets("TSNlbTargetGroup", {
-        targets: [
-          new IpTarget(this.fargateService.loadBalancer.loadBalancerDnsName)
-        ],
-        port: this.config.ECS_NETWORK_LOAD_BALANCER_PORT // Target port
+        targets: [this.fargateService.service],
+        port: this.config.ECS_NETWORK_LOAD_BALANCER_PORT
       });
 
       const vpcLink = new VpcLink(this, "TSVpcLink", {
