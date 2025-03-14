@@ -766,6 +766,7 @@ export class MRDataplane extends Construct {
       ENDPOINT_TABLE: this.endpointStatisticsTable.table.tableName,
       REGION_REQUEST_TABLE: this.regionRequestTable.table.tableName,
       IMAGE_QUEUE: this.imageRequestQueue.queue.queueUrl,
+      IMAGE_DLQ: this.imageRequestQueue.dlQueue.queueUrl,
       REGION_QUEUE: this.regionRequestQueue.queue.queueUrl,
       AWS_S3_ENDPOINT: this.regionalS3Endpoint,
       WORKERS_PER_CPU: this.config.MR_WORKERS_PER_CPU.toString(),
